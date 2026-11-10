@@ -1,0 +1,33 @@
+# Import wyników Claude Code do bazy (etap S7). Czyta paczki i wyniki z gałęzi queue-data,
+# waliduje wyniki w kodzie (cytaty w źródle, fakty, nakładanie się n-gramów, ceny) i zapisuje je w bazie.
+# NIEPRZETESTOWANE w GitHub Actions. Harmonogram jest wyłączony do czasu pierwszego udanego ręcznego przebiegu.
+name: import
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "23 */6 * * *"
+
+concurrency:
+  group: katalog-db
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      QUEUE_DIR: ./queue
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e apps/worker
+      - name: Pobranie kolejki z gałęzi queue-data
+        run: bash scripts/queue_sync.sh pull
+      - name: S7 import
+        run: |
+          katalog import
+          katalog status

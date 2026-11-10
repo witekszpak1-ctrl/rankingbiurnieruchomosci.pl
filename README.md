@@ -47,7 +47,23 @@ Każdy etap to osobne polecenie (`katalog --help`). Kolejność:
 Claude Code czyta je według instrukcji z `packages/verticals/nieruchomosci/prompts/` i zapisuje wyniki do
 `queue/results/<typ>/<id>.json`. `katalog import` waliduje wynik w kodzie: cytaty muszą występować w źródle, każde
 zdanie opisu wskazuje fakty, opis nie kopiuje źródła, liczby i tryb VAT w cenach zgadzają się z cytatem.
-Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza repozytorium kodu).
+Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza gałęzią `main`).
+
+### Obieg na produkcji (GitHub Actions + sesja Claude Code)
+
+Sesje Claude Code nie mają dostępu do artefaktów Actions ani do bazy, więc kolejka przechodzi przez gałąź `queue-data`
+tego samego repozytorium (bez wspólnej historii z `main`, tylko katalog `queue/`). Obsługuje ją `scripts/queue_sync.sh`.
+
+1. Workflow **pipeline** (ręcznie): discover, probe, verify, crawl-deep, bundle, potem `push-pending` wysyła nowe paczki
+   na `queue-data` (istniejących nie nadpisuje).
+2. Sesja Claude Code: `bash scripts/queue_sync.sh pull`, opis każdej paczki z `queue/pending/` według
+   `packages/verticals/nieruchomosci/prompts/`, wynik do `queue/results/<typ>/<id>.json`, sprawdzenie
+   `katalog validate --bundle B --result R`, potem `bash scripts/queue_sync.sh push-results`.
+3. Workflow **import** (ręcznie): pobiera kolejkę z `queue-data`, `katalog import` waliduje wyniki i zapisuje je w bazie.
+
+Wymagane w ustawieniach repozytorium: sekrety `DATABASE_URL`, `SERPER_API_KEY` lub `BRAVE_API_KEY` oraz zmienna
+`CRAWLER_USER_AGENT` z prawdziwym adresem kontaktowym (patrz `.env.example`). Skrypt kolejki przetestowano lokalnie na
+tymczasowym zdalnym repozytorium. Same workflowy nie były uruchamiane w Actions.
 
 ## Zasady
 

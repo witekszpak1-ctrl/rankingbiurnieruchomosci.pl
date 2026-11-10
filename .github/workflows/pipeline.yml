@@ -1,8 +1,9 @@
 # Ręczne uruchomienie etapów pipeline'u na GitHub Actions.
 # NIEPRZETESTOWANE: powstało bez dostępu do GitHuba. Ograniczenia, o których trzeba wiedzieć:
 # - system plików runnera jest tymczasowy, więc etapy zależne od snapshotów (probe, verify, crawl-deep, bundle)
-#   muszą działać w jednym zadaniu, jak poniżej, a katalog queue/ trafia jako artefakt (docelowo: push do
-#   prywatnego repo katalog-queue),
+#   muszą działać w jednym zadaniu, jak poniżej. Paczki dla Claude Code trafiają na gałąź queue-data
+#   (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
+#   workflow import.yml,
 # - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
 # - harmonogram (schedule) jest celowo wyłączony do czasu pierwszego udanego ręcznego przebiegu.
 name: pipeline
@@ -24,6 +25,13 @@ on:
         default: "50"
   # schedule:
   #   - cron: "17 5 * * 1-5"
+
+permissions:
+  contents: write # push paczek na gałąź queue-data
+
+concurrency:
+  group: katalog-db
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -54,6 +62,8 @@ jobs:
           katalog crawl-deep --limit "${{ inputs.limit }}"
           katalog bundle --limit "${{ inputs.limit }}"
           katalog status
+      - name: Publikacja paczek na gałąź queue-data
+        run: bash scripts/queue_sync.sh push-pending
       - uses: actions/upload-artifact@v4
         with:
           name: queue
