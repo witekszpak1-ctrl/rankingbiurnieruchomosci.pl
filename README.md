@@ -32,7 +32,7 @@ Każdy etap to osobne polecenie (`katalog --help`). Kolejność:
 |---|---|---|
 | `katalog migrate` | | stosuje migracje (wymaga `DATABASE_URL`) |
 | `katalog discover --city Wrocław --provider brave` | S1 | zapytania -> domeny kandydatów |
-| `katalog probe` | S3 | strona główna i kontakt, klasyfikacja heurystyczna |
+| `katalog probe` | S3 | strona główna i kontakt (a gdy brak NIP, polityka prywatności lub regulamin), klasyfikacja heurystyczna |
 | `katalog verify` | S4 | NIP ze strony -> biała lista VAT i KRS -> weryfikacja domeny |
 | `katalog crawl-deep` | S5 | kolejne podstrony zweryfikowanych domen |
 | `katalog bundle` | S6 | paczki dla Claude Code w `queue/pending/` |

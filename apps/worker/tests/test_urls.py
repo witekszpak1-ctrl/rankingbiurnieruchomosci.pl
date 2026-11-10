@@ -66,3 +66,22 @@ def test_registrable_domain_handles_polish_city_suffixes():
     # zwykłe domeny bez zmian
     assert registrable_domain("https://www.przyklad.com.pl/") == "przyklad.com.pl"
     assert registrable_domain("https://wroclaw.wgn.pl/") == "wgn.pl"
+
+
+def test_pick_legal_pages_prefers_privacy_and_skips_cookies_foreign_and_pdf():
+    from katalog_worker.urls import is_legal_url, pick_legal_pages
+
+    links = [
+        ("/kontakt", "Kontakt"),
+        ("/polityka-cookies", "Polityka cookies"),
+        ("/regulamin", "Regulamin serwisu"),
+        ("/polityka-prywatnosci", "Polityka prywatności"),
+        ("https://inna-firma.pl/polityka-prywatnosci", "cudza"),
+        ("/files/rodo.pdf", "RODO (PDF)"),
+        ("mailto:rodo@przyklad.pl", "rodo"),
+    ]
+    picks = pick_legal_pages(links, "https://przyklad.pl/", limit=3)
+    assert picks == ["https://przyklad.pl/polityka-prywatnosci", "https://przyklad.pl/regulamin"]
+    assert is_legal_url("https://przyklad.pl/polityka-prywatnosci")
+    assert not is_legal_url("https://przyklad.pl/oferta/sprzedaz-mieszkan")
+    assert pick_legal_pages([("/kontakt", "Kontakt")], "https://przyklad.pl/") == []

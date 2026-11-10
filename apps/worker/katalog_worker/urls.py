@@ -123,3 +123,50 @@ def pick_pages(links: list[tuple[str, str]], base_url: str, limit: int = 8) -> l
         scored[url] = max(scored.get(url, 0), score)
     ordered = sorted(scored.items(), key=lambda item: (-item[1], item[0]))
     return [url for url, _ in ordered[:limit]]
+
+
+# Strony prawne (polityka prywatności, regulamin): zwykle podają NIP administratora. Używamy ich tylko do weryfikacji
+# firmy po NIP, nie jako źródła faktów do opisu (mogą zawierać dane osobowe).
+_LEGAL_HINTS: tuple[tuple[str, int], ...] = (
+    ("prywatn", 3),
+    ("privacy", 3),
+    ("rodo", 3),
+    ("gdpr", 3),
+    ("regulamin", 2),
+    ("klauzula", 2),
+    ("terms", 2),
+    ("polityka", 1),
+)
+
+
+def _legal_score(haystack: str) -> int:
+    score = sum(weight for hint, weight in _LEGAL_HINTS if hint in haystack)
+    if "cookie" in haystack or "ciastecz" in haystack:
+        score -= 2  # polityka cookies rzadko zawiera NIP
+    return score
+
+
+def is_legal_url(url: str) -> bool:
+    """Czy adres wygląda na stronę prawną (do wykluczenia z danych dla opisów)."""
+    return _legal_score(url.lower()) > 0
+
+
+def pick_legal_pages(links: list[tuple[str, str]], base_url: str, limit: int = 2) -> list[str]:
+    """Najbardziej obiecujące strony prawne tej samej domeny, najlepsze pierwsze."""
+    base_domain = registrable_domain(base_url)
+    scored: dict[str, int] = {}
+    for href, anchor in links:
+        if not href or href.startswith(("mailto:", "tel:", "javascript:", "#")):
+            continue
+        absolute = urljoin(base_url, href)
+        if registrable_domain(absolute) != base_domain or _SKIP_EXT.search(absolute):
+            continue
+        if absolute.lower().split("?")[0].endswith(".pdf"):
+            continue
+        score = _legal_score(f"{absolute} {anchor}".lower())
+        if score <= 0:
+            continue
+        url = canonical_url(absolute)
+        scored[url] = max(scored.get(url, 0), score)
+    ordered = sorted(scored.items(), key=lambda item: (-item[1], item[0]))
+    return [url for url, _ in ordered[:limit]]

@@ -387,3 +387,61 @@ def test_discover_from_file_imports_candidates_once(ctx, tmp_path):
     )
     assert again == {"skipped_already_imported": 1}
     assert ctx.repo.conn.execute("select count(*) as n from search_queries").fetchone()["n"] == 2
+
+
+def _agency_without_nip_pages():
+    import re
+
+    home = fixture_text("agency_official.html")
+    home = re.sub(r"<p>NIP:[^<]*</p>", "<p>Biuro nieruchomości we Wrocławiu.</p>", home)
+    home = re.sub(r'\s*"taxID": "[^"]*",', "", home)  # NIP także z JSON-LD, żeby strona go nie zawierała
+    assert "123-456-32-18" not in home
+    home = home.replace(
+        '<a href="/kontakt">Kontakt</a>',
+        '<a href="/kontakt">Kontakt</a>\n    <a href="/polityka-prywatnosci">Polityka prywatności</a>',
+    )
+    contact = (
+        "<html><head><title>Kontakt</title></head><body>Kontakt. ul. Świdnicka 10, 50-067 Wrocław. "
+        "Tel. 71 123 45 67</body></html>"
+    )
+    privacy = (
+        "<html><head><title>Polityka prywatności</title></head><body><h1>Polityka prywatności</h1>"
+        "<p>Administratorem danych jest Przykład Nieruchomości Sp. z o.o., NIP: 123-456-32-18. "
+        "Inspektor: Anna Nowak, anna.nowak@przyklad-nieruchomosci.pl</p></body></html>"
+    )
+    return {
+        AGENCY: home,
+        AGENCY + "kontakt": contact,
+        AGENCY + "polityka-prywatnosci": privacy,
+        AGENCY + "cennik": PRICING_HTML,
+        AGENCY + "o-nas/": SMALL_HTML,
+        AGENCY + "oferta/sprzedaz-mieszkan": SMALL_HTML,
+    }
+
+
+def test_probe_falls_back_to_privacy_policy_for_nip_and_keeps_it_out_of_bundles(ctx):
+    fetcher = FakeFetcher(_agency_without_nip_pages())
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    # kontakt jest pobierany mimo niższej punktacji niż cennik i "o nas"
+    assert AGENCY + "kontakt" in fetcher.requested
+    assert AGENCY + "polityka-prywatnosci" in fetcher.requested
+
+    verify = stage_verify(ctx, make_mf(), make_krs(), 50)
+    assert verify["verified"] == 1  # NIP znaleziony dopiero w polityce prywatności
+
+    stage_crawl_deep(ctx, fetcher, 10)
+    stage_bundle(ctx, 10)
+    brand_id = str(ctx.repo.conn.execute("select id from brands").fetchone()["id"])
+    raw = (ctx.queue_dir / "pending" / "describe" / f"{brand_id}.json").read_text(encoding="utf-8")
+    assert "polityka-prywatnosci" not in raw and "Anna Nowak" not in raw
+    assert "anna.nowak" not in raw
+
+
+def test_probe_skips_privacy_policy_when_nip_is_already_found(ctx):
+    pages = _agency_without_nip_pages()
+    pages[AGENCY + "kontakt"] = CONTACT_HTML  # kontakt ma NIP
+    fetcher = FakeFetcher(pages)
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    assert AGENCY + "polityka-prywatnosci" not in fetcher.requested

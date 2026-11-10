@@ -26,7 +26,7 @@ from .queries import build_queries
 from .registry import KrsClient, MfVatClient, RegistryEntity, RegistryError
 from .repo import Repo
 from .search.base import SearchProvider
-from .urls import canonical_url, pick_pages, registrable_domain
+from .urls import canonical_url, pick_pages, registrable_domain, is_legal_url, pick_legal_pages
 from .validate import validate_result
 from .verify import Verification, _page_names, name_similarity, verify_domain
 from .verticals import VerticalConfig
@@ -150,12 +150,24 @@ def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
             continue
 
         fetched = [(home, extract_page(home.text, home.final_url))]
-        picks = pick_pages(fetched[0][1].links, home.final_url, limit=4)
+        # Strona kontaktu (tam zwykle jest NIP) wybierana spośród wszystkich ocenionych podstron, bo cennik i "o nas"
+        # dostają więcej punktów i wypychały ją poza czołówkę.
+        picks = pick_pages(fetched[0][1].links, home.final_url, limit=50)
         contact = next((u for u in picks if _CONTACT_RE.search(u)), None)
         if contact and contact != canonical_url(home.final_url):
             extra = fetcher.fetch(contact)
             if extra.ok:
                 fetched.append((extra, extract_page(extra.text, extra.final_url)))
+
+        if not any(page.nips for _, page in fetched):
+            # Brak NIP na stronie głównej i w kontakcie: szukamy go w polityce prywatności albo regulaminie.
+            for legal_url in pick_legal_pages(fetched[0][1].links, home.final_url, limit=2):
+                extra = fetcher.fetch(legal_url)
+                if extra.ok:
+                    page = extract_page(extra.text, extra.final_url)
+                    fetched.append((extra, page))
+                    if page.nips:
+                        break
 
         merged = merge_extractions([page for _, page in fetched])
         classification = classify_page(merged, ctx.keywords, ctx.blocklist)
@@ -299,7 +311,7 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
     for row in repo.brands_needing_description(limit):
-        pages = _load_pages(ctx, row["domain_id"])
+        pages = [p for p in _load_pages(ctx, row["domain_id"]) if not is_legal_url(p.url)]
         if not pages:
             counts["no_pages"] += 1
             continue
@@ -318,7 +330,7 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
         counts["describe"] += 1
         repo.conn.commit()
     for row in repo.domains_needing_classification(limit):
-        pages = _load_pages(ctx, row["id"])
+        pages = [p for p in _load_pages(ctx, row["id"]) if not is_legal_url(p.url)]
         if not pages:
             continue
         merged = merge_extractions(pages)
