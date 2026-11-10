@@ -56,3 +56,34 @@ def test_find_regons_and_krs():
     text = "REGON: 123456785, KRS 0000123456"
     assert [h.value for h in find_regons(text)] == ["123456785"]
     assert [h.value for h in find_krs(text)] == ["0000123456"]
+
+
+import pytest as _pytest  # noqa: E402
+
+
+@_pytest.mark.parametrize(
+    "text",
+    [
+        "NIP/REGON: 1234563218 / 123456785",
+        "NIP / REGON 123-456-32-18 / 123456785",
+        "NIP, KRS: 1234563218, 0000123456",
+        "NIP i REGON: 1234563218 i 123456785",
+        "N.I.P. 123-456-32-18",
+        "N.I.P: 1234563218",
+        "REGON/NIP: 123456785 / 1234563218",
+        "KRS/NIP: 0000123456 / 123-456-32-18",
+    ],
+)
+def test_find_nips_handles_combined_and_dotted_labels(text):
+    from katalog_worker.ids import find_nips
+
+    assert [h.value for h in find_nips(text)] == ["1234563218"]
+
+
+@_pytest.mark.parametrize(
+    "text", ["tel. 123 456 32 18", "NIP 1234563219", "NIPOWY 1234563218", "REGON: 123456785"]
+)
+def test_find_nips_still_rejects_phones_bad_checksums_and_other_ids(text):
+    from katalog_worker.ids import find_nips
+
+    assert find_nips(text) == []

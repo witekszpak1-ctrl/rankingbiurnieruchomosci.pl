@@ -58,8 +58,15 @@ class IdHit:
 
 
 # Słowo kluczowe, potem do ~15 znaków nie-cyfr, potem blok cyfr z separatorami.
+# Warianty etykiety: "NIP", "N.I.P.", łączone "NIP/REGON", "NIP, KRS", "NIP i REGON" (wtedy NIP jest pierwszą liczbą).
 _NIP_KEYED = re.compile(
-    r"(?i)\bNIP\b[^0-9A-Za-z]{0,15}(?:PL\s?)?(?P<num>\d[\d\-\s]{8,16}\d)"
+    r"(?i)\b(?:NIP\b|N\.\s?I\.\s?P\b\.?)(?:\s*[/,&]\s*(?:REGON|KRS)\b|\s+i\s+(?:REGON|KRS)\b)?"
+    r"[^0-9A-Za-z]{0,15}(?:PL\s?)?(?P<num>\d[\d\-\s]{8,16}\d)"
+)
+# Odwrócona kolejność: "REGON/NIP: 123456785 / 1234563218" (NIP jest drugą liczbą).
+_NIP_AFTER_OTHER = re.compile(
+    r"(?i)\b(?:REGON|KRS)\s*[/,&]\s*NIP\b[^0-9A-Za-z]{0,15}\d[\d\-\s]{7,16}?\s*[/,&;]\s*(?:PL\s?)?"
+    r"(?P<num>\d{10}|\d{3}[\s\-]\d{3}[\s\-]\d{2}[\s\-]\d{2})"
 )
 # Numer VAT UE: PL1234567890
 _NIP_VATEU = re.compile(r"\bPL[\s\-]?(?P<num>\d{3}[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}|\d{10})\b")
@@ -77,7 +84,7 @@ def find_nips(text: str) -> list[IdHit]:
     Gołe 10-cyfrowe liczby bez słowa kluczowego są ignorowane (zbyt wiele numerów telefonów).
     """
     hits: dict[str, IdHit] = {}
-    for pattern in (_NIP_KEYED, _NIP_VATEU):
+    for pattern in (_NIP_KEYED, _NIP_AFTER_OTHER, _NIP_VATEU):
         for match in pattern.finditer(text):
             nip = digits_only(match.group("num"))
             if is_valid_nip(nip) and nip not in hits:
