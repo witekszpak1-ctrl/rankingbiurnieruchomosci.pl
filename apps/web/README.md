@@ -24,7 +24,8 @@ Dane deweloperskie (fikcyjne firmy): `python3 db/seeds/generate_dev_seed.py > db
 | `/` | miasta z opublikowanymi wpisami |
 | `/{miasto}` | ranking (od 5 biur) lub lista, mediana prowizji (od 3 jawnych cen), JSON-LD `ItemList` |
 | `/{miasto}/{firma}` | opis, usługi, ceny z cytatem i datą, wynik z rozbiciem, JSON-LD `RealEstateAgent` |
-| `/metodologia`, `/reklama`, `/dla-firm`, `/bot` | strony zasad i zgłoszeń |
+| `/metodologia`, `/reklama`, `/bot` | strony zasad |
+| `/dla-firm` | formularz zgłoszeń od firm (korekta danych, usunięcie wpisu, inne), zapis w tabeli `requests` |
 | `/sitemap.xml`, `/robots.txt`, `/llms.txt` | dla wyszukiwarek i asystentów AI |
 
 Miasto z mniejszą liczbą biur niż próg ma `noindex` i nie trafia do sitemap. Do sitemap trafiają tylko wpisy ze statusem
@@ -35,7 +36,7 @@ odświeżają je od razu.
 
 Logowanie jednym kontem z konfiguracji środowiska (sesja podpisana HMAC, ciasteczko HttpOnly, 12 godzin). Strony:
 przegląd (lejek, kolejki, wydajność wyszukiwania), firmy (filtry, karta z faktami i źródłami), kolejka weryfikacji
-(zatwierdź lub odrzuć domenę z powodami), przebiegi pipeline, audyt zmian. Publikacja wpisu przechodzi przez bramkę
+(zatwierdź lub odrzuć domenę z powodami), zgłoszenia ze strony dla firm (status i notatka), przebiegi pipeline, audyt zmian. Publikacja wpisu przechodzi przez bramkę
 (domena zweryfikowana, zwalidowany opis, minimum faktów z ustawienia `publish_min_facts`), którą można świadomie wymusić.
 Każda zmiana zapisuje wpis w `audit_log`.
 
@@ -44,6 +45,8 @@ Każda zmiana zapisuje wpis w `audit_log`.
 - Jedno konto admina bez ról. Role (redaktor, sprzedaż) i zarządzanie użytkownikami dojdą później, najpewniej na
   Neon Auth albo Auth.js. Brak limitu prób logowania poza krótkim opóźnieniem (docelowo zapora na brzegu, np. Cloudflare).
 - Ranking v0 używa tylko parametrów, na które są dane (staż, jawność cennika, spójność danych, zakres usług).
-- Brak formularzy leadów, zgłoszeń korekty, reklam i panelu firmy (fazy F4 i F6 w `docs/PLAN.md`).
+- Formularz zgłoszeń ma tylko ukryte pole-pułapkę i limit (20 na godzinę łącznie, 3 na adres e-mail). Powiadomień e-mail
+  o nowych zgłoszeniach jeszcze nie ma (panel pokazuje licznik). Brak formularzy leadów dla klientów, reklam i panelu firmy
+  (fazy F4 i F6 w `docs/PLAN.md`).
 - Adres kontaktowy (`NEXT_PUBLIC_CONTACT_EMAIL`) i dane administratora na stronie `/dla-firm` wymagają uzupełnienia
   oraz weryfikacji prawnej przed publicznym startem.

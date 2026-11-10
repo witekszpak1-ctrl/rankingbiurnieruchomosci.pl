@@ -79,7 +79,7 @@ ul.plain { padding-left: 1.1em; }
 .btn, button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--fg); padding: 6px 14px; border-radius: 8px; }
 .btn.primary, button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .btn.danger, button.danger { color: var(--bad); border-color: var(--bad); }
-input, select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
+input, select, textarea { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); }
 label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4px; }
 .form-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 10px 0 16px; }
 .alert { padding: 10px 14px; border-radius: var(--radius); margin: 12px 0; }

@@ -8,6 +8,7 @@ import { getFirm } from "@/lib/admin-data";
 import { writeAudit } from "@/lib/audit";
 import { query, withTransaction } from "@/lib/db";
 import { evaluateGate } from "@/lib/gate";
+import { REQUEST_STATUSES } from "@/lib/requests";
 import { slugify, uniqueSlug } from "@/lib/slug";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -130,4 +131,42 @@ export async function reviewAction(formData: FormData) {
     });
   });
   back("/admin/review", "ok", approve ? "Domena zatwierdzona." : "Domena odrzucona.");
+}
+
+/** Zmiana statusu zgłoszenia ze strony /dla-firm wraz z notatką. Zapisuje wpis audytu w tej samej transakcji. */
+export async function requestAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  if (!UUID_RE.test(id) || !(REQUEST_STATUSES as readonly string[]).includes(status)) {
+    back("/admin/requests", "error", "Nieprawidłowe dane formularza.");
+  }
+  if (note.length > 1000) back("/admin/requests", "error", "Notatka może mieć najwyżej 1000 znaków.");
+
+  const found = await withTransaction(async (client) => {
+    const rows = await client.query<{ status: string; adminNote: string | null }>(
+      `select status, admin_note as "adminNote" from requests where id = $1 for update`,
+      [id],
+    );
+    const before = rows.rows[0];
+    if (!before) return false;
+    await client.query(
+      `update requests set status = $2, admin_note = $3, handled_by = $4,
+              handled_at = case when $2 = 'new' then null else now() end where id = $1`,
+      [id, status, note || null, admin],
+    );
+    await writeAudit(client, {
+      actor: admin,
+      action: "request.update",
+      entityType: "request",
+      entityId: id,
+      before: { status: before.status },
+      after: { status },
+    });
+    return true;
+  });
+  if (!found) back("/admin/requests", "error", "Nie znaleziono zgłoszenia.");
+  revalidatePath("/admin");
+  back("/admin/requests", "ok", "Zgłoszenie zaktualizowane.");
 }

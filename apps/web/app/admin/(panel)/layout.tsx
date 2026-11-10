@@ -16,6 +16,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <Link href="/admin">Przegląd</Link>
         <Link href="/admin/firms">Firmy</Link>
         <Link href="/admin/review">Kolejka weryfikacji</Link>
+        <Link href="/admin/requests">Zgłoszenia</Link>
         <Link href="/admin/runs">Przebiegi</Link>
         <Link href="/admin/audit">Audyt</Link>
         <Link href="/">Strona publiczna</Link>

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Flash, Kpi, RunsTable } from "@/components/admin";
 import { getDashboard } from "@/lib/admin-data";
+import { countNewRequests } from "@/lib/requests";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -10,7 +11,7 @@ const sum = (counts: Record<string, number>) => Object.values(counts).reduce((a,
 
 export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
-  const d = await getDashboard();
+  const [d, newRequests] = await Promise.all([getDashboard(), countNewRequests()]);
   const toReview = n(d.listings, "needs_review") + n(d.domains, "probable");
   return (
     <>
@@ -23,6 +24,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         <Kpi value={n(d.listings, "verified")} label="wpisów zweryfikowanych, niepublikowanych" />
         <Kpi value={n(d.queue, "describe:pending") + n(d.queue, "classify:pending")} label="paczek czeka na Claude Code" />
         <Kpi value={n(d.queue, "describe:rejected") + n(d.queue, "classify:rejected")} label="wyników odrzuconych przez walidator" />
+        <Kpi value={newRequests} label="nowych zgłoszeń ze strony dla firm" />
       </div>
       <p>
         <Link className="btn" href="/admin/review">
@@ -30,6 +32,9 @@ export default async function DashboardPage({ searchParams }: Props) {
         </Link>{" "}
         <Link className="btn" href="/admin/firms?status=verified">
           Wpisy do publikacji
+        </Link>{" "}
+        <Link className="btn" href="/admin/requests">
+          Zgłoszenia ({newRequests})
         </Link>
       </p>
 

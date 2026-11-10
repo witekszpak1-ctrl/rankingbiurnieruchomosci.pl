@@ -13,7 +13,7 @@ EXPECTED_TABLES = {
     "locations", "contacts", "social_links", "listings", "crawl_pages", "facts",
     "price_items", "review_links", "descriptions", "pipeline_runs", "search_queries",
     "search_results", "queue_items", "registry_cache", "audit_log", "settings",
-    "schema_migrations",
+    "schema_migrations", "requests",
 }
 
 
@@ -30,8 +30,8 @@ def test_schema_has_expected_tables(db):
 
 def test_migrate_is_idempotent(db):
     assert migrate(db) == []  # szablon ma już wszystko zastosowane
-    versions = [r["version"] for r in db.execute("select version from schema_migrations").fetchall()]
-    assert versions == ["0001_init"]
+    versions = [r["version"] for r in db.execute("select version from schema_migrations order by version").fetchall()]
+    assert versions == ["0001_init", "0002_requests"]
 
 
 def test_changed_applied_migration_is_rejected(db, tmp_path):
@@ -87,3 +87,19 @@ def test_queue_item_requires_target(db):
 
 def test_default_dir_points_to_repo_migrations():
     assert Path(default_migrations_dir(), "0001_init.sql").exists()
+
+
+def test_requests_constraints(db):
+    ok = "insert into requests (kind, requester_email, message, nip) values (%s, %s, %s, %s)"
+    db.execute(ok, ("correction", "a@b.pl", "Proszę o poprawę adresu firmy.", "1234563218"))
+    db.execute(ok, ("removal", "a@b.pl", "Proszę o usunięcie wpisu.", None))
+    assert db.execute("select status from requests limit 1").fetchone()["status"] == "new"
+    for bad in [
+        ("nieznany", "a@b.pl", "Wystarczająco długa treść.", None),  # rodzaj spoza listy
+        ("other", "a@b.pl", "krótka", None),  # treść poniżej 10 znaków
+        ("other", "a@b.pl", "x" * 2001, None),  # treść powyżej 2000 znaków
+        ("other", "a@b.pl", "Wystarczająco długa treść.", "123"),  # zły NIP
+    ]:
+        with pytest.raises(Exception):
+            with db.transaction():
+                db.execute(ok, bad)
