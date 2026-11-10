@@ -87,6 +87,7 @@ create table domains (
                                                    'media', 'irrelevant', 'parked', 'uncertain')),
   classification_reasons jsonb not null default '[]'::jsonb,
   verification_score     integer check (verification_score between 0 and 100),
+  verification_reasons   jsonb not null default '[]'::jsonb,
   verification_status    text not null default 'candidate'
                          check (verification_status in ('candidate', 'verified', 'probable',
                                                         'needs_review', 'rejected')),

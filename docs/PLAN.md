@@ -586,3 +586,9 @@ planu, które wynikły z testów na żywych API rejestrów.
 7. **Baza Neon:** konto Neon jest zarządzane przez Vercel (integracja Marketplace), więc API odmawia tworzenia projektów.
    Projekt trzeba utworzyć w panelu Vercel (Storage, Neon) albo na osobnym koncie Neon. Do tego czasu schemat jest
    zweryfikowany na lokalnym Postgresie 16, a migracja nie jest zastosowana.
+8. **Wycinek F2 i F3 jest zbudowany** (`apps/web`): strona publiczna i panel admina opisane w `apps/web/README.md`. Ranking v0 liczy
+   tylko 4 parametry z danymi, a metodologia na stronie jest generowana z tych samych stałych co kod.
+9. **Uwaga techniczna:** w tej wersji Reacta formularz z akcją serwerową nie przekazuje `name` i `value` przycisku, więc każda
+   decyzja w panelu ma własny formularz z ukrytym polem. Kto dodaje nowe akcje, powinien trzymać się tego wzorca.
+10. **Bramka publikacji działa w panelu**: domena zweryfikowana, zwalidowany opis i minimum faktów (`publish_min_facts`).
+    Wymuszenie jest możliwe świadomie i zapisuje się w audycie.

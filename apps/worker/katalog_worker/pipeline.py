@@ -223,7 +223,9 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
             if city_name:
                 listing_status = "verified" if verification.status == "verified" else "needs_review"
                 repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), listing_status)
-        repo.update_domain_verification(row["id"], verification.score, verification.status, legal_entity_id, brand_id)
+        repo.update_domain_verification(
+            row["id"], verification.score, verification.status, legal_entity_id, brand_id, verification.reasons
+        )
         counts[verification.status] += 1
         repo.conn.commit()
     counts["mf_requests"] = mf.requests_made

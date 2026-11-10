@@ -229,6 +229,7 @@ def test_verify_links_entity_brand_and_listing(flow):
     conn = flow["ctx"].repo.conn
     domain = conn.execute("select * from domains where host = 'przyklad-nieruchomosci.pl'").fetchone()
     assert domain["verification_status"] == "verified" and domain["verification_score"] >= 75
+    assert "NIP ze strony zgodny z rejestrem" in domain["verification_reasons"]
     entity = conn.execute("select * from legal_entities").fetchone()
     assert entity["nip"] == NIP and entity["krs"] == "0000123456" and "68.31.Z" in entity["pkd_codes"]
     assert entity["registry_source"] == "krs"

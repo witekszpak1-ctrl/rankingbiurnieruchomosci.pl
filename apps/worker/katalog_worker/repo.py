@@ -152,12 +152,13 @@ class Repo:
         ).fetchall()
 
     def update_domain_verification(
-        self, domain_id: str, score: int, status: str, legal_entity_id: str | None, brand_id: str | None
+        self, domain_id: str, score: int, status: str, legal_entity_id: str | None, brand_id: str | None,
+        reasons: list[str] | None = None,
     ) -> None:
         self.conn.execute(
             """update domains set verification_score = %s, verification_status = %s, legal_entity_id = %s,
-                 brand_id = %s, last_checked_at = now() where id = %s""",
-            (score, status, legal_entity_id, brand_id, domain_id),
+                 brand_id = %s, verification_reasons = %s, last_checked_at = now() where id = %s""",
+            (score, status, legal_entity_id, brand_id, Jsonb(reasons or []), domain_id),
         )
 
     def domains_for_deep_crawl(self, limit: int) -> list[dict]:

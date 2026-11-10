@@ -3,12 +3,14 @@
 Platforma katalogów firm pod wyszukiwarki AI. Pierwsza branża: biura nieruchomości (`rankingbiurnieruchomosci.pl`,
 cała Polska w rozbiciu na miasta). Pełny plan: [docs/PLAN.md](docs/PLAN.md).
 
-## Co jest zrobione (F0 i F1, bez strony publicznej i panelu)
+## Co jest zrobione (F0, F1 oraz pierwszy wycinek F2 i F3)
 
 - `db/migrations/0001_init.sql`: schemat rdzenia (branże, miasta, podmioty, domeny, fakty, ceny, opisy, kolejka, przebiegi).
 - `apps/worker`: worker w Pythonie. Pipeline S1-S7, klienci rejestrów, adaptery wyszukiwania, walidator wyników.
 - `packages/verticals/nieruchomosci`: konfiguracja branży, prompty dla Claude Code, szablony zestawu wzorcowego.
-- `apps/web`: pusty katalog na stronę publiczną i panel admina (F2/F3).
+- `apps/web`: Next.js: strona publiczna (miasta, profile firm, ranking v0, JSON-LD, sitemap, robots, llms.txt) i panel admina
+  (logowanie, przegląd, firmy, kolejka weryfikacji, publikacja z bramką, przebiegi, audyt). Szczegóły: `apps/web/README.md`.
+- `db/seeds`: fikcyjne dane deweloperskie do lokalnego rozwoju.
 
 ## Uruchomienie
 
@@ -57,7 +59,9 @@ Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza repozyto
 ## Stan weryfikacji
 
 Przetestowane: schemat bazy (lokalny Postgres 16), moduły ekstrakcji i weryfikacji, walidator, przepływ S1-S7 z
-atrapami, klienci KRS i białej listy VAT także na żywych API (jedno zapytanie każdy).
+atrapami (128 testów workera), klienci KRS i białej listy VAT także na żywych API (jedno zapytanie każdy),
+aplikacja web: 23 testy jednostkowe, typecheck, build bez bazy oraz test end-to-end w przeglądarce (16 kroków) na danych deweloperskich.
 Nieprzetestowane na żywo: adaptery Brave i Serper (kontrakt z pamięci, brak kluczy), crawler na prawdziwych stronach,
-Crawl4AI (nie jest jeszcze użyty, fetcher używa httpx bez renderowania JS), workflow GitHub Actions, CEIDG.
+Crawl4AI (nie jest jeszcze użyty, fetcher używa httpx bez renderowania JS), workflow GitHub Actions, CEIDG,
+wdrożenie aplikacji web (Vercel) i jej praca na bazie Neon.
 Baza Neon: nie utworzona (konto zarządzane przez Vercel), migracja nie jest zastosowana.
