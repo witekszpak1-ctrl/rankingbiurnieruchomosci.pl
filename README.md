@@ -63,5 +63,20 @@ atrapami (128 testów workera), klienci KRS i białej listy VAT także na żywyc
 aplikacja web: 23 testy jednostkowe, typecheck, build bez bazy oraz test end-to-end w przeglądarce (16 kroków) na danych deweloperskich.
 Nieprzetestowane na żywo: adaptery Brave i Serper (kontrakt z pamięci, brak kluczy), crawler na prawdziwych stronach,
 Crawl4AI (nie jest jeszcze użyty, fetcher używa httpx bez renderowania JS), workflow GitHub Actions, CEIDG,
-wdrożenie aplikacji web (Vercel) i jej praca na bazie Neon.
-Baza Neon: nie utworzona (konto zarządzane przez Vercel), migracja nie jest zastosowana.
+logowanie do panelu na produkcji (hasło sprawdzone względem hasha, ta sama ścieżka kodu przeszła test lokalny).
+
+## Wdrożenie produkcyjne
+
+- Vercel: zespół `witek1`, projekt `rankingbiurnieruchomosc.pl` (nazwa projektu ma literówkę względem domeny, można zmienić
+  w ustawieniach). Wdrożenie z katalogu `apps/web`, region fra1, build przeszedł, strona i `/llms.txt` odpowiadają,
+  zapytania do bazy działają. Plan Hobby jest tylko do użytku niekomercyjnego: przed startem z reklamami i leadami potrzebny Pro.
+- Baza: Neon, projekt `witek-dm-agent-db`, osobna baza `katalog` z rolą `katalog_app` (tylko odczyt i zapis w tej bazie).
+  To rozwiązanie zastępcze, bo konto Neon jest zarządzane przez Vercel i nie da się tworzyć nowych projektów przez API.
+  Zastosowana migracja `0001_init` (23 tabele). Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
+  do własnego projektu: `pg_dump` i `katalog migrate` na nowej bazie, potem zmiana `DATABASE_URL`.
+- Zmienne środowiska produkcyjnego ustawione w Vercel: `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`,
+  `ADMIN_SESSION_SECRET`, `SITE_URL`. Brakuje `NEXT_PUBLIC_CONTACT_EMAIL` (strony `/dla-firm` i `/bot` pokazują
+  wtedy informację o braku adresu).
+- Baza produkcyjna jest pusta (bez danych deweloperskich). Domena `rankingbiurnieruchomosci.pl` nie jest jeszcze podpięta.
+- Wdrożenia z tego środowiska idą przez API (pliki wysyłane w treści), bo nie ma połączenia z GitHubem. Po podpięciu
+  repozytorium do projektu Vercel wdrożenia powinny iść z gita.
