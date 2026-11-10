@@ -18,8 +18,8 @@ on:
       provider:
         description: "Dostawca wyszukiwania"
         type: choice
-        options: [brave, serper]
-        default: brave
+        options: [serper, brave]
+        default: serper
       limit:
         description: "Limit domen na etap"
         default: "50"
