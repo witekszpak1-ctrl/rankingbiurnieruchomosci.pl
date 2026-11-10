@@ -23,3 +23,4 @@ queue-example/*.local.json
 # Zrzuty ekranu z testu e2e
 apps/web/e2e/shots/
 *.tsbuildinfo
+dist/
