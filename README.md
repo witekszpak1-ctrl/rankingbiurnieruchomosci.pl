@@ -69,7 +69,7 @@ logowanie do panelu na produkcji (hasło sprawdzone względem hasha, ta sama śc
 
 - Vercel: zespół `witek1`, projekt `rankingbiurnieruchomosc.pl` (nazwa projektu ma literówkę względem domeny, można zmienić
   w ustawieniach). Wdrożenie z katalogu `apps/web`, region fra1, build przeszedł, strona i `/llms.txt` odpowiadają,
-  zapytania do bazy działają. Plan Hobby jest tylko do użytku niekomercyjnego: przed startem z reklamami i leadami potrzebny Pro.
+  zapytania do bazy działają. Zespół ma plan Pro (widać w panelu Vercel), więc użycie komercyjne z reklamami i leadami jest dozwolone.
 - Baza: Neon, projekt `witek-dm-agent-db`, osobna baza `katalog` z rolą `katalog_app` (tylko odczyt i zapis w tej bazie).
   To rozwiązanie zastępcze, bo konto Neon jest zarządzane przez Vercel i nie da się tworzyć nowych projektów przez API.
   Zastosowana migracja `0001_init` (23 tabele). Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
