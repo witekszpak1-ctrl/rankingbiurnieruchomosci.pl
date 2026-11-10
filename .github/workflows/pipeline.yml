@@ -11,15 +11,15 @@ name: pipeline
 on:
   workflow_dispatch:
     inputs:
+      provider:
+        description: "Źródło kandydatów: file = wyniki zebrane przez Claude Code (bez klucza), serper lub brave = API"
+        type: choice
+        options: [file, serper, brave]
+        default: file
       city:
-        description: "Miasto dla etapu discover (puste = pomiń discover)"
+        description: "Miasto dla serper lub brave (puste = pomiń discover). Dla file miasto jest w pliku kandydatów"
         required: false
         default: ""
-      provider:
-        description: "Dostawca wyszukiwania"
-        type: choice
-        options: [serper, brave]
-        default: serper
       limit:
         description: "Limit domen na etap"
         default: "50"
@@ -52,15 +52,32 @@ jobs:
       - run: pip install -e apps/worker
       - name: Migracje
         run: katalog migrate
-      - name: S1 discover
-        if: ${{ inputs.city != '' }}
-        run: katalog discover --city "${{ inputs.city }}" --provider "${{ inputs.provider }}"
-      - name: S3-S6
+      - name: S1 discover z plików kandydatów (bez klucza API)
+        if: ${{ inputs.provider == 'file' }}
         run: |
-          katalog probe --limit "${{ inputs.limit }}"
-          katalog verify --limit "${{ inputs.limit }}"
-          katalog crawl-deep --limit "${{ inputs.limit }}"
-          katalog bundle --limit "${{ inputs.limit }}"
+          bash scripts/queue_sync.sh pull
+          shopt -s nullglob
+          files=(queue/candidates/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Brak plików w queue/candidates na gałęzi queue-data."
+          fi
+          for f in "${files[@]}"; do
+            katalog discover --provider file --file "$f"
+          done
+      - name: S1 discover przez API wyszukiwarki
+        if: ${{ inputs.provider != 'file' && inputs.city != '' }}
+        env:
+          INPUT_CITY: ${{ inputs.city }}
+          INPUT_PROVIDER: ${{ inputs.provider }}
+        run: katalog discover --city "$INPUT_CITY" --provider "$INPUT_PROVIDER"
+      - name: S3-S6
+        env:
+          INPUT_LIMIT: ${{ inputs.limit }}
+        run: |
+          katalog probe --limit "$INPUT_LIMIT"
+          katalog verify --limit "$INPUT_LIMIT"
+          katalog crawl-deep --limit "$INPUT_LIMIT"
+          katalog bundle --limit "$INPUT_LIMIT"
           katalog status
       - name: Publikacja paczek na gałąź queue-data
         run: bash scripts/queue_sync.sh push-pending

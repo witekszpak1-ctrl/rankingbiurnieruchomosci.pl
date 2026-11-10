@@ -54,15 +54,19 @@ Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza gałęzi
 Sesje Claude Code nie mają dostępu do artefaktów Actions ani do bazy, więc kolejka przechodzi przez gałąź `queue-data`
 tego samego repozytorium (bez wspólnej historii z `main`, tylko katalog `queue/`). Obsługuje ją `scripts/queue_sync.sh`.
 
-1. Workflow **pipeline** (ręcznie): discover, probe, verify, crawl-deep, bundle, potem `push-pending` wysyła nowe paczki
-   na `queue-data` (istniejących nie nadpisuje).
+0. Kandydaci bez klucza wyszukiwarki: sesja Claude Code zbiera wyniki własnym narzędziem WebSearch (z wykluczonymi
+   portalami i katalogami, żeby trafiały strony samych firm), zapisuje je w `queue/candidates/<miasto>-<data>.json`
+   (format w `katalog_worker/search/file.py`) i wysyła `bash scripts/queue_sync.sh push-candidates`. Ten sam plik
+   importuje się tylko raz (suma SHA-256 w `search_queries.params`).
+1. Workflow **pipeline** (ręcznie, źródło `file`, `serper` albo `brave`): discover (dla `file` z plików kandydatów),
+   probe, verify, crawl-deep, bundle, potem `push-pending` wysyła nowe paczki na `queue-data` (istniejących nie nadpisuje).
 2. Sesja Claude Code: `bash scripts/queue_sync.sh pull`, opis każdej paczki z `queue/pending/` według
    `packages/verticals/nieruchomosci/prompts/`, wynik do `queue/results/<typ>/<id>.json`, sprawdzenie
    `katalog validate --bundle B --result R`, potem `bash scripts/queue_sync.sh push-results`.
 3. Workflow **import** (ręcznie): pobiera kolejkę z `queue-data`, `katalog import` waliduje wyniki i zapisuje je w bazie.
 
-Wymagane w ustawieniach repozytorium: sekrety `DATABASE_URL`, `SERPER_API_KEY` lub `BRAVE_API_KEY` oraz zmienna
-`CRAWLER_USER_AGENT` z prawdziwym adresem kontaktowym (patrz `.env.example`). Skrypt kolejki przetestowano lokalnie na
+Wymagane w ustawieniach repozytorium: sekret `DATABASE_URL` oraz zmienna `CRAWLER_USER_AGENT` z prawdziwym adresem
+kontaktowym (patrz `.env.example`). Klucze `SERPER_API_KEY` lub `BRAVE_API_KEY` są potrzebne tylko dla źródeł `serper` i `brave`. Skrypt kolejki przetestowano lokalnie na
 tymczasowym zdalnym repozytorium. Same workflowy nie były uruchamiane w Actions.
 
 ## Zasady

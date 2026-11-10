@@ -38,3 +38,25 @@ def test_migrate_and_status_commands(db_url, monkeypatch, capsys):
         "domains_by_status", "domains_by_classification", "listings_by_status", "queue_by_status",
         "descriptions_by_status",
     }
+
+
+def test_discover_file_provider_argument_errors(tmp_path, capsys):
+    # brak --file
+    assert main(["discover", "--provider", "file"]) == 2
+    assert "--file" in capsys.readouterr().err
+    # brak --city dla dostawcy z API
+    assert main(["discover", "--provider", "serper"]) == 2
+    assert "--city" in capsys.readouterr().err
+    # plik z innym miastem niż w opcji
+    path = tmp_path / "k.json"
+    path.write_text(
+        json.dumps({"city": "Wrocław", "queries": [{"query": "q", "results": []}]}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    assert main(["discover", "--provider", "file", "--file", str(path), "--city", "Kraków"]) == 2
+    assert "różni się" in capsys.readouterr().err
+    # uszkodzony plik
+    bad = tmp_path / "zly.json"
+    bad.write_text("{", encoding="utf-8")
+    assert main(["discover", "--provider", "file", "--file", str(bad)]) == 2
+    assert "JSON" in capsys.readouterr().err

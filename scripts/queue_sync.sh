@@ -4,6 +4,7 @@
 #
 #   queue_sync.sh push-pending   kopiuje queue/pending na gałąź (istniejących plików nie nadpisuje)
 #   queue_sync.sh push-results   kopiuje queue/results na gałąź (nadpisuje)
+#   queue_sync.sh push-candidates kopiuje queue/candidates (wyniki wyszukiwania zebrane przez Claude Code) na gałąź
 #   queue_sync.sh pull           pobiera całą gałąź do ./queue (nadpisuje lokalne pliki o tych samych nazwach)
 #
 # Zmienne: QUEUE_BRANCH (domyślnie queue-data), QUEUE_REMOTE (domyślnie origin).
@@ -96,6 +97,9 @@ case "$cmd" in
   push-results)
     push_with_retry results "queue: wyniki ($(date -u +%Y-%m-%dT%H:%MZ))"
     ;;
+  push-candidates)
+    push_with_retry candidates "queue: kandydaci ($(date -u +%Y-%m-%dT%H:%MZ))"
+    ;;
   pull)
     if ! branch_exists; then
       echo "Gałąź $BRANCH jeszcze nie istnieje, nic do pobrania."
@@ -109,7 +113,7 @@ case "$cmd" in
     echo "Pobrano kolejkę z gałęzi $BRANCH do ./queue."
     ;;
   *)
-    echo "Użycie: $0 {push-pending|push-results|pull}" >&2
+    echo "Użycie: $0 {push-pending|push-results|push-candidates|pull}" >&2
     exit 2
     ;;
 esac

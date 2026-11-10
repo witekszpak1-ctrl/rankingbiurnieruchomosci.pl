@@ -53,3 +53,16 @@ def test_pick_pages_prefers_contact_and_pricing_same_domain_only():
     assert all("inna-domena" not in p for p in pages)
     assert all(not p.endswith(".png") for p in pages)
     assert "https://przyklad.pl/blog/poradnik" not in pages
+
+
+def test_registrable_domain_handles_polish_city_suffixes():
+    from katalog_worker.urls import registrable_domain
+
+    # firma pod domeną miejską to osobna strona, nie domena miejska
+    assert registrable_domain("https://focus.wroc.pl/oferty") == "focus.wroc.pl"
+    assert registrable_domain("https://www.firma.krakow.pl/") == "firma.krakow.pl"
+    # sama domena miejska nie jest domeną firmy
+    assert registrable_domain("https://wroc.pl/") == ""
+    # zwykłe domeny bez zmian
+    assert registrable_domain("https://www.przyklad.com.pl/") == "przyklad.com.pl"
+    assert registrable_domain("https://wroclaw.wgn.pl/") == "wgn.pl"

@@ -202,3 +202,85 @@ def test_load_entities_csv(tmp_path):
         writer.writerow(["", "Poznań", "x.pl"])
     entities = load_entities_csv(path)
     assert entities == [Entity("Firma Alfa", "Wrocław", "alfa.pl"), Entity("Firma Beta", "Kraków", None)]
+
+
+# ----------------------------------------------------------------------------- dostawca z pliku
+
+
+def _file_data(**overrides):
+    data = {
+        "city": "Wrocław",
+        "collected_at": "2026-11-10",
+        "queries": [
+            {
+                "query": "biuro nieruchomości Wrocław",
+                "results": [
+                    {"url": "https://alfa-nieruchomosci.pl/", "title": "Alfa", "snippet": "Biuro"},
+                    {"url": "https://www.beta.pl/oferty", "title": "Beta"},
+                ],
+            },
+            {"query": "pośrednik wynajem Wrocław", "results": []},
+        ],
+    }
+    data.update(overrides)
+    return data
+
+
+def test_file_search_returns_results_with_rank_from_order():
+    from katalog_worker.search import FileSearch
+
+    provider = FileSearch(_file_data())
+    results = provider.search("Biuro Nieruchomości Wrocław")  # wielkość liter nie ma znaczenia
+    assert [r.url for r in results] == ["https://alfa-nieruchomosci.pl/", "https://www.beta.pl/oferty"]
+    assert [r.rank for r in results] == [1, 2]
+    assert provider.search("nieznane zapytanie") == []
+    assert provider.queries == ["biuro nieruchomości Wrocław", "pośrednik wynajem Wrocław"]
+    assert provider.city == "Wrocław"
+    assert provider.cost_per_query_usd == 0.0
+
+
+def test_file_search_respects_count_and_explicit_rank():
+    from katalog_worker.search import FileSearch
+
+    data = _file_data()
+    data["queries"][0]["results"][0]["rank"] = 3
+    provider = FileSearch(data)
+    assert provider.search("biuro nieruchomości Wrocław", count=1)[0].rank == 3
+    assert len(provider.search("biuro nieruchomości Wrocław", count=1)) == 1
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda d: d.pop("city"),
+        lambda d: d.update(queries=[]),
+        lambda d: d["queries"][0].update(results="nie lista"),
+        lambda d: d["queries"][0]["results"][0].update(url="ftp://alfa.pl/"),
+        lambda d: d["queries"][0]["results"][0].update(url="alfa.pl"),
+        lambda d: d["queries"].append({"query": "BIURO nieruchomości wrocław", "results": []}),
+    ],
+)
+def test_file_search_rejects_malformed_data(mutate):
+    from katalog_worker.search import FileSearch, SearchError
+
+    data = _file_data()
+    mutate(data)
+    with pytest.raises(SearchError):
+        FileSearch(data)
+
+
+def test_file_search_from_path_hashes_content(tmp_path):
+    import hashlib
+    import json
+
+    from katalog_worker.search import FileSearch, SearchError
+
+    path = tmp_path / "kandydaci.json"
+    raw = json.dumps(_file_data(), ensure_ascii=False).encode("utf-8")
+    path.write_bytes(raw)
+    provider = FileSearch.from_path(path)
+    assert provider.source_sha256 == hashlib.sha256(raw).hexdigest()
+    bad = tmp_path / "zly.json"
+    bad.write_text("{nie json", encoding="utf-8")
+    with pytest.raises(SearchError):
+        FileSearch.from_path(bad)

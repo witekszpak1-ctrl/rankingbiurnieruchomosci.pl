@@ -99,6 +99,13 @@ class Repo:
                 (query_id, url, host, rank),
             )
 
+    def candidate_source_imported(self, source_sha256: str) -> bool:
+        """Czy plik z wynikami wyszukiwania (po sumie SHA-256) został już zaimportowany."""
+        row = self.conn.execute(
+            "select 1 from search_queries where params->>'source_sha256' = %s limit 1", (source_sha256,)
+        ).fetchone()
+        return row is not None
+
     def known_hosts(self) -> set[str]:
         return {r["host"] for r in self.conn.execute("select host from domains").fetchall()}
 

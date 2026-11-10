@@ -3,9 +3,10 @@ from __future__ import annotations
 from ..config import Settings
 from .base import SearchError, SearchProvider, SearchResult
 from .brave import BraveSearch
+from .file import FileSearch
 from .serper import SerperSearch
 
-__all__ = ["BraveSearch", "SearchError", "SearchProvider", "SearchResult", "SerperSearch", "make_provider"]
+__all__ = ["BraveSearch", "FileSearch", "SearchError", "SearchProvider", "SearchResult", "SerperSearch", "make_provider"]
 
 
 def make_provider(name: str, settings: Settings | None = None) -> SearchProvider:

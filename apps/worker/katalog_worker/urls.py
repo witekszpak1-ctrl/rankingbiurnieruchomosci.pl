@@ -7,8 +7,15 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import tldextract
 
+# Polskie domeny miejskie, pod którymi firmy mają własne strony (np. focus.wroc.pl), a których nie ma na dołączonej
+# liście sufiksów. Bez tego focus.wroc.pl byłoby traktowane jak domena wroc.pl i pipeline sprawdzałby cudzą stronę.
+_EXTRA_SUFFIXES = (
+    "wroc.pl", "krakow.pl", "poznan.pl", "gdansk.pl", "gda.pl", "gdynia.pl", "sopot.pl", "lodz.pl",
+    "lublin.pl", "torun.pl", "kielce.pl", "zielona-gora.pl", "wawa.pl",
+)
+
 # Lista sufiksów jest dołączona do biblioteki, bez pobierania z sieci.
-_EXTRACT = tldextract.TLDExtract(suffix_list_urls=(), cache_dir=None)
+_EXTRACT = tldextract.TLDExtract(suffix_list_urls=(), cache_dir=None, extra_suffixes=_EXTRA_SUFFIXES)
 
 _TRACKING_PARAMS = {"fbclid", "gclid", "msclkid", "yclid", "mc_cid", "mc_eid", "igshid"}
 

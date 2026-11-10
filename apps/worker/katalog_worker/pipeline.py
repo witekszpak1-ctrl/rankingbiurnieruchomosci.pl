@@ -76,16 +76,34 @@ def _load_pages(ctx: Context, domain_id: str) -> list[PageExtraction]:
 # ----------------------------------------------------------------------------- S1
 
 
-def stage_discover(ctx: Context, provider: SearchProvider, city: str, *, max_queries: int | None = None) -> dict:
+def stage_discover(
+    ctx: Context,
+    provider: SearchProvider,
+    city: str,
+    *,
+    max_queries: int | None = None,
+    queries: list[str] | None = None,
+    source_sha256: str | None = None,
+) -> dict:
+    """Odkrywa domeny kandydatów. Zapytania pochodzą z szablonów branży albo (dostawca z pliku) z podanej listy.
+
+    source_sha256: suma pliku z wynikami. Ten sam plik nie jest importowany drugi raz.
+    """
     repo = ctx.repo
+    if source_sha256 and repo.candidate_source_imported(source_sha256):
+        return {"skipped_already_imported": 1}
     vertical_id = repo.ensure_vertical(ctx.vertical)
     run_id = repo.start_run("discover", vertical_id)
-    queries = build_queries(ctx.vertical.search, city, limit=max_queries)
+    if queries is None:
+        queries = build_queries(ctx.vertical.search, city, limit=max_queries)
     search_cfg = ctx.vertical.search
+    query_params = {"country": search_cfg.country, "lang": search_cfg.language}
+    if source_sha256:
+        query_params["source_sha256"] = source_sha256
 
     def log_query(query, results, stat) -> None:
         query_id = repo.record_query(
-            run_id, vertical_id, provider.name, query, {"country": search_cfg.country, "lang": search_cfg.language},
+            run_id, vertical_id, provider.name, query, query_params,
             stat.results, stat.new_candidates, stat.cost_usd,
         )
         repo.record_results(

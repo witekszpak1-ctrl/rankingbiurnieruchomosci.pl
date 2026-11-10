@@ -44,11 +44,36 @@ def cmd_queries(args) -> int:
 
 def cmd_discover(args) -> int:
     from .pipeline import stage_discover
-    from .search import make_provider
+    from .search import FileSearch, SearchError, make_provider
+
+    queries = None
+    source_sha256 = None
+    try:
+        if args.provider == "file":
+            if not args.file:
+                print("Dostawca 'file' wymaga opcji --file.", file=sys.stderr)
+                return 2
+            provider = FileSearch.from_path(args.file)
+            if args.city and args.city != provider.city:
+                print(f"Miasto z opcji ({args.city}) różni się od miasta w pliku ({provider.city}).", file=sys.stderr)
+                return 2
+            city, queries, source_sha256 = provider.city, provider.queries, provider.source_sha256
+        else:
+            if not args.city:
+                print("Opcja --city jest wymagana dla tego dostawcy.", file=sys.stderr)
+                return 2
+            provider, city = make_provider(args.provider, Settings()), args.city
+    except SearchError as exc:
+        print(f"Błąd: {exc}", file=sys.stderr)
+        return 2
 
     with connect() as conn:
-        ctx, settings = _context(args, conn)
-        _print(stage_discover(ctx, make_provider(args.provider, settings), args.city, max_queries=args.max_queries))
+        ctx, _ = _context(args, conn)
+        _print(
+            stage_discover(
+                ctx, provider, city, max_queries=args.max_queries, queries=queries, source_sha256=source_sha256
+            )
+        )
     return 0
 
 
@@ -150,8 +175,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--city", required=True)
     p.add_argument("--limit", type=int)
     p = add("discover", cmd_discover, "S1: znajdź domeny kandydatów")
-    p.add_argument("--city", required=True)
-    p.add_argument("--provider", choices=["brave", "serper"], required=True)
+    p.add_argument("--city", help="miasto (dla dostawcy 'file' bierze się z pliku)")
+    p.add_argument("--provider", choices=["brave", "serper", "file"], required=True)
+    p.add_argument("--file", help="plik JSON z wynikami wyszukiwania (dostawca 'file', bez klucza API)")
     p.add_argument("--max-queries", type=int)
     p = add("probe", cmd_probe, "S3: pobierz stronę główną i kontakt, sklasyfikuj")
     p.add_argument("--limit", type=int, default=50)

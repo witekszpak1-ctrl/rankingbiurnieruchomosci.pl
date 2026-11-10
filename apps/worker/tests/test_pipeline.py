@@ -344,3 +344,46 @@ def test_status_counts(flow):
     assert status["domains_by_status"] == {"rejected": 2, "verified": 1}
     assert status["listings_by_status"] == {"verified": 1}
     assert status["queue_by_status"] == {"describe:pending": 1}
+
+
+def test_discover_from_file_imports_candidates_once(ctx, tmp_path):
+    """Dostawca z pliku (wyniki zebrane przez Claude Code): kandydaci trafiają do bazy, ten sam plik tylko raz."""
+    from katalog_worker.search import FileSearch
+
+    data = {
+        "city": "Wrocław",
+        "queries": [
+            {
+                "query": "biuro nieruchomości Wrocław",
+                "results": [
+                    {"url": "https://www.oferteo.pl/biura-wroclaw", "title": "katalog"},
+                    {"url": "https://przyklad-nieruchomosci.pl/oferty", "title": "Przykład"},
+                ],
+            },
+            {"query": "pośrednik wynajem Wrocław", "results": [{"url": "https://przyklad-nieruchomosci.pl/", "title": "x"}]},
+        ],
+    }
+    path = tmp_path / "wroclaw.json"
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    provider = FileSearch.from_path(path)
+
+    counts = stage_discover(
+        ctx, provider, provider.city, queries=provider.queries, source_sha256=provider.source_sha256
+    )
+    assert counts["queries"] == 2
+    assert counts["new_domains"] == 1  # oferteo to katalog z blocklisty
+    assert counts["blocked_results"] == 1
+    hosts = [r["host"] for r in ctx.repo.conn.execute("select host from domains").fetchall()]
+    assert hosts == ["przyklad-nieruchomosci.pl"]
+    row = ctx.repo.conn.execute("select city_hint from domains").fetchone()
+    assert row["city_hint"] == "Wrocław"
+    logged = ctx.repo.conn.execute(
+        "select provider, cost_usd::float8 as cost from search_queries order by created_at"
+    ).fetchall()
+    assert {r["provider"] for r in logged} == {"claude_websearch"} and all(r["cost"] == 0 for r in logged)
+
+    again = stage_discover(
+        ctx, provider, provider.city, queries=provider.queries, source_sha256=provider.source_sha256
+    )
+    assert again == {"skipped_already_imported": 1}
+    assert ctx.repo.conn.execute("select count(*) as n from search_queries").fetchone()["n"] == 2
