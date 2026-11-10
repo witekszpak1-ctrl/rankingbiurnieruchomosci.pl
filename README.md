@@ -92,11 +92,13 @@ logowanie do panelu na produkcji (hasło sprawdzone względem hasha, ta sama śc
   zapytania do bazy działają. Zespół ma plan Pro (widać w panelu Vercel), więc użycie komercyjne z reklamami i leadami jest dozwolone.
 - Baza: Neon, projekt `witek-dm-agent-db`, osobna baza `katalog` z rolą `katalog_app` (tylko odczyt i zapis w tej bazie).
   To rozwiązanie zastępcze, bo konto Neon jest zarządzane przez Vercel i nie da się tworzyć nowych projektów przez API.
-  Zastosowana migracja `0001_init` (23 tabele). Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
+  Zastosowane migracje `0001_init` (23 tabele) i `0002_requests` (zgłoszenia ze strony dla firm). Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
   do własnego projektu: `pg_dump` i `katalog migrate` na nowej bazie, potem zmiana `DATABASE_URL`.
 - Zmienne środowiska produkcyjnego ustawione w Vercel: `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`,
-  `ADMIN_SESSION_SECRET`, `SITE_URL`. Brakuje `NEXT_PUBLIC_CONTACT_EMAIL` (strony `/dla-firm` i `/bot` pokazują
-  wtedy informację o braku adresu).
-- Baza produkcyjna jest pusta (bez danych deweloperskich). Domena `rankingbiurnieruchomosci.pl` nie jest jeszcze podpięta.
-- Wdrożenia z tego środowiska idą przez API (pliki wysyłane w treści), bo nie ma połączenia z GitHubem. Po podpięciu
-  repozytorium do projektu Vercel wdrożenia powinny iść z gita.
+  `ADMIN_SESSION_SECRET`, `SITE_URL`. Brakuje `NEXT_PUBLIC_CONTACT_EMAIL` (strona `/bot` pokazuje wtedy
+  User-Agent bez adresu, a `/dla-firm` ma formularz zgłoszeń i nie wymaga adresu).
+- Baza produkcyjna jest pusta (bez danych deweloperskich). Domena `rankingbiurnieruchomosci.pl` (z `www`) jest dodana do projektu, ale nie jest jeszcze kupiona ani skierowana w DNS.
+- Wdrożenia z sesji Claude Code idą z gita przez API Vercela (`create_deployment` z `gitSource` na repozytorium GitHub,
+  `rootDirectory` = `apps/web`, zapisany w projekcie). Przed wdrożeniem trzeba wypchnąć zmiany na `main` i zastosować
+  nowe migracje na bazie produkcyjnej (rola aplikacji nie może tworzyć tabel, migracje idą z roli właściciela bazy).
+  Projekt Vercel nie jest jeszcze połączony z repozytorium na stałe, więc sam `git push` niczego nie wdraża.
