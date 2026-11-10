@@ -1,0 +1,388 @@
+"""Orkiestracja etapów pipeline'u (S1-S7). Każdy etap jest funkcją na Context i commituje po jednej domenie.
+
+S1 discover    : zapytania -> domeny kandydatów
+S3 probe       : strona główna i kontakt -> klasyfikacja heurystyczna (bez LLM)
+S4 verify      : NIP ze strony -> biała lista VAT i KRS -> dopasowanie podmiotu, brand, wpis (listing)
+S5 crawl_deep  : kolejne podstrony zweryfikowanych domen (cennik, usługi, o nas)
+S6 bundle      : paczki dla Claude Code (opis, ceny, spory klasyfikacji)
+S7 import      : walidator wyników z kolejki plikowej i zapis w bazie
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from collections import Counter
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from .bundle import Fact, build_classify_bundle, build_describe_bundle, facts_from_pages, write_bundle
+from .classify import DEFAULT_BLOCKLIST, Classification, classify_page
+from .discovery import discover
+from .extract import PageExtraction, extract_page, merge_extractions
+from .fetch import FetchResult, PoliteFetcher
+from .queries import build_queries
+from .registry import KrsClient, MfVatClient, RegistryEntity, RegistryError
+from .repo import Repo
+from .search.base import SearchProvider
+from .urls import canonical_url, pick_pages, registrable_domain
+from .validate import validate_result
+from .verify import Verification, _page_names, name_similarity, verify_domain
+from .verticals import VerticalConfig
+
+_CONTACT_RE = re.compile(r"kontakt|contact", re.I)
+_FACT_METHOD = {"meta_description": "meta", "site_title": "meta", "address": "jsonld", "address_hint": "regex"}
+
+
+@dataclass
+class Context:
+    repo: Repo
+    vertical: VerticalConfig
+    snapshots_dir: Path
+    queue_dir: Path
+    blocklist: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_BLOCKLIST))
+
+    @property
+    def keywords(self) -> list[str]:
+        return self.vertical.keywords
+
+
+# ----------------------------------------------------------------------------- snapshoty
+
+
+def _store_snapshot(ctx: Context, host: str, html: str) -> tuple[str, str]:
+    digest = hashlib.sha256(html.encode("utf-8")).hexdigest()
+    path = ctx.snapshots_dir / host / f"{digest[:32]}.html"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.write_text(html, encoding="utf-8")
+    return digest, str(path)
+
+
+def _save_page(ctx: Context, domain_id: str, host: str, result: FetchResult) -> None:
+    digest, path = _store_snapshot(ctx, host, result.text)
+    ctx.repo.record_page(domain_id, canonical_url(result.final_url), result.status, digest, path, "httpx", True, result.size)
+
+
+def _load_pages(ctx: Context, domain_id: str) -> list[PageExtraction]:
+    pages = []
+    for row in ctx.repo.pages_for_domain(domain_id):
+        html = Path(row["storage_path"]).read_text(encoding="utf-8")
+        pages.append(extract_page(html, row["url"]))
+    return pages
+
+
+# ----------------------------------------------------------------------------- S1
+
+
+def stage_discover(ctx: Context, provider: SearchProvider, city: str, *, max_queries: int | None = None) -> dict:
+    repo = ctx.repo
+    vertical_id = repo.ensure_vertical(ctx.vertical)
+    run_id = repo.start_run("discover", vertical_id)
+    queries = build_queries(ctx.vertical.search, city, limit=max_queries)
+    search_cfg = ctx.vertical.search
+
+    def log_query(query, results, stat) -> None:
+        query_id = repo.record_query(
+            run_id, vertical_id, provider.name, query, {"country": search_cfg.country, "lang": search_cfg.language},
+            stat.results, stat.new_candidates, stat.cost_usd,
+        )
+        repo.record_results(
+            query_id, [(r.url, registrable_domain(r.url), r.rank) for r in results if registrable_domain(r.url)]
+        )
+
+    candidates, stats = discover(
+        provider, queries, ctx.blocklist, country=search_cfg.country, lang=search_cfg.language,
+        known_hosts=repo.known_hosts(), on_query=log_query,
+    )
+    new_domains = 0
+    for candidate in candidates:
+        _, is_new = repo.upsert_domain(candidate.host, candidate.home_url, city)
+        new_domains += is_new
+    counts = {"queries": len(stats), "candidates": len(candidates), "new_domains": new_domains,
+              "blocked_results": sum(s.blocked for s in stats)}
+    repo.finish_run(run_id, "ok", counts, cost_usd=round(sum(s.cost_usd for s in stats), 4))
+    repo.conn.commit()
+    return counts
+
+
+# ----------------------------------------------------------------------------- S3
+
+
+def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
+    repo = ctx.repo
+    counts: Counter = Counter()
+    run_id = repo.start_run("probe", None)
+    repo.conn.commit()
+    for row in repo.domains_to_probe(limit):
+        home = fetcher.fetch(row["canonical_url"] or f"https://{row['host']}/")
+        if home.error == "robots":
+            repo.update_domain_classification(
+                row["id"], "unknown", ["robots.txt zabrania pobierania"], robots_status="disallowed",
+                verification_status="rejected",
+            )
+            counts["robots_disallowed"] += 1
+            repo.conn.commit()
+            continue
+        if not home.ok:
+            repo.touch_domain(row["id"], [f"pobranie nie powiodło się: {home.error}"], "allowed" if home.robots_allowed else None)
+            counts["fetch_error"] += 1
+            repo.conn.commit()
+            continue
+
+        fetched = [(home, extract_page(home.text, home.final_url))]
+        picks = pick_pages(fetched[0][1].links, home.final_url, limit=4)
+        contact = next((u for u in picks if _CONTACT_RE.search(u)), None)
+        if contact and contact != canonical_url(home.final_url):
+            extra = fetcher.fetch(contact)
+            if extra.ok:
+                fetched.append((extra, extract_page(extra.text, extra.final_url)))
+
+        merged = merge_extractions([page for _, page in fetched])
+        classification = classify_page(merged, ctx.keywords, ctx.blocklist)
+        for result, _ in fetched:
+            _save_page(ctx, row["id"], row["host"], result)
+        keep = classification.label in ("official", "uncertain")
+        repo.update_domain_classification(
+            row["id"], classification.label, classification.reasons, robots_status="allowed",
+            verification_status=None if keep else "rejected",
+        )
+        counts[classification.label] += 1
+        repo.conn.commit()
+    repo.finish_run(run_id, "ok", dict(counts))
+    repo.conn.commit()
+    return dict(counts)
+
+
+# ----------------------------------------------------------------------------- S4
+
+
+def _brand_name(pages: list[PageExtraction], entity: RegistryEntity) -> str:
+    home = pages[0]
+    candidates = [home.og_site_name]
+    candidates += [str(o["name"]) for o in home.organizations if o.get("name")]
+    candidates += [re.split(r"[|]", home.title)[0].strip()]
+    for name in candidates:
+        if name and 2 <= len(name) <= 80:
+            return name
+    return entity.name.title()
+
+
+def _pick_entity(entities: list[RegistryEntity], pages: list[PageExtraction]) -> RegistryEntity | None:
+    if not entities:
+        return None
+    if len(entities) == 1:
+        return entities[0]
+    names = _page_names(pages)
+    return max(entities, key=lambda e: max((name_similarity(e.name, n) for n in names), default=0.0))
+
+
+def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50) -> dict:
+    repo = ctx.repo
+    vertical_id = repo.ensure_vertical(ctx.vertical)
+    counts: Counter = Counter()
+    run_id = repo.start_run("verify", vertical_id)
+    repo.conn.commit()
+
+    loaded: list[tuple[dict, list[PageExtraction], PageExtraction]] = []
+    for row in repo.domains_to_verify(limit):
+        pages = _load_pages(ctx, row["id"])
+        if pages:
+            loaded.append((row, pages, merge_extractions(pages)))
+    all_nips = sorted({hit.value for _, _, merged in loaded for hit in merged.nips})
+    lookups = mf.lookup(all_nips) if all_nips else {}
+
+    for row, pages, merged in loaded:
+        entities = [lookups[h.value].entity for h in merged.nips if h.value in lookups and lookups[h.value].entity]
+        entity = _pick_entity(entities, pages)
+        if entity and entity.krs:
+            try:
+                enriched = krs.fetch(entity.krs)
+            except RegistryError:
+                enriched = None
+            if enriched:
+                entity.pkd_codes = enriched.pkd_codes
+                entity.legal_form = enriched.legal_form
+                entity.website = enriched.website
+                entity.start_date = enriched.start_date or entity.start_date
+                entity.source = "krs"
+        classification = Classification(row["classification"], 0.5, [])
+        verification = verify_domain(
+            entity.to_view() if entity else None, pages, classification, ctx.keywords,
+            ctx.vertical.registry.expected_pkd,
+        )
+        if entity is None and merged.nips and verification.status == "candidate":
+            verification = Verification(0, "needs_review", None, ["NIP ze strony nie występuje w wykazie VAT"])
+
+        legal_entity_id = brand_id = None
+        if entity and verification.status != "rejected":
+            legal_entity_id = repo.upsert_legal_entity(entity)
+            brand_id = repo.upsert_brand(legal_entity_id, _brand_name(pages, entity))
+            city_name = entity.city.title() if entity.city else row["city_hint"]
+            if city_name:
+                listing_status = "verified" if verification.status == "verified" else "needs_review"
+                repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), listing_status)
+        repo.update_domain_verification(row["id"], verification.score, verification.status, legal_entity_id, brand_id)
+        counts[verification.status] += 1
+        repo.conn.commit()
+    counts["mf_requests"] = mf.requests_made
+    repo.finish_run(run_id, "ok", dict(counts))
+    repo.conn.commit()
+    return dict(counts)
+
+
+# ----------------------------------------------------------------------------- S5
+
+
+def stage_crawl_deep(ctx: Context, fetcher: PoliteFetcher, limit: int = 20, max_pages: int = 8) -> dict:
+    repo = ctx.repo
+    counts: Counter = Counter()
+    for row in repo.domains_for_deep_crawl(limit):
+        pages = _load_pages(ctx, row["id"])
+        if not pages:
+            continue
+        have = {canonical_url(p.url) for p in pages}
+        links = [link for p in pages for link in p.links]
+        for url in pick_pages(links, pages[0].url, limit=max_pages):
+            if url in have:
+                continue
+            result = fetcher.fetch(url)
+            if result.ok:
+                _save_page(ctx, row["id"], row["host"], result)
+                counts["pages"] += 1
+            else:
+                counts[f"skipped_{result.error}"] += 1
+        counts["domains"] += 1
+        repo.conn.commit()
+    return dict(counts)
+
+
+# ----------------------------------------------------------------------------- S6
+
+
+def _registry_facts(ctx: Context, brand_id: str) -> list[Fact]:
+    row = ctx.repo.conn.execute(
+        """select le.start_date, le.registry_source from legal_entities le
+           join brands b on b.legal_entity_id = le.id where b.id = %s""",
+        (brand_id,),
+    ).fetchone()
+    if not row or not row["start_date"]:
+        return []
+    iso = row["start_date"].isoformat()
+    # Uwaga: to data wpisu do rejestru (KRS lub wykaz VAT), nie dowód faktycznego początku działalności.
+    label = "data wpisu do KRS" if row["registry_source"] == "krs" else "data rejestracji w wykazie VAT"
+    return [Fact("registry_start_date", iso, f"{label}: {iso}", f"rejestr:{row['registry_source']}")]
+
+
+def stage_bundle(ctx: Context, limit: int = 50) -> dict:
+    repo = ctx.repo
+    counts: Counter = Counter()
+    for row in repo.brands_needing_description(limit):
+        pages = _load_pages(ctx, row["domain_id"])
+        if not pages:
+            counts["no_pages"] += 1
+            continue
+        facts = _registry_facts(ctx, row["brand_id"]) + facts_from_pages(pages)
+        for fact in facts:
+            fact.db_id = repo.add_fact(
+                row["brand_id"], fact.type, fact.value, fact.quote, fact.source_url,
+                _FACT_METHOD.get(fact.type, "registry"),
+            )
+        bundle = build_describe_bundle(
+            vertical=ctx.vertical.slug, firm_id=str(row["brand_id"]), name=row["name"], city=row["city"],
+            pages=pages, preset_facts=facts,
+        )
+        path = write_bundle(bundle, ctx.queue_dir)
+        repo.enqueue("describe", str(path), bundle["bundle_sha256"], brand_id=row["brand_id"])
+        counts["describe"] += 1
+        repo.conn.commit()
+    for row in repo.domains_needing_classification(limit):
+        pages = _load_pages(ctx, row["id"])
+        if not pages:
+            continue
+        merged = merge_extractions(pages)
+        bundle = build_classify_bundle(
+            vertical=ctx.vertical.slug, firm_id=str(row["id"]), url=row["canonical_url"], page=merged,
+            reasons=list(row["classification_reasons"] or []),
+        )
+        path = write_bundle(bundle, ctx.queue_dir)
+        repo.enqueue("classify", str(path), bundle["bundle_sha256"], domain_id=row["id"])
+        counts["classify"] += 1
+        repo.conn.commit()
+    return dict(counts)
+
+
+# ----------------------------------------------------------------------------- S7
+
+
+def _max_overlap(ctx: Context) -> float:
+    row = ctx.repo.conn.execute("select value from settings where key = 'validator_max_ngram_overlap'").fetchone()
+    return float(row["value"]) if row else 0.2
+
+
+def _apply_describe(ctx: Context, item: dict, bundle: dict, result: dict, report: dict) -> None:
+    repo = ctx.repo
+    brand_id = str(item["brand_id"])
+    db_ids = {f["fact_id"]: f.get("db_id") for f in bundle["facts"]}
+    cited = sorted({db_ids[fid] for c in result["description"]["claims"] for fid in c["fact_ids"] if db_ids.get(fid)})
+    repo.add_description(brand_id, result["description"]["text"].strip(), cited, report, "claude_code", "validated")
+    for service in result.get("services", []):
+        repo.add_fact(brand_id, "service", service["name"], service["quote"], service["source_url"], "llm", 0.7)
+    prices = [
+        {
+            "service": p["service"], "unit": p["unit"], "amount_min": p.get("amount_min"),
+            "amount_max": p.get("amount_max"), "tax_mode": p["tax_mode"], "conditions": p.get("conditions"),
+            "quote": p["quote"], "source_url": p["source_url"],
+        }
+        for p in result.get("prices", [])
+    ]
+    if prices:
+        repo.replace_price_items(brand_id, prices)
+
+
+def _apply_classify(ctx: Context, item: dict, result: dict) -> None:
+    verdict = result["verdict"]
+    label = verdict["label"]
+    status = None if label in ("official", "uncertain") else "rejected"
+    ctx.repo.update_domain_classification(
+        str(item["domain_id"]), label, [f"Claude Code: {verdict['reason']}"], verification_status=status
+    )
+
+
+def stage_import(ctx: Context) -> dict:
+    repo = ctx.repo
+    counts: Counter = Counter()
+    max_overlap = _max_overlap(ctx)
+    for item in repo.pending_queue_items():
+        firm_id = str(item["brand_id"] or item["domain_id"])
+        result_path = ctx.queue_dir / "results" / item["type"] / f"{firm_id}.json"
+        if not result_path.exists():
+            counts["waiting"] += 1
+            continue
+        bundle = json.loads(Path(item["bundle_path"]).read_text(encoding="utf-8"))
+        if bundle.get("bundle_sha256") != item["bundle_sha256"]:
+            repo.finish_queue_item(item["id"], "rejected", str(result_path), {"ok": False, "errors": [{"code": "stale_bundle", "message": "Paczka na dysku różni się od zapisanej w bazie."}]})
+            counts["rejected"] += 1
+            repo.conn.commit()
+            continue
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            repo.finish_queue_item(item["id"], "rejected", str(result_path), {"ok": False, "errors": [{"code": "bad_json", "message": "Wynik nie jest poprawnym JSON."}]})
+            counts["rejected"] += 1
+            repo.conn.commit()
+            continue
+        report = validate_result(bundle, result, max_overlap)
+        if not report.ok:
+            repo.finish_queue_item(item["id"], "rejected", str(result_path), report.to_dict())
+            counts["rejected"] += 1
+        else:
+            if item["type"] == "describe":
+                _apply_describe(ctx, item, bundle, result, report.to_dict())
+            else:
+                _apply_classify(ctx, item, result)
+            repo.finish_queue_item(item["id"], "done", str(result_path), report.to_dict())
+            counts["done"] += 1
+        repo.conn.commit()
+    return dict(counts)

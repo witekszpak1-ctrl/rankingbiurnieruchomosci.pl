@@ -1,0 +1,64 @@
+{
+  "result": {
+    "entries": [
+      {
+        "identifier": "7740001454",
+        "subjects": [
+          {
+            "name": "ORLEN SPÓŁKA AKCYJNA",
+            "nip": "7740001454",
+            "statusVat": "Czynny",
+            "regon": "610188201",
+            "pesel": null,
+            "krs": "0000028860",
+            "residenceAddress": "CHEMIKÓW 7, 09-411 PŁOCK",
+            "workingAddress": null,
+            "representatives": [],
+            "authorizedClerks": [],
+            "partners": [],
+            "registrationLegalDate": "1993-07-05",
+            "registrationDenialDate": null,
+            "registrationDenialBasis": null,
+            "restorationDate": null,
+            "restorationBasis": null,
+            "removalDate": null,
+            "exemptionSmeDate": null,
+            "removalBasis": null,
+            "accountNumbers": [],
+            "hasVirtualAccounts": true
+          }
+        ]
+      },
+      {
+        "identifier": "5250007738",
+        "subjects": [
+          {
+            "name": "POWSZECHNA KASA OSZCZĘDNOŚCI BANK POLSKI SPÓŁKA AKCYJNA",
+            "nip": "5250007738",
+            "statusVat": "Czynny",
+            "regon": "016298263",
+            "pesel": null,
+            "krs": "0000026438",
+            "residenceAddress": "ŚWIĘTOKRZYSKA 36, 00-116 WARSZAWA",
+            "workingAddress": null,
+            "representatives": [],
+            "authorizedClerks": [],
+            "partners": [],
+            "registrationLegalDate": "1998-10-01",
+            "registrationDenialDate": null,
+            "registrationDenialBasis": null,
+            "restorationDate": null,
+            "restorationBasis": null,
+            "removalDate": null,
+            "exemptionSmeDate": null,
+            "removalBasis": null,
+            "accountNumbers": [],
+            "hasVirtualAccounts": false
+          }
+        ]
+      }
+    ],
+    "requestDateTime": "10-11-2026 08:49:20",
+    "requestId": "ZGtva-9983il8"
+  }
+}

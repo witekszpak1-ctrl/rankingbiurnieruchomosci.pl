@@ -1,0 +1,73 @@
+{
+  "odpis": {
+    "rodzaj": "Aktualny",
+    "naglowekA": {
+      "rejestr": "RejP",
+      "numerKRS": "0000028860",
+      "stanZDnia": "09.10.2026",
+      "dataRejestracjiWKRS": "19.07.2001"
+    },
+    "dane": {
+      "dzial1": {
+        "danePodmiotu": {
+          "formaPrawna": "SPÓŁKA AKCYJNA",
+          "identyfikatory": {
+            "regon": "61018820100000",
+            "nip": "7740001454"
+          },
+          "nazwa": "ORLEN SPÓŁKA AKCYJNA"
+        },
+        "siedzibaIAdres": {
+          "siedziba": {
+            "kraj": "POLSKA",
+            "wojewodztwo": "MAZOWIECKIE",
+            "powiat": "M. PŁOCK",
+            "gmina": "M. PŁOCK",
+            "miejscowosc": "PŁOCK"
+          },
+          "adres": {
+            "ulica": "CHEMIKÓW",
+            "nrDomu": "7",
+            "miejscowosc": "PŁOCK",
+            "kodPocztowy": "09-411",
+            "poczta": "PŁOCK-BIAŁA",
+            "kraj": "POLSKA"
+          },
+          "adresPocztyElektronicznej": "ZARZAD@ORLEN.PL",
+          "adresStronyInternetowej": "WWW.ORLEN.PL",
+          "adresDoDoreczenElektronicznychWpisanyDoBAE": "AE:PL-59420-30959-DSCHB-14"
+        }
+      },
+      "dzial3": {
+        "przedmiotDzialalnosci": {
+          "przedmiotPrzewazajacejDzialalnosci": [
+            {
+              "opis": "WYTWARZANIE I PRZETWARZANIE PRODUKTÓW RAFINACJI ROPY NAFTOWEJ ORAZ PRODUKTÓW Z PALIW KOPALNYCH",
+              "kodDzial": "19",
+              "kodKlasa": "20",
+              "kodPodklasa": "Z"
+            }
+          ],
+          "przedmiotPozostalejDzialalnosci": [
+            {
+              "opis": "PRODUKCJA PODSTAWOWYCH CHEMIKALIÓW, NAWOZÓW I ZWIĄZKÓW AZOTOWYCH, TWORZYW SZTUCZNYCH I KAUCZUKU SYNTETYCZNEGO W FORMACH PODSTAWOWYCH",
+              "kodDzial": "20",
+              "kodKlasa": "1"
+            },
+            {
+              "opis": "MAGAZYNOWANIE I PRZECHOWYWANIE TOWARÓW",
+              "kodDzial": "52",
+              "kodKlasa": "1"
+            },
+            {
+              "opis": "GÓRNICTWO GAZU ZIEMNEGO",
+              "kodDzial": "06",
+              "kodKlasa": "20",
+              "kodPodklasa": "Z"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

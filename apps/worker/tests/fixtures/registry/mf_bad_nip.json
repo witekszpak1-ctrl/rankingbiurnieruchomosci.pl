@@ -1,0 +1,15 @@
+{
+  "result": {
+    "entries": [
+      {
+        "identifier": "7740001455",
+        "error": {
+          "message": "Nieprawidłowy NIP.",
+          "code": "WL-115"
+        }
+      }
+    ],
+    "requestDateTime": "10-11-2026 08:49:51",
+    "requestId": "mD1gw-9983imf"
+  }
+}

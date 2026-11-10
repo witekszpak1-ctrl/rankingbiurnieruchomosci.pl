@@ -1,0 +1,34 @@
+[project]
+name = "katalog-worker"
+version = "0.1.0"
+description = "Worker katalogu firm: discovery, weryfikacja domen, crawl, ekstrakcja, paczki dla Claude Code, walidator, import"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27",
+  "psycopg[binary]>=3.2",
+  "tldextract>=5.1",
+  "phonenumbers>=8.13",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.0",
+  "pydantic>=2.6",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+# Crawl4AI (renderowanie JS) instalowany tylko na workerze produkcyjnym, nie jest wymagany do testów.
+crawl = ["crawl4ai"]
+
+[project.scripts]
+katalog = "katalog_worker.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["katalog_worker*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,61 @@
+# Ręczne uruchomienie etapów pipeline'u na GitHub Actions.
+# NIEPRZETESTOWANE: powstało bez dostępu do GitHuba. Ograniczenia, o których trzeba wiedzieć:
+# - system plików runnera jest tymczasowy, więc etapy zależne od snapshotów (probe, verify, crawl-deep, bundle)
+#   muszą działać w jednym zadaniu, jak poniżej, a katalog queue/ trafia jako artefakt (docelowo: push do
+#   prywatnego repo katalog-queue),
+# - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
+# - harmonogram (schedule) jest celowo wyłączony do czasu pierwszego udanego ręcznego przebiegu.
+name: pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      city:
+        description: "Miasto dla etapu discover (puste = pomiń discover)"
+        required: false
+        default: ""
+      provider:
+        description: "Dostawca wyszukiwania"
+        type: choice
+        options: [brave, serper]
+        default: brave
+      limit:
+        description: "Limit domen na etap"
+        default: "50"
+  # schedule:
+  #   - cron: "17 5 * * 1-5"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
+      QUEUE_DIR: ./queue
+      SNAPSHOTS_DIR: ./snapshots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e apps/worker
+      - name: Migracje
+        run: katalog migrate
+      - name: S1 discover
+        if: ${{ inputs.city != '' }}
+        run: katalog discover --city "${{ inputs.city }}" --provider "${{ inputs.provider }}"
+      - name: S3-S6
+        run: |
+          katalog probe --limit "${{ inputs.limit }}"
+          katalog verify --limit "${{ inputs.limit }}"
+          katalog crawl-deep --limit "${{ inputs.limit }}"
+          katalog bundle --limit "${{ inputs.limit }}"
+          katalog status
+      - uses: actions/upload-artifact@v4
+        with:
+          name: queue
+          path: queue/
+          if-no-files-found: ignore

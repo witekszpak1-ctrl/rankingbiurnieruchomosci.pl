@@ -1,0 +1,59 @@
+# Konfiguracja branży: biura nieruchomości. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: nieruchomosci
+name: Biura nieruchomości
+domain: rankingbiurnieruchomosci.pl   # pisownia do potwierdzenia przez właściciela domeny
+
+registry:
+  # Kody PKD, którymi weryfikujemy branżę po stronie rejestru (spółki: lista z KRS, JDG: CEIDG).
+  pkd: ["68.31.Z"]
+  expected_pkd: ["68.31.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - nieruchomo
+  - pośredni
+  - posredni
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - biuro nieruchomości
+    - agencja nieruchomości
+    - pośrednictwo nieruchomości
+    - pośrednik nieruchomości
+  specializations:
+    - sprzedaż mieszkań
+    - wynajem mieszkań
+    - nowe budownictwo
+    - nieruchomości komercyjne
+    - sprzedaż domów
+    - działki budowlane
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+
+publication:
+  min_facts: 6          # minimalna liczba zweryfikowanych faktów, by wpis wszedł do indeksu (propozycja)
+
+pricing:
+  services:
+    - pośrednictwo w sprzedaży
+    - pośrednictwo w wynajmie
+    - wycena nieruchomości
+    - sesja zdjęciowa
+
+# Wagi startowe do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+ranking:
+  weights:
+    staz: 10
+    skala: 15
+    jawnosc_cennika: 15
+    spojnosc_danych: 10
+    zakres_uslug: 10
+    potwierdzenia: 15
+    jakosc_techniczna: 5
+    wlasne_opinie: 10
+    czas_reakcji: 10

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+
+# Sekrety i dane lokalne
+.env
+.env.*
+!.env.example
+*.pem
+
+# Dane kolejki i snapshoty stron (trzymane w osobnym prywatnym repo / storage)
+queue/
+snapshots/
+queue-example/*.local.json

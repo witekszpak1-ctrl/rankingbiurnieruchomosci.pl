@@ -1,0 +1,30 @@
+# Testy workera na każdy push i PR. NIEPRZETESTOWANE w GitHub Actions (powstało bez dostępu do GitHuba).
+name: worker-ci
+
+on:
+  push:
+    paths: ["apps/worker/**", "db/**", "packages/**", ".github/workflows/worker-ci.yml"]
+  pull_request:
+    paths: ["apps/worker/**", "db/**", "packages/**", ".github/workflows/worker-ci.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "apps/worker[dev]"
+      - run: python -m pytest
+        working-directory: apps/worker
