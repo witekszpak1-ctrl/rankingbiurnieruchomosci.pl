@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from pathlib import Path
 
 import psycopg
@@ -16,11 +17,23 @@ class MigrationError(RuntimeError):
     pass
 
 
+_URL_IN_TEXT = re.compile(r"postgres(?:ql)?://[^\s\"']+")
+
+
+def clean_dsn(raw: str) -> str:
+    """Wyciąga adres postgresql://... z tekstu wklejonego do sekretu (z etykietą, cudzysłowami albo białymi znakami).
+
+    Tekst bez takiego adresu (np. klasyczny napis host=... dbname=...) zwracamy bez zmian, tylko obcięty z brzegów.
+    """
+    found = _URL_IN_TEXT.search(raw)
+    return found.group(0) if found else raw.strip()
+
+
 def connect(url: str | None = None) -> psycopg.Connection:
     dsn = url or os.environ.get("DATABASE_URL")
     if not dsn:
         raise RuntimeError("Brak DATABASE_URL (ustaw zmienną środowiskową lub podaj url).")
-    return psycopg.connect(dsn, row_factory=dict_row)
+    return psycopg.connect(clean_dsn(dsn), row_factory=dict_row)
 
 
 def default_migrations_dir() -> Path:
@@ -41,16 +54,20 @@ def migrate(conn: psycopg.Connection, migrations_dir: Path | None = None) -> lis
 
     Zwraca listę właśnie zastosowanych wersji. Zmiana już zastosowanej migracji jest błędem.
     """
-    with conn.transaction():
-        conn.execute(
-            """
-            create table if not exists schema_migrations (
-              version    text primary key,
-              checksum   text not null,
-              applied_at timestamptz not null default now()
+    # "create table if not exists" wymaga prawa CREATE w schemacie nawet wtedy, gdy tabela już jest, a rola aplikacji
+    # (pipeline na GitHub Actions) nie ma tego prawa. Dlatego DDL tylko wtedy, gdy tabeli naprawdę brakuje.
+    exists = conn.execute("select to_regclass('schema_migrations') is not null as present").fetchone()["present"]
+    if not exists:
+        with conn.transaction():
+            conn.execute(
+                """
+                create table schema_migrations (
+                  version    text primary key,
+                  checksum   text not null,
+                  applied_at timestamptz not null default now()
+                )
+                """
             )
-            """
-        )
     applied = {
         row["version"]: row["checksum"]
         for row in conn.execute("select version, checksum from schema_migrations").fetchall()

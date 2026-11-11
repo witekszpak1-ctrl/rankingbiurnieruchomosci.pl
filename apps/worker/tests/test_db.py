@@ -103,3 +103,43 @@ def test_requests_constraints(db):
         with pytest.raises(Exception):
             with db.transaction():
                 db.execute(ok, bad)
+
+
+def test_clean_dsn_extracts_url_from_pasted_text():
+    from katalog_worker.db import clean_dsn
+
+    url = "postgresql://u:p@host.example/db?sslmode=require"
+    assert clean_dsn(url) == url
+    assert clean_dsn(f"  {url}\n") == url
+    assert clean_dsn(f"Wartość: {url}") == url  # wklejona cała linia z etykietą
+    assert clean_dsn(f'"{url}"') == url
+    assert clean_dsn(f"DATABASE_URL={url}") == url
+    assert clean_dsn("postgres://u@h/db") == "postgres://u@h/db"
+    assert clean_dsn("  host=localhost dbname=x ") == "host=localhost dbname=x"
+
+
+def test_migrate_needs_no_create_privilege_when_nothing_is_pending(db_url):
+    """Pipeline działa na roli bez prawa CREATE: gdy wszystko zastosowane, migrate nie robi żadnego DDL."""
+    import uuid
+
+    import psycopg
+    from conftest import ADMIN_URL
+    from psycopg.conninfo import make_conninfo
+
+    from katalog_worker.db import connect
+
+    role = f"katalog_role_{uuid.uuid4().hex[:8]}"
+    admin = psycopg.connect(ADMIN_URL, autocommit=True)
+    owner = psycopg.connect(db_url, autocommit=True)
+    try:
+        admin.execute(f'create role "{role}" login')
+        owner.execute(f'grant usage on schema public to "{role}"')
+        owner.execute(f'grant select, insert, update, delete on all tables in schema public to "{role}"')
+        owner.execute("revoke create on schema public from public")
+        with connect(make_conninfo(db_url, user=role)) as conn:
+            assert migrate(conn) == []
+    finally:
+        owner.execute(f'drop owned by "{role}"')
+        owner.close()
+        admin.execute(f'drop role if exists "{role}"')
+        admin.close()
