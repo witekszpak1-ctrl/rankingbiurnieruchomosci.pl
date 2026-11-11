@@ -23,6 +23,10 @@ export const SITE_STATES: Record<string, { label: string; where: string }> = {
   potwierdzona: { label: "firma potwierdzona", where: "d.verification_status in ('verified', 'probable')" },
   bez_potwierdzenia: { label: "biuro bez potwierdzenia w rejestrze", where: "d.verification_status = 'needs_review'" },
   odrzucona: { label: "odrzucona", where: "d.verification_status = 'rejected'" },
+  na_stronie: {
+    label: "dodane na stronę",
+    where: "exists (select 1 from listings lp where lp.brand_id = d.brand_id and lp.status = 'published')",
+  },
 };
 
 export function siteState(row: Pick<SiteRow, "verification" | "classification">): string {

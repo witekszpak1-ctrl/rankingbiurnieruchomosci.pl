@@ -15,6 +15,7 @@ const TONE: Record<string, string> = {
   potwierdzona: "ok",
   bez_potwierdzenia: "warn",
   odrzucona: "bad",
+  na_stronie: "ok",
 };
 
 const CLASS_LABEL: Record<string, string> = {
@@ -83,6 +84,26 @@ async function Sites({
   const [{ rows, counts }, cities] = await Promise.all([listSites(filters), siteCities()]);
   return (
     <>
+      <div className="kpis compact">
+        <div className="kpi">
+          <b>{counts.all ?? 0}</b>
+          <span>znalezionych stron</span>
+        </div>
+        <div className="kpi">
+          <b>{(counts.potwierdzona ?? 0) + (counts.bez_potwierdzenia ?? 0)}</b>
+          <span>to biura nieruchomości</span>
+        </div>
+        <div className="kpi hot">
+          <b>
+            <Link href="/admin/sites?stan=na_stronie">{counts.na_stronie ?? 0}</Link>
+          </b>
+          <span>dodanych na stronę (widoczne publicznie)</span>
+        </div>
+        <div className="kpi">
+          <b>{counts.czeka ?? 0}</b>
+          <span>czeka na sprawdzenie</span>
+        </div>
+      </div>
       <div className="chips-row">
         <Link className={!filters.state ? "chip-link active" : "chip-link"} href="/admin/sites">
           wszystkie <b>{counts.all ?? 0}</b>
@@ -148,7 +169,18 @@ async function Sites({
                   <td className="note">{CLASS_LABEL[r.classification] ?? r.classification}</td>
                   <td className="note wrap-cell">{reasonText(r.reasons)}</td>
                   <td>
-                    {r.listingId ? <Link href={`/admin/firms/${r.listingId}`}>{r.firmName}</Link> : <span className="note">-</span>}
+                    {r.listingId ? (
+                      <>
+                        <Link href={`/admin/firms/${r.listingId}`}>{r.firmName}</Link>
+                        {r.listingStatus === "published" && (
+                          <span className="badge ok" style={{ marginLeft: 6 }}>
+                            na stronie
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="note">-</span>
+                    )}
                   </td>
                   <td className="note">{r.query ?? "-"}</td>
                 </tr>
