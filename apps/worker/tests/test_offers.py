@@ -232,3 +232,37 @@ def test_scan_reports_link_groups_for_pages_without_offers():
     scan = scan_offers(fetcher, "https://biuro.pl/")
     assert scan.offers == []
     assert scan.diagnostics["https://biuro.pl/oferty"][0]["anchors"] == 0
+
+
+def test_offer_slug_as_first_path_segment_is_grouped():
+    cards = "".join(
+        f"""<div class="item"><a href="/{slug}/{oid}"><img src="/a.jpg"></a>
+              <div class="item-title">{title}</div><span>{oid} zł</span></div>"""
+        for slug, oid, title in (
+            ("dzialki-na-sprzedaz-1200m2-dlugoleka-pasikurowice-350000zl", "ag-9101", "Działka, Długołęka Pasikurowice"),
+            ("mieszkania-na-sprzedaz-48m2-wroclaw-krzyki-620000zl", "ag-9102", "Mieszkanie, Wrocław Krzyki"),
+            ("domy-na-sprzedaz-160m2-wolow-990000zl", "ag-9103", "Dom, Wołów"),
+        )
+    )
+    offers, _ = extract_offers(page(cards), "https://biuro.pl/oferty")
+    assert [o.title for o in offers] == ["Działka, Długołęka Pasikurowice", "Mieszkanie, Wrocław Krzyki", "Dom, Wołów"]
+
+
+def test_index_urls_add_unfiltered_list_first():
+    html = '<html><body><a href="/oferty?typ=dzialki">Działki</a><a href="/oferty?typ=domy">Domy na sprzedaż</a></body></html>'
+    assert offer_index_urls(html, "https://biuro.pl/")[0] == "https://biuro.pl/oferty"
+
+
+def test_scan_picks_list_with_most_offers():
+    home = '<html><body><a href="/oferty/domy">Oferty domy</a><a href="/oferty/mieszkania">Oferty mieszkania</a></body></html>'
+    fetcher = FakeFetcher({
+        "https://biuro.pl/": home,
+        "https://biuro.pl/oferty/domy": page(crm_cards(3)),
+        "https://biuro.pl/oferty/mieszkania": page(crm_cards(9)),
+    })
+    scan = scan_offers(fetcher, "https://biuro.pl/")
+    assert scan.source_url == "https://biuro.pl/oferty/mieszkania" and len(scan.offers) == 9
+
+
+def test_long_dashes_in_titles_become_short():
+    assert clean_title("Mieszkanie 4P – Okazja") == "Mieszkanie 4P - Okazja"

@@ -76,6 +76,13 @@ _INDEX_HINTS: tuple[tuple[str, int], ...] = (
     ("properties", 6),
     ("listings", 6),
     ("ogloszenia", 6),
+    ("rynek wtorny", 6),
+    ("rynek pierwotny", 5),
+    ("kupno", 3),
+    ("wynajmij", 3),
+    ("kup", 2),
+    ("na wynajem", 3),
+    ("do wynajecia", 3),
     ("mieszkania", 3),
     ("na sprzedaz", 3),
     ("sprzedaz", 2),
@@ -123,7 +130,7 @@ def looks_like_real_estate(text: str) -> bool:
 
 
 def clean_title(text: str) -> str | None:
-    title = " ".join(text.split()).strip(" -|·•»«>,;:")
+    title = " ".join(text.replace("\u2013", "-").replace("\u2014", "-").split()).strip(" -|·•»«>,;:")
     if len(title) < 6 or not re.search(r"[A-Za-zżźćńółęąśŻŹĆĄŚĘŁÓŃ]{3}", title):
         return None
     if fold(title) in _GENERIC_TEXT or _COUNTED_CATEGORY.search(fold(title) if "(" not in title else title.lower()):
@@ -183,6 +190,8 @@ def _template(url: str) -> tuple | None:
     if not has_id and _CATEGORY_SLUG.search(fold(stem).replace(" ", "-")):
         return None
     first = segments[0].lower() if len(segments) > 1 else ""
+    if re.search(r"\d{3,}", first) or len([t for t in re.split(r"[-_]+", first) if t]) >= 3:
+        first = "*"  # pierwszy człon to slug samej oferty (np. /dzialki-na-sprzedaz-1200m2-.../123)
     first = re.sub(r"\d+", "#", first)
     return (first, len(segments), ext, numeric_keys)
 
@@ -436,6 +445,9 @@ def offer_index_urls(html: str, page_url: str, limit: int = 3) -> list[str]:
             continue  # ta sama lista inaczej posortowana albo kolejna strona listy
         if _template(absolute) and re.search(r"\d{3,}", path):
             continue  # pojedyncza oferta, a nie lista ofert
+        last = [seg for seg in path.split("/") if seg][-1:] or [""]
+        if len([t for t in re.split(r"[-_.]+", last[0]) if t and t not in ("html", "htm", "php")]) >= 5:
+            continue  # artykuł, np. /dlaczego-warto-podpisac-umowe-na-wylacznosc/
         anchor_text = fold(anchor.get_text(" "))
         path_text = fold(path)
         score = 0
@@ -449,13 +461,21 @@ def offer_index_urls(html: str, page_url: str, limit: int = 3) -> list[str]:
         depth = len([s for s in path.split("/") if s])
         if depth <= 2:
             score += 2
+        query = urlsplit(absolute).query
+        if query:
+            score -= 2  # lista z filtrem (np. tylko działki) jest gorsza od pełnej
+            parts = urlsplit(absolute)
+            bare = urlunsplit((parts.scheme, parts.netloc, parts.path or "/", "", ""))
+            bare_key = canonical_url(bare)
+            if bare_key != page_key and (bare_key not in scored or scored[bare_key][0] < score + 3):
+                scored[bare_key] = (score + 3, bare)
         if key not in scored or scored[key][0] < score:
             scored[key] = (score, absolute)
     ordered = sorted(scored.values(), key=lambda item: (-item[0], len(item[1])))
     return [url for _, url in ordered[:limit]]
 
 
-def scan_offers(fetcher, home_url: str, known_index: str | None = None, max_index_pages: int = 3) -> OfferScan:
+def scan_offers(fetcher, home_url: str, known_index: str | None = None, max_index_pages: int = 4) -> OfferScan:
     """Pobiera stronę z ofertami (zapamiętaną albo znalezioną na stronie głównej) i wyciąga z niej oferty.
 
     Strona główna jest tylko awaryjnym źródłem, bo często pokazuje oferty polecane zamiast najnowszych."""
@@ -492,9 +512,12 @@ def scan_offers(fetcher, home_url: str, known_index: str | None = None, max_inde
             scan.errors.append(f"{url}: {result.error}")
             continue
         offers, method = read(url, result)
-        if offers:
+        if len(offers) > len(scan.offers):
             scan.source_url, scan.offers, scan.method = url, offers, method
-            return scan
+            if len(offers) >= MAX_OFFERS:
+                break
+    if scan.offers:
+        return scan
     if home_offers:
         scan.source_url, scan.offers, scan.method = home.final_url, home_offers, home_method
     return scan
