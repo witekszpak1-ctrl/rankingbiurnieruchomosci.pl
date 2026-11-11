@@ -170,3 +170,45 @@ export async function requestAction(formData: FormData) {
   revalidatePath("/admin");
   back("/admin/requests", "ok", "Zgłoszenie zaktualizowane.");
 }
+
+/** Miasta: włączenie lub wyłączenie szukania, przesunięcie na początek kolejki, dodanie nowego miasta. */
+export async function cityAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const action = String(formData.get("action") ?? "");
+  const id = String(formData.get("id") ?? "");
+  const path = "/admin/cities";
+  if (action === "add") {
+    const name = String(formData.get("name") ?? "").trim().replace(/\s+/g, " ");
+    if (name.length < 2 || name.length > 60) back(path, "error", "Podaj nazwę miasta.");
+    const slug = slugify(name);
+    const inserted = await withTransaction(async (client) => {
+      const res = await client.query<{ id: string; inserted: boolean }>(
+        `insert into cities (name, slug, search_enabled, search_priority)
+         values ($1, $2, true, (select coalesce(max(search_priority), 0) + 1 from cities))
+         on conflict (slug) do update set search_enabled = true returning id, (xmax = 0) as inserted`,
+        [name, slug],
+      );
+      const row = res.rows[0];
+      await writeAudit(client, { actor: admin, action: "city.add", entityType: "city", entityId: row.id, after: { name } });
+      return row.inserted;
+    });
+    revalidatePath(path);
+    back(path, "ok", inserted ? `Dodano miasto ${name}.` : `Miasto ${name} już było na liście, szukanie włączone.`);
+  }
+  if (!UUID_RE.test(id)) back(path, "error", "Nieprawidłowe miasto.");
+  if (!["enable", "disable", "next"].includes(action)) back(path, "error", "Nieznana akcja.");
+  await withTransaction(async (client) => {
+    if (action === "next") {
+      await client.query(
+        `update cities set search_enabled = true,
+           search_priority = (select coalesce(min(search_priority), 1) - 1 from cities) where id = $1`,
+        [id],
+      );
+    } else {
+      await client.query("update cities set search_enabled = $2 where id = $1", [id, action === "enable"]);
+    }
+    await writeAudit(client, { actor: admin, action: `city.${action}`, entityType: "city", entityId: id });
+  });
+  revalidatePath(path);
+  back(path, "ok", action === "next" ? "Miasto będzie szukane jako następne." : "Zapisano.");
+}

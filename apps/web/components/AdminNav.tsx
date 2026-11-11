@@ -30,6 +30,12 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M10 20v-5h4v5" />
     </>
   ),
+  cities: (
+    <>
+      <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </>
+  ),
   runs: <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />,
   audit: (
     <>

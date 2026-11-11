@@ -17,6 +17,7 @@ import sys
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -128,8 +129,46 @@ def stage_discover(
     counts = {"queries": len(stats), "candidates": len(candidates), "new_domains": new_domains,
               "blocked_results": sum(s.blocked for s in stats)}
     repo.finish_run(run_id, "ok", counts, cost_usd=round(sum(s.cost_usd for s in stats), 4))
+    repo.mark_city_searched(city)
     repo.conn.commit()
     return counts
+
+
+# ----------------------------------------------------------------------------- miasta
+
+
+def read_city_list(path: Path) -> list[str]:
+    """Miasta z pliku branży (jedno w wierszu, # to komentarz), bez powtórzeń, w kolejności z pliku."""
+    seen: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        name = line.strip()
+        if name and not name.startswith("#") and name not in seen:
+            seen.append(name)
+    return seen
+
+
+def stage_cities_sync(ctx: Context, names: list[str]) -> dict:
+    """Dopisuje miasta z listy branży do bazy. Kolejność z panelu (search_priority) nie jest nadpisywana."""
+    repo = ctx.repo
+    added = 0
+    for index, name in enumerate(names):
+        added += repo.ensure_city_with_priority(name, index + 1)
+    repo.conn.commit()
+    return {"cities": len(names), "added": added}
+
+
+def cities_export(ctx: Context) -> dict:
+    """Kolejka miast do wyszukiwania dla porannej sesji Claude Code (queue/cities.json na gałęzi queue-data)."""
+    rows = ctx.repo.city_search_queue()
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "note": "Miasta włączone w panelu, w kolejności szukania. Najpierw te, w których jeszcze nie szukano.",
+        "cities": [
+            {"name": r["name"], "slug": r["slug"],
+             "last_searched_at": r["last_searched_at"].isoformat() if r["last_searched_at"] else None}
+            for r in rows
+        ],
+    }
 
 
 # ----------------------------------------------------------------------------- S3

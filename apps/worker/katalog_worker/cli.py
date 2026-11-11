@@ -127,6 +127,22 @@ def cmd_contacts(args) -> int:
     return 0
 
 
+def cmd_cities(args) -> int:
+    from .pipeline import cities_export, read_city_list, stage_cities_sync
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        result = stage_cities_sync(ctx, read_city_list(Path(args.file)))
+        if args.export:
+            out = Path(args.export)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            data = cities_export(ctx)
+            out.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            result["exported"] = len(data["cities"])
+        _print(result)
+    return 0
+
+
 def cmd_requeue_lost(args) -> int:
     from .pipeline import stage_requeue_lost
 
@@ -224,6 +240,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("offers", cmd_offers, "najnowsze oferty (tytuł i link) ze stron opublikowanych biur")
     p.add_argument("--limit", type=int, default=200)
     p.add_argument("--dry-run", action="store_true", help="tylko raport na stderr, bez zapisu w bazie")
+    p = add("cities", cmd_cities, "dopisz miasta z listy branży do bazy i zapisz kolejkę wyszukiwania")
+    p.add_argument("--file", default="packages/verticals/nieruchomosci/cities.txt")
+    p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
     p.add_argument("--limit", type=int, default=300)
     p = add("publish-ready", cmd_publish_ready, "opublikuj wpisy spełniające bramkę (gdy auto_publish = true)")

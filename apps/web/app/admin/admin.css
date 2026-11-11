@@ -239,3 +239,6 @@
 .adm .checks li.warn::before { content: "!"; background: var(--a-warn-soft); color: var(--a-warn); }
 .adm .crumbs { color: var(--a-faint); font-size: 0.88rem; margin: 0 0 10px; }
 .adm .crumbs a { color: var(--a-muted); }
+.adm .row-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+.adm .row-actions button { padding: 5px 10px; font-size: 0.82rem; }
+.adm td b { font-weight: 600; }

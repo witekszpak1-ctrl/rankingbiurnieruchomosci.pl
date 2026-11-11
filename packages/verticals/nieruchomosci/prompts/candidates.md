@@ -5,9 +5,12 @@ importuje jako źródło `file` (`katalog discover --provider file`). Format pli
 
 ## Które miasto
 
-Pierwsze miasto z `packages/verticals/nieruchomosci/cities.txt`, dla którego w `queue/candidates/` (po
-`bash scripts/queue_sync.sh pull`) nie ma pliku zaczynającego się od jego sluga (małe litery, bez polskich znaków,
-spacje jako myślnik, np. `wroclaw-`, `zielona-gora-`).
+Pierwsze miasto z `queue/cities.json` (po `bash scripts/queue_sync.sh pull`), dla którego w `queue/candidates/` nie ma
+pliku zaczynającego się od jego `slug` i myślnika (np. `wroclaw-`, `zielona-gora-`). Plik zawiera tylko miasta włączone
+w panelu admina (zakładka Miasta), w kolejności ustalonej w panelu. Jeśli pliku nie ma, użyj
+`packages/verticals/nieruchomosci/cities.txt` (slug: małe litery, bez polskich znaków, spacje jako myślnik).
+
+W mniejszych miastach zapytania zwracają mniej biur: to normalne. Zapisz wyniki tak samo, nawet jeśli jest ich mało.
 
 ## Zapytania
 

@@ -66,6 +66,25 @@ class Repo:
         ).fetchone()
         return str(row["id"])
 
+    def ensure_city_with_priority(self, name: str, priority: int) -> int:
+        """Dodaje miasto z listy branży. Zwraca 1, gdy miasto było nowe. Istniejącemu ustawia kolejność tylko gdy jej brak."""
+        row = self.conn.execute(
+            """insert into cities (name, slug, search_priority) values (%s, %s, %s)
+               on conflict (slug) do update set search_priority = coalesce(cities.search_priority, excluded.search_priority)
+               returning (xmax = 0) as inserted""",
+            (name, slugify(name), priority),
+        ).fetchone()
+        return int(bool(row["inserted"]))
+
+    def mark_city_searched(self, name: str) -> None:
+        self.conn.execute("update cities set last_searched_at = now() where slug = %s", (slugify(name),))
+
+    def city_search_queue(self) -> list[dict]:
+        return self.conn.execute(
+            """select name, slug, last_searched_at from cities where search_enabled
+               order by (last_searched_at is not null), search_priority nulls last, name"""
+        ).fetchall()
+
     # ------------------------------------------------------------------ przebiegi i wyszukiwanie
 
     def start_run(self, stage: str, vertical_id: str | None) -> str:

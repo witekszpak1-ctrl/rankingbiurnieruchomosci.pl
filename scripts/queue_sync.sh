@@ -5,6 +5,7 @@
 #   queue_sync.sh push-pending   kopiuje queue/pending na gałąź (istniejących plików nie nadpisuje)
 #   queue_sync.sh push-results   kopiuje queue/results na gałąź (nadpisuje)
 #   queue_sync.sh push-candidates kopiuje queue/candidates (wyniki wyszukiwania zebrane przez Claude Code) na gałąź
+#   queue_sync.sh push-cities    kopiuje queue/cities.json (kolejka miast z panelu) na gałąź (nadpisuje)
 #   queue_sync.sh pull           pobiera całą gałąź do ./queue (nadpisuje lokalne pliki o tych samych nazwach)
 #
 # Zmienne: QUEUE_BRANCH (domyślnie queue-data), QUEUE_REMOTE (domyślnie origin).
@@ -100,6 +101,21 @@ case "$cmd" in
   push-candidates)
     push_with_retry candidates "queue: kandydaci ($(date -u +%Y-%m-%dT%H:%MZ))"
     ;;
+  push-cities)
+    for attempt in 1 2 3; do
+      reset_tmp
+      checkout_branch
+      mkdir -p "$tmp/queue"
+      [ -f queue/cities.json ] && cp queue/cities.json "$tmp/queue/cities.json"
+      if commit_and_push "queue: kolejka miast ($(date -u +%Y-%m-%dT%H:%MZ))"; then
+        exit 0
+      fi
+      echo "Wysyłka nieudana (próba $attempt z 3), ponawiam."
+      sleep 2
+    done
+    echo "Nie udało się wysłać kolejki miast." >&2
+    exit 1
+    ;;
   pull)
     if ! branch_exists; then
       echo "Gałąź $BRANCH jeszcze nie istnieje, nic do pobrania."
@@ -113,7 +129,7 @@ case "$cmd" in
     echo "Pobrano kolejkę z gałęzi $BRANCH do ./queue."
     ;;
   *)
-    echo "Użycie: $0 {push-pending|push-results|push-candidates|pull}" >&2
+    echo "Użycie: $0 {push-pending|push-results|push-candidates|push-cities|pull}" >&2
     exit 2
     ;;
 esac

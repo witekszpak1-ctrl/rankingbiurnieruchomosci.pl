@@ -98,6 +98,11 @@ jobs:
       - name: Publikacja paczek na gałąź queue-data
         if: ${{ always() }}
         run: bash scripts/queue_sync.sh push-pending
+      - name: Kolejka miast z panelu dla porannej sesji
+        if: ${{ always() }}
+        run: |
+          katalog cities --export queue/cities.json
+          bash scripts/queue_sync.sh push-cities
       - name: Zapis zrzutów stron
         if: ${{ always() }}
         uses: actions/cache/save@v4
