@@ -13,6 +13,7 @@ import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, form
 import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel, plural } from "@/lib/plural";
 import { isPlausible, priceBasis } from "@/lib/prices";
 import { firmMeta } from "@/lib/meta-texts";
+import { firmFaq } from "@/lib/firm-faq";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 import { CITY_RANKING_MIN, rankListings, scoreListing } from "@/lib/ranking";
 
@@ -108,6 +109,20 @@ export default async function FirmPage({ params, searchParams }: Props) {
   const position = cityRanked?.find((r) => r.listingId === listing.listingId)?.position ?? null;
   const similar = similarFirms(listing.listingId, cityRanked ?? cityListings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] })));
   const where = inCity(listing.cityName);
+  const faq = firmFaq({
+    name: listing.name,
+    cityName: listing.cityName,
+    address: listing.address,
+    phone: listing.phone,
+    services: listing.services,
+    prices: visiblePrices,
+    registryConfirmed: listing.registryConfirmed,
+    registryYears: listing.registryConfirmed ? yearsSince(listing.startDate) : null,
+    offersCount: listing.offersCount,
+    score,
+    position,
+    cityCount: cityRanked?.length ?? null,
+  });
   const intro = [
     `${listing.name} to biuro nieruchomości ${where}${listing.registryConfirmed ? ", potwierdzone w rejestrze publicznym" : ""}.`,
     position && cityRanked
@@ -415,6 +430,18 @@ export default async function FirmPage({ params, searchParams }: Props) {
               </section>
             )}
 
+            <section className="profile-section">
+              <h2>Najczęściej zadawane pytania o {listing.name}</h2>
+              <div className="faq">
+                {faq.map((f) => (
+                  <details key={f.q}>
+                    <summary>{f.q}</summary>
+                    <p>{f.a}</p>
+                  </details>
+                ))}
+              </div>
+            </section>
+
             <section className="owner-band">
               <div>
                 <b>To Twoja firma?</b>
@@ -473,6 +500,13 @@ export default async function FirmPage({ params, searchParams }: Props) {
               sameAs: [listing.websiteUrl, ...listing.socials.map((s) => s.url)].filter(Boolean),
             },
           ],
+        }}
+      />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
         }}
       />
       <JsonLd
