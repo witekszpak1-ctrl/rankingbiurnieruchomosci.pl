@@ -9,6 +9,8 @@ import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
 import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
+import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel } from "@/lib/plural";
+import { isPlausible, priceBasis } from "@/lib/prices";
 import { scoreListing } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -41,11 +43,7 @@ function yearsSince(date: Date | null): number | null {
 }
 
 function yearsLabel(n: number): string {
-  if (n === 1) return "1 rok w rejestrze";
-  const last = n % 10;
-  const lastTwo = n % 100;
-  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return `${n} lata w rejestrze`;
-  return `${n} lat w rejestrze`;
+  return `${nLat(n)} w rejestrze`;
 }
 
 const SOCIAL: Record<string, { label: string; path: string }> = {
@@ -65,6 +63,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const listing = await getPublishedListing(city, firm);
   if (!listing) notFound();
+  const visiblePrices = listing.prices.filter(isPlausible);
   const { breakdown, score } = scoreListing({
     startDate: listing.startDate,
     hasPublicPrices: listing.hasPublicPrices,
@@ -106,7 +105,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
               <div className="profile-rating">
                 <Stars value={listing.googleRating} />
                 <b>{listing.googleRating.toFixed(1)}</b>
-                <a href="#opinie">({listing.googleCount} opinii w Google)</a>
+                <a href="#opinie">({nOpinii(listing.googleCount)} w Google)</a>
               </div>
             ) : null}
             <div className="profile-score">
@@ -116,7 +115,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
             <ul className="chips">
               {years && <li>{yearsLabel(years)}</li>}
               <li>{listing.cityName}</li>
-              {listing.offersCount > 0 && <li>{listing.offersCount} aktualnych ofert</li>}
+              {listing.offersCount > 0 && <li>{offersLabel(listing.offersCount)}</li>}
               {listing.hasPublicPrices && <li className="ok">jawny cennik</li>}
               {listing.registryConfirmed ? (
                 <li className="ok">potwierdzona w rejestrze</li>
@@ -220,9 +219,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
                         </span>
                         <span className="offer-info">
                           <b>{offer.title}</b>
-                          <span>
-                            {listing.cityName} · oferta biura {listing.name}
-                          </span>
+                          <span>oferta biura {listing.name}</span>
                         </span>
                         <span className={price ? "offer-price" : "offer-price none"}>{price ?? "cena na stronie biura"}</span>
                         <a className="offer-go" href={offer.url} rel="noopener nofollow" target="_blank">
@@ -236,7 +233,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
                   })}
                 </ul>
                 <p className="note">
-                  Najnowsze oferty ze strony biura
+                  {listing.offers.length >= OFFERS_SAMPLE_MAX ? "Najnowsze oferty" : "Oferty"} ze strony biura (robot pobiera
+                  najwyżej {OFFERS_SAMPLE_MAX} najnowszych ogłoszeń, biuro może mieć ich więcej)
                   {listing.offersSourceUrl && (
                     <>
                       {" "}
@@ -255,19 +253,22 @@ export default async function FirmPage({ params, searchParams }: Props) {
 
             <section className="profile-section">
               <h2>Prowizje i ceny usług</h2>
-              {listing.prices.length > 0 ? (
+              {visiblePrices.length > 0 ? (
                 <>
                   <div className="price-boxes">
-                    {listing.prices.map((price) => (
+                    {visiblePrices.map((price) => (
                       <div key={`${price.service}-${price.sourceUrl}`} className="price-box">
-                        <span>{price.service}</span>
+                        <span>
+                          {price.service}
+                          {priceBasis(price) ? ` (${priceBasis(price)})` : ""}
+                        </span>
                         <b>{formatPrice(price)}</b>
                       </div>
                     ))}
                   </div>
                   <p className="note">
                     Ceny deklarowane przez biuro na jego stronie, sprawdzone{" "}
-                    {formatDate(newest(listing.prices.map((p) => p.observedAt)))}. Mogły się zmienić.
+                    {formatDate(newest(visiblePrices.map((p) => p.observedAt)))}. Mogły się zmienić.
                   </p>
                 </>
               ) : (

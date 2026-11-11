@@ -2,6 +2,7 @@
 
 import { query } from "./db";
 import { addressText } from "./format";
+import { isPlausible, priceKind } from "./prices";
 import { median } from "./ranking";
 
 export type CityRow = { slug: string; name: string; listings: number };
@@ -198,21 +199,30 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
 
 export type CommissionStats = { n: number; median: number | null; observedAt: Date | null };
 
-/** Mediana jawnych prowizji procentowych od sprzedaży w mieście (jedna wartość na firmę). */
+/**
+ * Mediana jawnych prowizji procentowych od sprzedaży w mieście (jedna wartość na firmę: najniższa wiarygodna stawka).
+ * Pomija stawki za najem i zarządzanie najmem oraz wartości spoza rozsądnego przedziału (isPlausible).
+ */
 export async function cityCommissionStats(citySlug: string): Promise<CommissionStats> {
-  const rows = await query<{ v: number; observedAt: Date }>(
-    `select distinct on (b.id) p.amount_min::float8 as v, p.observed_at as "observedAt"
+  const rows = await query<{ brandId: string; service: string; unit: PriceRow["unit"]; amountMin: number | null; amountMax: number | null; observedAt: Date }>(
+    `select b.id as "brandId", p.service, p.unit, p.amount_min::float8 as "amountMin", p.amount_max::float8 as "amountMax",
+            p.observed_at as "observedAt"
      from price_items p
      join brands b on b.id = p.brand_id
      join listings l on l.brand_id = b.id and l.status = 'published'
      join cities c on c.id = l.city_id
-     where c.slug = $1 and p.is_current and p.unit = 'percent' and p.service ilike '%sprzeda%'
-       and p.amount_min is not null
-     order by b.id, p.amount_min`,
+     where c.slug = $1 and p.is_current and p.unit = 'percent' and p.amount_min is not null`,
     [citySlug],
   );
-  const latest = rows.reduce<Date | null>((acc, r) => (!acc || r.observedAt > acc ? r.observedAt : acc), null);
-  return { n: rows.length, median: median(rows.map((r) => r.v)), observedAt: latest };
+  const perBrand = new Map<string, { v: number; observedAt: Date }>();
+  for (const r of rows) {
+    if (priceKind(r.service) !== "sale" || !isPlausible(r) || r.amountMin == null) continue;
+    const prev = perBrand.get(r.brandId);
+    if (!prev || r.amountMin < prev.v) perBrand.set(r.brandId, { v: r.amountMin, observedAt: r.observedAt });
+  }
+  const values = [...perBrand.values()];
+  const latest = values.reduce<Date | null>((acc, r) => (!acc || r.observedAt > acc ? r.observedAt : acc), null);
+  return { n: values.length, median: median(values.map((r) => r.v)), observedAt: latest };
 }
 
 export type SitemapEntry = { citySlug: string; firmSlug: string | null; lastModified: Date | null; cityListings: number };

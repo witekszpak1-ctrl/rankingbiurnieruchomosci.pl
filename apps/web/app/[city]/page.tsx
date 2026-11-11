@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { cityCommissionStats, getCity, listCityListings, type ListingCard } from "@/lib/catalog";
 import { absoluteUrl, formatDate, formatYear } from "@/lib/format";
+import { nBiur, plural } from "@/lib/plural";
 import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -43,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const ranking = data.ranked ? ` - ranking ${year}` : "";
   return {
     title: `Biura nieruchomości ${data.city.name}${ranking}`,
-    description: `Zweryfikowane biura nieruchomości z miasta ${data.city.name}: ${data.listings.length} wpisów, jawne ceny prowizji i metodologia rankingu.`,
+    description: `Biura nieruchomości z miasta ${data.city.name}: ${nBiur(data.listings.length)}, jawne ceny prowizji i metodologia rankingu.`,
     alternates: { canonical: `/${slug}` },
     robots: data.ranked ? undefined : { index: false, follow: true },
   };
@@ -59,9 +60,12 @@ export default async function CityPage({ params }: Props) {
   const year = new Date().getFullYear();
   const medianText =
     stats.n >= PRICE_STAT_MIN && stats.median != null
-      ? ` Mediana jawnej prowizji od sprzedaży wynosi ${stats.median.toLocaleString("pl-PL")}% (na podstawie ${stats.n} biur, ceny deklarowane przez firmy, wg ich stron z dnia ${formatDate(stats.observedAt)}).`
+      ? ` Mediana jawnej prowizji od sprzedaży wynosi ${stats.median.toLocaleString("pl-PL")}% (na podstawie ${nBiur(stats.n)}, ceny deklarowane przez firmy, wg ich stron z dnia ${formatDate(stats.observedAt)}).`
       : "";
-  const summary = `Katalog zawiera ${listings.length} zweryfikowanych biur nieruchomości z miasta ${city.name}. ${withPrices} z nich publikuje na swojej stronie ceny usług.${medianText}`;
+  const confirmed = listings.filter((l) => l.registryConfirmed).length;
+  const confirmedText =
+    confirmed === listings.length ? "Wszystkie są potwierdzone w rejestrach publicznych." : `${confirmed} z nich ${plural(confirmed, "jest potwierdzone", "są potwierdzone", "jest potwierdzonych")} w rejestrach publicznych.`;
+  const summary = `Katalog zawiera ${nBiur(listings.length)} nieruchomości z miasta ${city.name}. ${confirmedText} ${withPrices} z nich ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług.${medianText}`;
 
   return (
     <PublicShell>
@@ -112,7 +116,7 @@ export default async function CityPage({ params }: Props) {
                   </td>
                 )}
                 <td>{row.hasPublicPrices ? <span className="badge ok">jawny</span> : <span className="badge">brak</span>}</td>
-                <td>{formatYear(row.startDate)}</td>
+                <td>{row.registryConfirmed ? formatYear(row.startDate) : <span className="note">bez potwierdzenia</span>}</td>
                 <td className="num">{row.servicesCount}</td>
               </tr>
             ))}

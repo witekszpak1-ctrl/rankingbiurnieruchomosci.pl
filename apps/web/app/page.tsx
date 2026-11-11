@@ -5,6 +5,7 @@ import { JsonLd, Logo, PublicShell } from "@/components/SiteChrome";
 import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
+import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ const STEPS = [
 const FAQ = [
   {
     q: "Skąd pochodzą dane o biurach?",
-    a: "Z rejestrów publicznych (KRS, wykaz podatników VAT) i z oficjalnych stron internetowych biur. Każde biuro w katalogu ma potwierdzoną stronę i dane rejestrowe.",
+    a: "Z rejestrów publicznych (KRS, wykaz podatników VAT) i z oficjalnych stron internetowych biur. Biura potwierdzone w rejestrze mają to oznaczone na profilu; biura bez potwierdzenia też są w katalogu, ale niżej w rankingu.",
   },
   {
     q: "Czy biura płacą za miejsce w rankingu?",
@@ -76,7 +77,7 @@ export default async function HomePage({ searchParams }: Props) {
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12.5l4.5 4.5L19 7.5" />
               </svg>
-              Dane z KRS i wykazu VAT · {stats.firms} sprawdzonych biur
+              Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu
             </span>
             <span className="eyebrow line">Niezależny ranking biur nieruchomości</span>
             <h1>
@@ -120,7 +121,7 @@ export default async function HomePage({ searchParams }: Props) {
             </div>
             {missing && (
               <p className="search-miss">
-                Nie mamy jeszcze biur z miasta „{missing}”. Wybierz jedno z miast poniżej, katalog stale się powiększa.
+                Nie mamy jeszcze biur w mieście „{missing}”. Wybierz jedno z miast poniżej, katalog stale się powiększa.
               </p>
             )}
             <ul className="checks-row">
@@ -137,9 +138,9 @@ export default async function HomePage({ searchParams }: Props) {
               </div>
               <p className="mock-label">Najwyżej ocenione biura</p>
               <div className="mock-highlight">
-                <b>{stats.firms} biur</b>
+                <b>{nBiur(stats.firms)}</b>
                 <span>
-                  w {stats.cities} miastach · {stats.offers} aktualnych ofert
+                  w {stats.cities} {plural(stats.cities, "mieście", "miastach", "miastach")} · {nOfert(stats.offers)} ze stron biur
                 </span>
               </div>
               <div className="mock-agents">
@@ -168,15 +169,15 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="stat-band">
             <div>
               <b>{stats.firms}</b>
-              <span>sprawdzonych biur w katalogu</span>
+              <span>{plural(stats.firms, "biuro", "biura", "biur")} w katalogu</span>
             </div>
             <div>
               <b>{stats.offers}</b>
-              <span>aktualnych ofert ze stron biur</span>
+              <span>{plural(stats.offers, "oferta", "oferty", "ofert")} pobranych ze stron biur</span>
             </div>
             <div>
               <b>{stats.cities}</b>
-              <span>miast, a co dzień kolejne</span>
+              <span>{plural(stats.cities, "miasto", "miasta", "miast")}, a co dzień kolejne</span>
             </div>
           </div>
         </div>
@@ -231,7 +232,7 @@ export default async function HomePage({ searchParams }: Props) {
                       </div>
                     ) : null}
                     <div className="agency-tags">
-                      {f.offersCount > 0 && <span className="tag">{f.offersCount} ofert</span>}
+                      {f.offersCount > 0 && <span className="tag">{offersLabel(f.offersCount)}</span>}
                       {f.hasPublicPrices && <span className="tag ok">jawny cennik</span>}
                       {f.servicesCount > 0 && <span className="tag">{f.servicesCount} usług</span>}
                     </div>
@@ -259,7 +260,7 @@ export default async function HomePage({ searchParams }: Props) {
                     <span className="offer-tile-price">{formatOfferPrice(o.priceAmount, o.priceCurrency, o.pricePeriod)}</span>
                     <span className="offer-tile-title">{o.title}</span>
                     <span className="offer-tile-firm">
-                      {o.firmName} · {o.cityName}
+                      oferta biura {o.firmName} ({o.cityName})
                     </span>
                   </a>
                 </li>
@@ -285,7 +286,7 @@ export default async function HomePage({ searchParams }: Props) {
                 <li key={c.slug}>
                   <Link href={`/${c.slug}`}>
                     <b>{c.name}</b>
-                    <span>{c.listings} biur</span>
+                    <span>{nBiur(c.listings)}</span>
                   </Link>
                 </li>
               ))}
@@ -353,7 +354,7 @@ export default async function HomePage({ searchParams }: Props) {
             Przejdź do strony dla biur
           </Link>
           <p className="cta-meta">
-            {stats.firms} biur w katalogu · {stats.cities} miast · {stats.offers} aktualnych ofert
+            {nBiur(stats.firms)} w katalogu · {nMiast(stats.cities)} · {nOfert(stats.offers)} ze stron biur
           </p>
         </div>
       </section>

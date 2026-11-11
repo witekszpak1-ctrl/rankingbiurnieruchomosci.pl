@@ -235,6 +235,37 @@ _TAX_ERROR_MESSAGES = {
 }
 
 
+_MANAGEMENT_RE = re.compile(r"zarządza|zarzadza|administrow|obsług[ai] najmu|opieka nad najmem", re.I)
+_RENT_RE = re.compile(r"najem|najmu|wynaj|najemc", re.I)
+_SALE_RE = re.compile(r"sprzeda|kupn|kupi|zakup|transakc", re.I)
+
+
+def price_kind(service: str) -> str:
+    """Rodzaj ceny z nazwy usługi (zgodnie z apps/web/lib/prices.ts)."""
+    if _MANAGEMENT_RE.search(service):
+        return "management"
+    if _RENT_RE.search(service):
+        return "rent_brokerage"
+    if _SALE_RE.search(service):
+        return "sale"
+    return "other"
+
+
+def implausible_price(service: str, unit: str, values: list[float]) -> str | None:
+    """Powód odrzucenia ceny spoza rozsądnego przedziału (zwykle statystyka, rabat albo cena nieruchomości)."""
+    kind = price_kind(service)
+    if unit == "percent":
+        if any(v <= 0 or v > 200 for v in values):
+            return "procent poza zakresem 0-200"
+        if kind == "sale" and any(v < 0.5 or v > 10 for v in values):
+            return "prowizja od sprzedaży poza zakresem 0,5-10%"
+        if kind == "management" and any(v < 2 or v > 40 for v in values):
+            return "opłata za zarządzanie najmem poza zakresem 2-40%"
+    elif unit in ("pln", "pln_per_month") and any(v <= 0 or v >= 1_000_000 for v in values):
+        return "kwota poza zakresem (to raczej cena nieruchomości niż usługi)"
+    return None
+
+
 def _check_prices(bundle: dict, result: DescribeResult, report: Report) -> None:
     sources = _source_by_url(bundle)
     candidates = {c["candidate_id"]: c for c in bundle.get("price_candidates", [])}
@@ -266,6 +297,9 @@ def _check_prices(bundle: dict, result: DescribeResult, report: Report) -> None:
             and price.amount_min > price.amount_max
         ):
             report.error("range_inverted", f"{label}: amount_min większe od amount_max.")
+        values = [v for v in (price.amount_min, price.amount_max) if v is not None]
+        if values and (why := implausible_price(price.service, price.unit, values)):
+            report.error("implausible_amount", f"{label}: {why}. Pomiń tę cenę, jeśli to nie jest stawka za usługę biura.")
         hint = tax_hint(price.quote)
         if hint and price.tax_mode != hint:
             report.error("tax_mode_mismatch", f"{label}: tryb VAT {price.tax_mode!r}. {_TAX_ERROR_MESSAGES[hint]}")

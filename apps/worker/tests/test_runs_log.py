@@ -160,3 +160,17 @@ def test_serper_page_suffix_becomes_page_param():
     s.search("biuro nieruchomości Gdynia")
     assert seen[0]["q"] == "biuro nieruchomości Gdynia" and seen[0]["page"] == 3
     assert "page" not in seen[1]
+
+
+def test_implausible_prices_are_flagged():
+    from katalog_worker.validate import implausible_price, price_kind
+
+    assert price_kind("pośrednictwo w sprzedaży mieszkania") == "sale"
+    assert price_kind("zarządzanie najmem - pakiet") == "management"
+    assert price_kind("znalezienie najemcy") == "rent_brokerage"
+    assert implausible_price("sprzedaż mieszkania", "percent", [2.5]) is None
+    assert implausible_price("sprzedaż mieszkania", "percent", [92.0]) is not None
+    assert implausible_price("zarządzanie najmem", "percent", [8.0, 16.0]) is None
+    assert implausible_price("znalezienie najemcy", "percent", [50.0]) is None
+    assert implausible_price("wycena", "pln", [544000.0]) is None
+    assert implausible_price("wycena", "pln", [1_200_000.0]) is not None

@@ -18,9 +18,10 @@ export default function MethodologyPage() {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          Do katalogu trafiają tylko biura, których oficjalną stronę potwierdziliśmy numerem NIP w rejestrach publicznych.
-          Wynik liczymy z mierzalnych parametrów, które wynikają ze strony firmy i rejestrów. Płatność nie wpływa na pozycję
-          w rankingu. Wersja metodologii: v0, w trakcie strojenia.
+          Do katalogu trafiają biura nieruchomości z własną stroną internetową. Biura, których NIP ze strony zgadza się
+          z rejestrem publicznym, oznaczamy jako potwierdzone. Biura bez takiego potwierdzenia (najczęściej brak NIP na
+          stronie) też publikujemy, ale z wyraźnym oznaczeniem i niżej w rankingu. Wynik liczymy z mierzalnych parametrów
+          ze strony firmy i rejestrów. Płatność nie wpływa na pozycję. Wersja metodologii: v0.1.
         </p>
       </div>
 
@@ -38,7 +39,16 @@ export default function MethodologyPage() {
       <ol>
         <li>Znajdujemy kandydata na oficjalną stronę i odrzucamy katalogi, portale ogłoszeniowe, artykuły i strony niezwiązane z branżą.</li>
         <li>Odczytujemy z niej NIP i sprawdzamy go w rejestrach (suma kontrolna, status podmiotu, nazwa, adres).</li>
-        <li>Wpis zostaje opublikowany dopiero wtedy, gdy NIP ze strony zgadza się z rejestrem, a dane przeszły kontrolę jakości.</li>
+        <li>
+          Gdy NIP ze strony zgadza się z rejestrem, biuro jest oznaczone jako potwierdzone w rejestrze. Firmy wykreślone
+          lub nieaktywne w rejestrze odrzucamy.
+        </li>
+        <li>
+          Gdy strona nie podaje NIP albo dane nie zgadzają się z rejestrem, biuro publikujemy z oznaczeniem „bez
+          potwierdzenia w rejestrze”. Nie dostaje wtedy punktów za potwierdzenie w rejestrze ani za staż, a jego opis
+          opiera się wyłącznie na stronie biura.
+        </li>
+        <li>Każdy wpis ma opis napisany od nowa z faktów ze strony biura, sprawdzony automatycznie (cytaty, źródła, brak kopiowania).</li>
       </ol>
 
       <h2>Parametry rankingu</h2>
@@ -69,17 +79,27 @@ export default function MethodologyPage() {
         Każda zmiana wag lub parametrów będzie opisana tutaj z datą.
       </p>
 
+      <h2>Oferty nieruchomości</h2>
+      <p>
+        Codziennie pobieramy oferty widoczne na stronie biura, najwyżej 20 najnowszych. Liczba na profilu to liczba ofert
+        pobranych przez robota, a nie całkowita liczba ofert biura; przy pełnej próbce piszemy „co najmniej 20”.
+        Lokalizacja nieruchomości wynika z treści ogłoszenia, a nie z adresu biura.
+      </p>
+
       <h2>Kiedy publikujemy ranking</h2>
       <p>
-        Ranking z pozycjami pokazujemy, gdy w mieście jest co najmniej {CITY_RANKING_MIN} zweryfikowanych biur. Dla
+        Ranking z pozycjami pokazujemy, gdy w mieście jest co najmniej {CITY_RANKING_MIN} biur w katalogu. Dla
         mniejszej liczby publikujemy listę w kolejności alfabetycznej, bo pozycje przy trzech firmach niewiele mówią.
       </p>
 
       <h2>Ceny i statystyki</h2>
       <p>
         Ceny to wartości deklarowane przez firmy na ich stronach, zapisane z cytatem i datą. Mogły się zmienić po
-        dacie pobrania. Statystyki miasta (np. mediana prowizji) publikujemy, gdy mamy co najmniej {PRICE_STAT_MIN} jawnych cen,
-        i zawsze podajemy liczbę biur, na których się opierają.
+        dacie pobrania. Medianę prowizji od sprzedaży liczymy tylko ze stawek procentowych za sprzedaż lub kupno (bez opłat
+        za najem i zarządzanie najmem), po jednej stawce na biuro, i pomijamy wartości spoza przedziału 0,5-10%, które
+        zwykle są błędnym odczytem. Statystyki miasta publikujemy, gdy mamy co najmniej {PRICE_STAT_MIN} takie stawki, i
+        zawsze podajemy liczbę biur, na których się opierają. Tryb VAT (netto, brutto, + VAT) pokazujemy tak, jak podaje
+        go biuro.
       </p>
 
       <h2>Niezależność i reklama</h2>

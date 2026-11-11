@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { PublicShell } from "@/components/SiteChrome";
 import { CONTACT_EMAIL } from "@/lib/format";
@@ -104,8 +105,35 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
       <h2>Skąd mamy dane o firmie</h2>
       <p>
         Dane o firmie pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT) oraz z jej oficjalnej strony
-        internetowej. Publikujemy wyłącznie dane firmowe: nazwę, miasto, formę prawną, rok wpisu do rejestru, stronę
-        internetową, zakres usług i ceny, które firma sama podaje na swojej stronie.
+        internetowej. Publikujemy wyłącznie dane firmowe: nazwę, miasto i adres biura, formę prawną i rok wpisu do
+        rejestru, stronę internetową, firmowy telefon i e-mail, profile w mediach społecznościowych, logo, zakres usług,
+        ceny i oferty, które firma sama pokazuje na swojej stronie, oraz ocenę z Map Google, jeśli biuro ma tam profil.
+        Opis biura piszemy od nowa na podstawie tych faktów, bez kopiowania tekstów ze strony.
+      </p>
+
+      <h2>Od czego zależy pozycja w rankingu</h2>
+      <p>
+        Pozycję liczymy według <Link href="/metodologia">publicznej metodologii</Link>, z danych, które biuro samo publikuje.
+        Płatność nie wpływa na wynik. Najczęściej pomagają:
+      </p>
+      <ul className="plain">
+        <li>
+          <b>NIP na stronie biura</b> (np. w stopce lub na stronie kontaktowej). Pozwala potwierdzić firmę w rejestrze;
+          biura bez potwierdzenia są w katalogu, ale niżej w rankingu.
+        </li>
+        <li>
+          <b>Jawny cennik</b>, czyli stawki prowizji podane na stronie, z informacją o VAT.
+        </li>
+        <li>
+          <b>Opisany zakres usług</b>: sprzedaż, wynajem, zarządzanie najmem, rynek pierwotny i inne.
+        </li>
+        <li>
+          <b>Aktualne oferty</b> widoczne na stronie biura.
+        </li>
+      </ul>
+      <p>
+        Dane odświeżamy automatycznie, więc zmiany na stronie biura trafiają do katalogu zwykle w ciągu kilku dni. Jeśli
+        prowadzisz biuro z naszego katalogu, na dole jego profilu jest przycisk „Jestem właścicielem tej firmy”.
       </p>
 
       <h2>Twoje prawa</h2>
