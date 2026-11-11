@@ -523,6 +523,8 @@ def stage_offers(ctx: Context, fetcher: PoliteFetcher, limit: int = 200, dry_run
             "host": row["host"], "source": scan.source_url, "method": scan.method, "offers": len(scan.offers),
             "tried": scan.tried, "errors": scan.errors[:3], "sample": [[o.title, o.url] for o in scan.offers[:3]],
         }
+        if not scan.offers and scan.diagnostics:
+            report["diagnostics"] = scan.diagnostics
         print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
         counts["domains"] += 1
         counts["with_offers" if scan.offers else "without_offers"] += 1

@@ -185,3 +185,50 @@ def test_scan_falls_back_to_home_offers_and_reports_errors():
 
     empty = scan_offers(FakeFetcher({}), "https://biuro.pl/")
     assert empty.offers == [] and empty.source_url is None
+
+
+def test_counted_category_links_are_not_offers():
+    cats = "".join(
+        f'<div class="city"><a href="/nieruchomosci/biura-wynajem-{c}/">{c.title()} {n} ofert</a></div>'
+        for c, n in (("warszawa", 2516), ("wroclaw", 567), ("krakow", 812), ("gdansk", 301))
+    )
+    assert extract_offers(page(cats), "https://biuro.pl/nieruchomosci/") == ([], None)
+
+
+def test_articles_without_property_type_are_not_offers():
+    articles = "".join(
+        f'<div class="box"><h3><a href="/{slug}.html">{title}</a></h3></div>'
+        for slug, title in (
+            ("gdzie-reklamowac-nieruchomosci", "Gdzie reklamować nieruchomości?"),
+            ("zarzadzanie-najmem-wroclaw", "Zarządzanie najmem we Wrocławiu"),
+            ("sprzedaz-nieruchomosci-krok-po-kroku", "Sprzedaż nieruchomości krok po kroku"),
+        )
+    )
+    assert extract_offers(page(articles), "https://biuro.pl/") == ([], None)
+
+
+def test_url_variants_of_one_offer_are_merged():
+    cards = "".join(
+        f"""<div class="inv"><a href="/inwestycja-wroclaw-{n},{oid}"><h3>Mieszkanie {n}, Psie Pole</h3></a>
+              <a href="/inwestycja-wroclaw-{n},{oid},jump=1">Kup teraz</a></div>"""
+        for n, oid in (("a", 8983), ("b", 8984), ("c", 8985))
+    )
+    offers, _ = extract_offers(page(cards), "https://biuro.pl/")
+    assert [o.url for o in offers] == [f"https://biuro.pl/inwestycja-wroclaw-{n},{oid}" for n, oid in (("a", 8983), ("b", 8984), ("c", 8985))]
+    assert offers[0].title == "Mieszkanie a, Psie Pole"
+
+
+def test_index_urls_skip_single_offers_and_sorted_duplicates():
+    html = """<html><body>
+      <a href="/nieruchomosci/5809-4112-ods/">Dom na sprzedaż Dobrzykowice</a>
+      <a href="/oferty?sort=dd">Oferty od najnowszych</a>
+      <a href="/nieruchomosci/">Nieruchomości</a>
+    </body></html>"""
+    assert offer_index_urls(html, "https://biuro.pl/") == ["https://biuro.pl/nieruchomosci/"]
+
+
+def test_scan_reports_link_groups_for_pages_without_offers():
+    fetcher = FakeFetcher({"https://biuro.pl/": HOME, "https://biuro.pl/oferty": "<html><body><p>Ładowanie...</p></body></html>"})
+    scan = scan_offers(fetcher, "https://biuro.pl/")
+    assert scan.offers == []
+    assert scan.diagnostics["https://biuro.pl/oferty"][0]["anchors"] == 0

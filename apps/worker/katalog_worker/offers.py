@@ -27,13 +27,16 @@ MAX_OFFERS = 20
 MIN_OFFERS = 3
 MAX_TITLE = 160
 
-# Rdzenie słów (po usunięciu polskich znaków), które w adresie albo tytule wskazują na ofertę nieruchomości.
+# Rdzenie słów (po usunięciu polskich znaków) nazywające rodzaj nieruchomości albo jej parametry. Same słowa
+# "sprzedaż", "najem", "nieruchomości" nie wystarczą, bo pojawiają się też w tytułach artykułów i kategorii.
 _RE_PREFIXES = (
     "mieszkan", "kawalerk", "apartament", "dzialk", "grunt", "lokal", "magazyn", "kamienic", "segment", "blizniak",
-    "szeregow", "siedlisk", "pokoj", "pokoi", "sprzedaz", "sprzeda", "wynaj", "najem", "nieruchomosc", "inwestyc",
-    "apartment", "propert", "willa", "rezydencj", "penthouse", "studio", "hala", "hali", "biurow",
+    "szeregow", "siedlisk", "pokoj", "pokoi", "apartment", "willa", "rezydencj", "penthouse", "hala", "hali",
+    "biurow", "garaz", "dworek", "posiadlosc", "pensjonat", "budynek", "budynk", "kawalerk", "loft",
 )
-_RE_WORDS = {"dom", "domy", "domu", "biuro", "biura", "hale", "pok", "m2", "ha", "flat", "house", "rent", "sale", "ar"}
+_RE_WORDS = {
+    "dom", "domy", "domu", "biuro", "biura", "hale", "pok", "m2", "ha", "ar", "flat", "house", "studio", "plot",
+}
 # Pierwszy segment ścieżki typowy dla ofert w systemach CRM i motywach WordPress.
 _OFFER_SECTIONS = {
     "oferta", "oferty", "offer", "offers", "nieruchomosc", "nieruchomosci", "property", "properties", "listing",
@@ -56,8 +59,12 @@ _GENERIC_TEXT = {
     "zobacz", "zobacz oferte", "zobacz wiecej", "szczegoly", "szczegoly oferty", "wiecej", "czytaj wiecej", "sprawdz",
     "details", "more", "read more", "pokaz", "pokaz oferte", "kliknij", "otworz", "dalej", "przejdz", "view",
     "see more", "oferta", "zapytaj", "zapytaj o oferte", "dodaj do ulubionych", "ulubione", "porownaj", "nowosc",
-    "promocja", "wyroznione", "polecane", "rezerwacja", "sprzedane", "wynajete",
+    "promocja", "wyroznione", "polecane", "rezerwacja", "sprzedane", "wynajete", "kup teraz", "wynajmij teraz",
+    "zarezerwuj", "umow prezentacje", "umow sie na prezentacje", "pokaz na mapie", "zobacz na mapie", "mapa",
+    "galeria", "zdjecia", "film", "wirtualny spacer", "spacer 3d", "drukuj", "udostepnij",
 }
+# "Warszawa 2516 ofert", "Mieszkania (45)": linki do kategorii z licznikiem, nie oferty.
+_COUNTED_CATEGORY = re.compile(r"(?:\b\d[\d ]*\s+(?:ofert|oferty|ogloszen|nieruchomosci)\b|\(\s*\d+\s*\)\s*$)")
 _TITLE_CLASS = re.compile(r"title|tytul|name|nazwa|heading|header|naglowek", re.I)
 _HEADINGS = ("h1", "h2", "h3", "h4", "h5", "h6")
 _INDEX_HINTS: tuple[tuple[str, int], ...] = (
@@ -92,6 +99,7 @@ class OfferScan:
     method: str | None = None  # jsonld | links
     tried: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    diagnostics: dict[str, list[dict]] = field(default_factory=dict)  # strona bez ofert -> największe grupy linków
 
 
 def fold(text: str) -> str:
@@ -99,6 +107,12 @@ def fold(text: str) -> str:
     text = unicodedata.normalize("NFKD", text.lower().replace("ł", "l"))
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
+
+
+def _path_text(url: str) -> str:
+    """Ścieżka i zapytanie adresu, bez domeny (nazwa domeny biura nie mówi nic o pojedynczej ofercie)."""
+    parts = urlsplit(url)
+    return f"{parts.path} {parts.query}"
 
 
 def looks_like_real_estate(text: str) -> bool:
@@ -112,7 +126,7 @@ def clean_title(text: str) -> str | None:
     title = " ".join(text.split()).strip(" -|·•»«>,;:")
     if len(title) < 6 or not re.search(r"[A-Za-zżźćńółęąśŻŹĆĄŚĘŁÓŃ]{3}", title):
         return None
-    if fold(title) in _GENERIC_TEXT:
+    if fold(title) in _GENERIC_TEXT or _COUNTED_CATEGORY.search(fold(title) if "(" not in title else title.lower()):
         return None
     if contains_contacts(title):
         return None
@@ -163,7 +177,7 @@ def _template(url: str) -> tuple | None:
     stem = re.sub(r"\.(html?|php|aspx?)$", "", last, flags=re.I)
     ext = last[len(stem):].lower()
     has_id = bool(re.search(r"\d{3,}", stem)) or bool(numeric_keys)
-    long_slug = stem.count("-") + stem.count("_") >= 2 or len(stem) >= 24
+    long_slug = len([t for t in re.split(r"[-_]+", stem) if t]) >= 3 or len(stem.strip("-_")) >= 24
     if not has_id and not long_slug:
         return None
     if not has_id and _CATEGORY_SLUG.search(fold(stem).replace(" ", "-")):
@@ -296,12 +310,12 @@ def offers_from_jsonld(soup: BeautifulSoup, page_url: str) -> list[Offer]:
         elif types & offer_types:
             add(node)
     offers = list(found.values())
-    if sum(looks_like_real_estate(f"{o.title} {o.url}") for o in offers) * 2 < len(offers):
+    if sum(looks_like_real_estate(f"{o.title} {_path_text(o.url)}") for o in offers) * 10 < len(offers) * 6:
         return []
     return offers[:MAX_OFFERS]
 
 
-def offers_from_links(soup: BeautifulSoup, page_url: str) -> list[Offer]:
+def _link_groups(soup: BeautifulSoup, page_url: str) -> list[dict]:
     base_domain = registrable_domain(page_url)
     page_key = canonical_url(page_url)
     groups: dict[tuple, dict[str, dict]] = defaultdict(dict)  # wzorzec -> klucz adresu -> dane
@@ -323,32 +337,66 @@ def offers_from_links(soup: BeautifulSoup, page_url: str) -> list[Offer]:
         if title:
             entry["titles"].append(title)
 
-    best: tuple[float, list[dict]] | None = None
+    return _rank_groups(groups, page_url)
+
+
+def _drop_variants(items: list[dict]) -> list[dict]:
+    """Usuwa warianty tej samej oferty, np. /oferta,123,jump=1 obok /oferta,123 (kotwice, zakładki, przyciski)."""
+    urls = [e["url"] for e in items]
+    return [
+        e for e in items
+        if not any(other != e["url"] and e["url"].startswith(other) and e["url"][len(other)] in ",;&?/" for other in urls)
+    ]
+
+
+def _rank_groups(groups: dict[tuple, dict[str, dict]], page_url: str) -> list[dict]:
+    """Grupy linków o wspólnym wzorcu, od najbardziej do najmniej prawdopodobnej listy ofert."""
+    ranked = []
     for template, entries in groups.items():
-        items = list(entries.values())
+        items = _drop_variants(list(entries.values()))
         with_id = [e for e in items if re.search(r"\d{3,}", urlsplit(e["url"]).path) or template[3]]
         if len(with_id) >= MIN_OFFERS and len(with_id) * 10 >= len(items) * 6:
             items = with_id  # większość ma numer oferty: odrzucamy linki bez numeru (kategorie, podstrony)
-        if len(items) < MIN_OFFERS:
-            continue
-        for entry in items:
-            if not entry["titles"]:
-                title = _card_title(entry["anchors"][0], canonical_url(entry["url"]), page_url)
-                if title:
-                    entry["titles"].append(title)
+        if len(items) >= MIN_OFFERS:
+            for entry in items:
+                if not entry["titles"]:
+                    title = _card_title(entry["anchors"][0], canonical_url(entry["url"]), page_url)
+                    if title:
+                        entry["titles"].append(title)
         titled = [e for e in items if e["titles"]]
-        if len(titled) < MIN_OFFERS:
-            continue
-        ratio = sum(looks_like_real_estate(f"{max(e['titles'], key=len)} {e['url']}") for e in titled) / len(titled)
-        if ratio < 0.5:
-            continue
+        ratio = (
+            sum(looks_like_real_estate(f"{_best_title(e['titles'])} {_path_text(e['url'])}") for e in titled) / len(titled)
+            if titled else 0.0
+        )
         score = len(titled) * (0.5 + ratio) + (3 if template[0] in _OFFER_SECTIONS else 0)
-        if best is None or score > best[0]:
-            best = (score, titled)
-    if best is None:
-        return []
-    chosen = sorted(best[1], key=lambda e: e["order"])[:MAX_OFFERS]
-    return [Offer(e["url"], _best_title(e["titles"]), i) for i, e in enumerate(chosen)]
+        ranked.append({"template": template, "links": len(items), "items": titled, "ratio": ratio, "score": score})
+    return sorted(ranked, key=lambda g: -g["score"])
+
+
+def offers_from_links(soup: BeautifulSoup, page_url: str) -> list[Offer]:
+    for group in _link_groups(soup, page_url):
+        if len(group["items"]) >= MIN_OFFERS and group["ratio"] >= 0.6:
+            chosen = sorted(group["items"], key=lambda e: e["order"])[:MAX_OFFERS]
+            return [Offer(e["url"], _best_title(e["titles"]), i) for i, e in enumerate(chosen)]
+    return []
+
+
+def describe_link_groups(html: str, page_url: str, top: int = 3) -> list[dict]:
+    """Diagnostyka strony bez ofert: największe grupy linków (wzorzec, liczba, udział nieruchomości, przykład)."""
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup(["script", "style", "noscript", "template"]):
+        tag.decompose()
+    anchors = len(soup.find_all("a", href=True))
+    report = [{"anchors": anchors, "text_chars": len(soup.get_text(" ", strip=True))}]
+    for group in _link_groups(soup, page_url)[:top]:
+        first, depth, ext, keys = group["template"]
+        sample = group["items"][0] if group["items"] else None
+        report.append({
+            "pattern": f"/{first or '*'}/(głębokość {depth}){ext}{'?' + ','.join(keys) if keys else ''}",
+            "links": group["links"], "titled": len(group["items"]), "ratio": round(group["ratio"], 2),
+            "sample": [_best_title(sample["titles"]), sample["url"]] if sample else None,
+        })
+    return report
 
 
 def _best_title(titles: list[str]) -> str:
@@ -384,6 +432,10 @@ def offer_index_urls(html: str, page_url: str, limit: int = 3) -> list[str]:
         path = urlsplit(absolute).path.lower()
         if key == page_key or _SKIP_EXT.search(path) or _INDEX_SKIP.search(path):
             continue
+        if any(k.lower() in _SKIP_QUERY_KEYS for k, _ in parse_qsl(urlsplit(absolute).query)):
+            continue  # ta sama lista inaczej posortowana albo kolejna strona listy
+        if _template(absolute) and re.search(r"\d{3,}", path):
+            continue  # pojedyncza oferta, a nie lista ofert
         anchor_text = fold(anchor.get_text(" "))
         path_text = fold(path)
         score = 0
@@ -397,8 +449,6 @@ def offer_index_urls(html: str, page_url: str, limit: int = 3) -> list[str]:
         depth = len([s for s in path.split("/") if s])
         if depth <= 2:
             score += 2
-        if _template(absolute) and re.search(r"\d{3,}", path):
-            score -= 6  # to raczej pojedyncza oferta
         if key not in scored or scored[key][0] < score:
             scored[key] = (score, absolute)
     ordered = sorted(scored.values(), key=lambda item: (-item[0], len(item[1])))
@@ -410,11 +460,18 @@ def scan_offers(fetcher, home_url: str, known_index: str | None = None, max_inde
 
     Strona główna jest tylko awaryjnym źródłem, bo często pokazuje oferty polecane zamiast najnowszych."""
     scan = OfferScan()
+
+    def read(url: str, result) -> tuple[list[Offer], str | None]:
+        offers, method = extract_offers(result.text, result.final_url)
+        if not offers:
+            scan.diagnostics[url] = describe_link_groups(result.text, result.final_url)
+        return offers, method
+
     if known_index:
         scan.tried.append(known_index)
         result = fetcher.fetch(known_index)
         if result.ok:
-            offers, method = extract_offers(result.text, result.final_url)
+            offers, method = read(known_index, result)
             if offers:
                 scan.source_url, scan.offers, scan.method = known_index, offers, method
                 return scan
@@ -425,7 +482,7 @@ def scan_offers(fetcher, home_url: str, known_index: str | None = None, max_inde
     if not home.ok:
         scan.errors.append(f"{home_url}: {home.error}")
         return scan
-    home_offers, home_method = extract_offers(home.text, home.final_url)
+    home_offers, home_method = read(home_url, home)
     for url in offer_index_urls(home.text, home.final_url, limit=max_index_pages):
         if url == known_index:
             continue
@@ -434,7 +491,7 @@ def scan_offers(fetcher, home_url: str, known_index: str | None = None, max_inde
         if not result.ok:
             scan.errors.append(f"{url}: {result.error}")
             continue
-        offers, method = extract_offers(result.text, result.final_url)
+        offers, method = read(url, result)
         if offers:
             scan.source_url, scan.offers, scan.method = url, offers, method
             return scan
