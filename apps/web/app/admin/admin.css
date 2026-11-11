@@ -277,3 +277,18 @@
 .adm .day-item p { margin: 2px 0 0; color: var(--a-muted); font-size: 0.9rem; }
 .adm .kpis.compact .kpi b { font-size: 1.35rem; }
 @media (max-width: 860px) { .adm .pipeline { grid-template-columns: 1fr; } .adm .day-item { flex-direction: column; gap: 4px; } }
+
+/* Automat: raport dzienny, historia, kroki */
+.adm .table-wrap { overflow-x: auto; margin: 10px 0 14px; }
+.adm table.report { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.adm table.report th, .adm table.report td { padding: 8px 12px; border-bottom: 1px solid var(--a-line); text-align: left; white-space: nowrap; }
+.adm table.report th { font-size: 0.78rem; color: var(--a-muted); font-weight: 600; }
+.adm table.report .num { text-align: right; font-variant-numeric: tabular-nums; }
+.adm table.report tr.sel td { background: var(--a-accent-soft); }
+.adm .pager { display: flex; gap: 8px; }
+.adm .plain-list { columns: 2 280px; padding-left: 18px; margin: 6px 0 14px; }
+.adm .plain-list li { margin: 3px 0; break-inside: avoid; }
+.adm .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin: 12px 0 20px; }
+.adm .step { display: flex; gap: 12px; border: 1px solid var(--a-line); border-radius: 12px; padding: 14px 16px; background: var(--a-bg); }
+.adm .step-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--a-fg); color: var(--a-bg); display: grid; place-items: center; font-weight: 700; font-size: 0.85rem; }
+.adm .step p { margin: 4px 0 0; color: var(--a-muted); font-size: 0.9rem; line-height: 1.45; }
