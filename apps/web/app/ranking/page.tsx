@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
+import { TopThree } from "@/components/TopThree";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listAllPublished, type TopListing } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
@@ -67,6 +68,19 @@ export default async function NationalRankingPage() {
         porównanie znajdziesz na stronach miast. Dane zaktualizowaliśmy {formatDate(updated)}.
       </p>
 
+      {top.length > 0 && (
+        <TopThree
+          firms={top.map((f) => ({
+            key: f.listingId,
+            href: `/${f.citySlug}/${f.slug}`,
+            name: f.name,
+            score: f.score,
+            position: f.position,
+            logoUrl: f.logoUrl,
+            sub: f.cityName,
+          }))}
+        />
+      )}
       {top.length > 0 && (
         <div className="answer">
           <strong>W skrócie</strong>

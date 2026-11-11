@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
+import { TopThree } from "@/components/TopThree";
 import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
@@ -119,7 +120,17 @@ export default async function CityPage({ params }: Props) {
       {top.length > 0 && (
         <>
           <h2>Najlepsze biura nieruchomości {where}</h2>
-          <p>
+          <TopThree
+            firms={top.map((f) => ({
+              key: f.slug ?? f.name,
+              href: f.slug ? `/${city.slug}/${f.slug}` : null,
+              name: f.name,
+              score: f.score,
+              position: f.position,
+              logoUrl: rows.find((r) => r.slug === f.slug)?.logoUrl ?? null,
+            }))}
+          />
+          <p className="note">
             Najwyższe wyniki w rankingu {where} mają{" "}
             {top.map((f, i) => (
               <span key={f.slug ?? f.name}>
