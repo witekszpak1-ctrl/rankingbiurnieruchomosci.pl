@@ -202,3 +202,57 @@ export async function listPublishedPaths(): Promise<SitemapEntry[]> {
     ...firms.map((f) => ({ ...f, cityListings: 0 })),
   ];
 }
+
+export type TopListing = ListingCard & { cityName: string; citySlug: string };
+
+/** Opublikowane biura ze wszystkich miast (do strony głównej). Ranking liczy strona, tu tylko dane. */
+export async function listAllPublished(): Promise<TopListing[]> {
+  return query<TopListing>(
+    `select card.*, c.name as "cityName", c.slug as "citySlug"
+     from (${CARD_SQL} where l.status = 'published') card
+     join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
+  );
+}
+
+export type LatestOffer = {
+  title: string;
+  url: string;
+  priceAmount: number | null;
+  priceCurrency: string | null;
+  pricePeriod: string | null;
+  firmName: string;
+  firmSlug: string;
+  citySlug: string;
+  cityName: string;
+  imageUrl: string | null;
+};
+
+/** Najnowsze aktywne oferty z ceną z biur w katalogu, po jednej-dwóch z każdego biura. */
+export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
+  return query<LatestOffer>(
+    `select * from (
+       select o.title, o.url, o.price_amount::float8 as "priceAmount", o.price_currency as "priceCurrency",
+              o.price_period as "pricePeriod", b.name as "firmName", l.slug as "firmSlug", c.slug as "citySlug",
+              c.name as "cityName", b.image_url as "imageUrl", o.first_seen_at,
+              row_number() over (partition by o.brand_id order by o.position) as rn
+       from offers o
+       join brands b on b.id = o.brand_id
+       join listings l on l.brand_id = b.id and l.status = 'published'
+       join cities c on c.id = l.city_id
+       where o.is_active and o.price_amount is not null and o.last_seen_at > now() - interval '14 days'
+     ) x where rn <= 2 order by first_seen_at desc limit $1`,
+    [limit],
+  );
+}
+
+export async function homeStats(): Promise<{ firms: number; cities: number; offers: number; withPrices: number }> {
+  const rows = await query<{ firms: number; cities: number; offers: number; withPrices: number }>(
+    `select (select count(*)::int from listings where status = 'published') as firms,
+            (select count(distinct city_id)::int from listings where status = 'published') as cities,
+            (select count(*)::int from offers o join listings l on l.brand_id = o.brand_id and l.status = 'published'
+              where o.is_active and o.last_seen_at > now() - interval '14 days') as offers,
+            (select count(distinct p.brand_id)::int from price_items p
+              join listings l on l.brand_id = p.brand_id and l.status = 'published' where p.is_current) as "withPrices"`,
+  );
+  return rows[0] ?? { firms: 0, cities: 0, offers: 0, withPrices: 0 };
+}
