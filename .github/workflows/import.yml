@@ -6,7 +6,7 @@ name: import
 on:
   workflow_dispatch:
   schedule:
-    - cron: "37 */3 * * *"
+    - cron: "47 * * * *" # co godzinę: opisy z sesji Claude trafiają na stronę najpóźniej po około godzinie
 
 concurrency:
   group: katalog-db
