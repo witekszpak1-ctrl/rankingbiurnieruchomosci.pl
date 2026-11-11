@@ -174,3 +174,14 @@ def test_implausible_prices_are_flagged():
     assert implausible_price("znalezienie najemcy", "percent", [50.0]) is None
     assert implausible_price("wycena", "pln", [544000.0]) is None
     assert implausible_price("wycena", "pln", [1_200_000.0]) is not None
+
+
+def test_quote_matching_tolerates_long_dashes_and_decomposed_letters():
+    from katalog_worker.validate import _quote_in, _range_starts, price_kind
+
+    assert _quote_in("prowizja 2-3% netto", ["Nasza prowizja 2–3% netto od ceny"])
+    assert _quote_in("Usługi", ["Uslugi".replace("l", "ĺ", 0) + " Usługi"])
+    assert _quote_in("ćwiczenie", ["ćwiczenie"])
+    assert _range_starts("od 2 do 3% brutto") == [2.0]
+    assert _range_starts("2,5–3,5%") == [2.5]
+    assert price_kind("zarządzanie najmem - znalezienie najemcy") == "rent_brokerage"

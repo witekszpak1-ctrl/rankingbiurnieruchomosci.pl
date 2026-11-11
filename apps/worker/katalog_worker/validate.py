@@ -12,6 +12,7 @@ Sprawdzamy w kodzie, nie ufamy modelowi:
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -124,8 +125,13 @@ DESCRIPTION_MIN_CHARS = 80
 DESCRIPTION_MAX_CHARS = 1400
 
 
+_DASHES = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-", "\u2212": "-"})
+
+
 def _norm(text: str) -> str:
-    return " ".join(text.split()).casefold()
+    # Długie myślniki ze strony liczą się jak zwykły "-" (opisy nie mogą ich zawierać), a litery złożone z akcentów
+    # (np. "c" + kreska) jak gotowe polskie znaki, żeby dosłowny cytat dało się dopasować do źródła.
+    return " ".join(unicodedata.normalize("NFC", text).translate(_DASHES).split()).casefold()
 
 
 def _ngrams(text: str, n: int = 5) -> set[tuple[str, ...]]:
@@ -143,6 +149,20 @@ def ngram_overlap(candidate: str, source: str, n: int = 5) -> float:
 
 def _source_by_url(bundle: dict) -> dict[str, str]:
     return {s["source_url"]: s["text"] for s in bundle.get("source_text", [])}
+
+
+_PERCENT_RANGE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*%?\s*(?:-|\u2013|\u2014|do)\s*\d+(?:[.,]\d+)?\s*%")
+
+
+def _range_starts(quote: str) -> list[float]:
+    """Początek przedziału procentowego, np. 2 w "2-3%" albo "od 2 do 3%" (sam znak % stoi tylko przy końcu)."""
+    out = []
+    for raw in _PERCENT_RANGE_RE.findall(quote):
+        try:
+            out.append(float(raw.replace(",", ".")))
+        except ValueError:
+            pass
+    return out
 
 
 def _quote_in(quote: str, texts: list[str]) -> bool:
@@ -235,6 +255,7 @@ _TAX_ERROR_MESSAGES = {
 }
 
 
+_TENANT_FEE_RE = re.compile(r"znalezieni|pozyskani|wyszukani|weryfikacj\w* najemc|najemc|pierwsz\w* czynsz", re.I)
 _MANAGEMENT_RE = re.compile(r"zarządza|zarzadza|administrow|obsług[ai] najmu|opieka nad najmem", re.I)
 _RENT_RE = re.compile(r"najem|najmu|wynaj|najemc", re.I)
 _SALE_RE = re.compile(r"sprzeda|kupn|kupi|zakup|transakc", re.I)
@@ -242,6 +263,8 @@ _SALE_RE = re.compile(r"sprzeda|kupn|kupi|zakup|transakc", re.I)
 
 def price_kind(service: str) -> str:
     """Rodzaj ceny z nazwy usługi (zgodnie z apps/web/lib/prices.ts)."""
+    if _TENANT_FEE_RE.search(service):
+        return "rent_brokerage"
     if _MANAGEMENT_RE.search(service):
         return "management"
     if _RENT_RE.search(service):
@@ -280,6 +303,7 @@ def _check_prices(bundle: dict, result: DescribeResult, report: Report) -> None:
             report.error("quote_not_in_source", f"{label}: cytat nie występuje w źródle.")
             continue
         percents, amounts = price_numbers(price.quote)
+        percents = percents + _range_starts(price.quote)
         if price.unit == "percent":
             allowed = percents
         elif price.unit in ("pln", "pln_per_month"):

@@ -3,11 +3,13 @@ import type { PriceRow } from "./catalog";
 /** Rodzaj ceny usługi, rozpoznany z nazwy usługi zapisanej przy cytacie ze strony biura. */
 export type PriceKind = "sale" | "rent_brokerage" | "management" | "other";
 
+const TENANT_FEE = /znalezieni|pozyskani|wyszukani|najemc|pierwsz\w* czynsz/i;
 const MANAGEMENT = /zarządza|zarzadza|administrow|obsług[ai] najmu|opieka nad najmem/i;
 const RENT = /najem|najmu|wynaj|najemc/i;
 const SALE = /sprzeda|kupn|kupi|zakup|transakc|pośrednictw[oa] w (sprzeda|zakup)/i;
 
 export function priceKind(service: string): PriceKind {
+  if (TENANT_FEE.test(service)) return "rent_brokerage";
   if (MANAGEMENT.test(service)) return "management";
   if (RENT.test(service)) return "rent_brokerage";
   if (SALE.test(service)) return "sale";
