@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import psycopg
 from psycopg.types.json import Jsonb
 
+from .extract import _ROLE_LOCALPARTS
 from .registry.base import RegistryEntity
 from .verticals import VerticalConfig
 
@@ -444,6 +445,39 @@ class Repo:
             (domain_id, keys),
         ).rowcount
         return counts
+
+    def domains_for_contacts(self, limit: int) -> list[dict]:
+        """Zweryfikowane domeny marek z wpisem w katalogu albo w przygotowaniu, jedna domena na markę."""
+        return self.conn.execute(
+            """select distinct on (d.brand_id) d.id, d.host, d.canonical_url, d.brand_id from domains d
+               where d.verification_status = 'verified' and d.brand_id is not null
+                 and exists (select 1 from listings l where l.brand_id = d.brand_id
+                             and l.status in ('published', 'verified', 'needs_review'))
+               order by d.brand_id, d.verification_score desc nulls last limit %s""",
+            (limit,),
+        ).fetchall()
+
+    def save_contacts(self, brand_id: str, found: dict) -> None:
+        """Zastępuje telefony, e-maile i profile społecznościowe marki tymi z ostatniego odczytu strony."""
+        self.conn.execute("delete from contacts where brand_id = %s", (brand_id,))
+        for value, source in found.get("phones", []):
+            self.conn.execute(
+                "insert into contacts (brand_id, kind, value, source_url) values (%s, 'phone', %s, %s) on conflict do nothing",
+                (brand_id, value, source),
+            )
+        for value, source in found.get("emails", []):
+            self.conn.execute(
+                """insert into contacts (brand_id, kind, value, email_kind, source_url)
+                   values (%s, 'email', %s, %s, %s) on conflict do nothing""",
+                (brand_id, value, "role" if value.split("@")[0] in _ROLE_LOCALPARTS else "unknown", source),
+            )
+        self.conn.execute("delete from social_links where brand_id = %s", (brand_id,))
+        for network, url, source in found.get("socials", []):
+            self.conn.execute(
+                """insert into social_links (brand_id, network, url, verified, source_url)
+                   values (%s, %s, %s, true, %s) on conflict do nothing""",
+                (brand_id, network, url, source),
+            )
 
     def mark_offers_checked(self, domain_id: str, offers_url: str | None) -> None:
         """Zapamiętuje stronę z ofertami (gdy się udało) i czas sprawdzenia."""

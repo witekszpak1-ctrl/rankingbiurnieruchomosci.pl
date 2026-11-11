@@ -1,6 +1,7 @@
 /** Zapytania publicznej części serwisu. Pokazujemy wyłącznie wpisy ze statusem published. */
 
 import { query } from "./db";
+import { addressText } from "./format";
 import { median } from "./ranking";
 
 export type CityRow = { slug: string; name: string; listings: number };
@@ -15,6 +16,7 @@ export type ListingCard = {
   verificationScore: number | null;
   servicesCount: number;
   hasPublicPrices: boolean;
+  offersCount: number;
   description: string | null;
   publishedAt: Date | null;
 };
@@ -51,6 +53,8 @@ export type ListingDetail = ListingCard & {
   prices: PriceRow[];
   offers: OfferRow[];
   offersSourceUrl: string | null;
+  phone: string | null;
+  address: string | null;
   updatedAt: Date;
 };
 
@@ -59,6 +63,8 @@ const CARD_SQL = `
     le.start_date as "startDate", d.verification_score as "verificationScore",
     (select count(*)::int from facts f where f.brand_id = b.id and f.type = 'service' and f.is_current) as "servicesCount",
     exists (select 1 from price_items p where p.brand_id = b.id and p.is_current) as "hasPublicPrices",
+    (select count(*)::int from offers o where o.brand_id = b.id and o.is_active
+       and o.last_seen_at > now() - interval '14 days') as "offersCount",
     (select x.body from descriptions x where x.brand_id = b.id and x.status in ('validated', 'published')
        order by x.version desc limit 1) as description,
     l.published_at as "publishedAt"
@@ -103,7 +109,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
   );
   const card = cards[0];
   if (!card) return null;
-  const [prices, services, descriptionDates, offers, offerSources] = await Promise.all([
+  const [prices, services, descriptionDates, offers, offerSources, phones, addresses] = await Promise.all([
     query<PriceRow>(
       `select service, unit, amount_min::float8 as "amountMin", amount_max::float8 as "amountMax",
               tax_mode as "taxMode", quote, source_url as "sourceUrl", observed_at as "observedAt"
@@ -131,6 +137,15 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
        and offers_url is not null order by offers_checked_at desc nulls last limit 1`,
       [card.brandId],
     ),
+    query<{ value: string }>(
+      `select value from contacts where brand_id = $1 and kind = 'phone' order by created_at limit 1`,
+      [card.brandId],
+    ),
+    query<{ value: unknown; type: string }>(
+      `select value, type from facts where brand_id = $1 and is_current and type in ('address', 'address_hint')
+       order by (type = 'address') desc, observed_at desc limit 1`,
+      [card.brandId],
+    ),
   ]);
   const dates = [card.publishedAt, descriptionDates[0]?.createdAt, ...prices.map((p) => p.observedAt)]
     .filter((d): d is Date => d instanceof Date)
@@ -143,6 +158,8 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
     prices,
     offers,
     offersSourceUrl: offerSources[0]?.url ?? null,
+    phone: phones[0]?.value ?? null,
+    address: addresses[0] ? addressText(addresses[0].value) : null,
     updatedAt: new Date(Math.max(0, ...dates)),
   };
 }

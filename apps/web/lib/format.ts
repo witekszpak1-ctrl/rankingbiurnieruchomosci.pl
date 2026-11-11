@@ -49,3 +49,21 @@ export function formatOfferPrice(amount: number | null, currency: string | null,
   const value = Math.round(amount).toLocaleString("pl-PL").replace(/\s/g, " ");
   return `${value} ${unit}${period === "month" ? "/mies." : ""}`;
 }
+
+/** Telefon w zapisie E.164 w czytelnej formie, np. "+48 600 100 200". */
+export function formatPhone(e164: string): string {
+  const m = /^\+48(\d{9})$/.exec(e164);
+  if (m) return `+48 ${m[1].slice(0, 3)} ${m[1].slice(3, 6)} ${m[1].slice(6)}`;
+  return e164;
+}
+
+/** Adres z faktu (tekst albo obiekt z JSON-LD). */
+export function addressText(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() || null;
+  if (value && typeof value === "object") {
+    const v = value as Record<string, unknown>;
+    const parts = [v.street, [v.postcode, v.city].filter(Boolean).join(" ")].filter((x) => typeof x === "string" && x);
+    return parts.length ? parts.join(", ") : null;
+  }
+  return null;
+}

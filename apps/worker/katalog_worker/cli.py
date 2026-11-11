@@ -118,6 +118,15 @@ def cmd_offers(args) -> int:
     return 0
 
 
+def cmd_contacts(args) -> int:
+    from .pipeline import stage_contacts
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        _print(stage_contacts(ctx, _fetcher(settings), args.limit))
+    return 0
+
+
 def cmd_requeue_lost(args) -> int:
     from .pipeline import stage_requeue_lost
 
@@ -215,6 +224,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("offers", cmd_offers, "najnowsze oferty (tytuł i link) ze stron opublikowanych biur")
     p.add_argument("--limit", type=int, default=200)
     p.add_argument("--dry-run", action="store_true", help="tylko raport na stderr, bez zapisu w bazie")
+    p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
+    p.add_argument("--limit", type=int, default=300)
     p = add("publish-ready", cmd_publish_ready, "opublikuj wpisy spełniające bramkę (gdy auto_publish = true)")
     p.add_argument("--limit", type=int, default=200)
     add(

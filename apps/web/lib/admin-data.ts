@@ -132,6 +132,9 @@ export type FirmDetail = {
   prices: { id: string; service: string; unit: string | null; amountMin: number | null; amountMax: number | null; taxMode: string | null; quote: string | null; sourceUrl: string | null }[];
   description: { id: string; version: number; body: string; status: string; author: string; report: unknown } | null;
   gate: { domainVerified: boolean; hasValidatedDescription: boolean; factsCount: number; minFacts: number };
+  contacts: { kind: string; value: string; sourceUrl: string | null }[];
+  socials: { network: string; url: string }[];
+  offers: { active: number; priced: number };
 };
 
 export async function getSetting(key: string, fallback: number): Promise<number> {
@@ -149,7 +152,7 @@ export async function getFirm(listingId: string): Promise<FirmDetail | null> {
   );
   const base = listings[0];
   if (!base) return null;
-  const [entities, domains, facts, prices, descriptions, minFacts] = await Promise.all([
+  const [entities, domains, facts, prices, descriptions, minFacts, contacts, socials, offerCounts] = await Promise.all([
     query<FirmDetail["entity"]>(
       `select nip, regon, krs, name, legal_form as "legalForm", entity_kind as "entityKind", vat_status as "vatStatus",
               start_date as "startDate", pkd_codes as "pkdCodes", registry_source as "registrySource"
@@ -180,6 +183,20 @@ export async function getFirm(listingId: string): Promise<FirmDetail | null> {
       [base.brandId],
     ),
     getSetting("publish_min_facts", 6),
+    query<FirmDetail["contacts"][number]>(
+      `select kind, value, source_url as "sourceUrl" from contacts where brand_id = $1 order by kind desc, created_at`,
+      [base.brandId],
+    ),
+    query<FirmDetail["socials"][number]>(
+      `select network, url from social_links where brand_id = $1 order by network`,
+      [base.brandId],
+    ),
+    query<FirmDetail["offers"]>(
+      `select count(*) filter (where is_active)::int as active,
+              count(*) filter (where is_active and price_amount is not null)::int as priced
+       from offers where brand_id = $1`,
+      [base.brandId],
+    ),
   ]);
   const description = descriptions[0] ?? null;
   return {
@@ -191,6 +208,9 @@ export async function getFirm(listingId: string): Promise<FirmDetail | null> {
     facts,
     prices,
     description,
+    contacts,
+    socials,
+    offers: offerCounts[0] ?? { active: 0, priced: 0 },
     gate: {
       domainVerified: domains.some((d) => d.verificationStatus === "verified"),
       hasValidatedDescription: !!description && ["validated", "published"].includes(description.status),

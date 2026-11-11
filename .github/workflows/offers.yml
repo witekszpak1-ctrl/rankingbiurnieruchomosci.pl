@@ -1,4 +1,4 @@
-# Najnowsze oferty nieruchomości ze stron opublikowanych biur: tytuł i link (najwyżej 20 na biuro), raz dziennie.
+# Najnowsze oferty nieruchomości ze stron opublikowanych biur (tytuł, link, cena) oraz kontakty biur, raz dziennie.
 # Crawler respektuje robots.txt i zachowuje odstęp między zapytaniami do jednego hosta. Raport każdej domeny jest w logu.
 name: offers
 
@@ -39,3 +39,6 @@ jobs:
           INPUT_LIMIT: ${{ inputs.limit || '300' }}
           INPUT_DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: katalog offers --limit "$INPUT_LIMIT" $INPUT_DRY_RUN
+      - name: Kontakty ze stron biur (telefon, e-mail firmowy, social media)
+        if: ${{ !inputs.dry_run }}
+        run: katalog contacts --limit 300

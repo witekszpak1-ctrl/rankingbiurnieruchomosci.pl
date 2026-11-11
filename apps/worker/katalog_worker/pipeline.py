@@ -18,11 +18,12 @@ import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urljoin, urlsplit
 
 from .bundle import ContactLeakError, Fact, build_classify_bundle, build_describe_bundle, facts_from_pages, write_bundle
 from .classify import DEFAULT_BLOCKLIST, Classification, classify_page
 from .discovery import discover
-from .extract import PageExtraction, extract_page, merge_extractions
+from .extract import PageExtraction, _e164, extract_page, merge_extractions
 from .fetch import FetchResult, PoliteFetcher
 from .offers import scan_offers
 from .queries import build_queries
@@ -536,6 +537,93 @@ def stage_offers(ctx: Context, fetcher: PoliteFetcher, limit: int = 200, dry_run
                 if value:
                     counts[f"offers_{key}"] += value
         repo.mark_offers_checked(str(row["id"]), scan.source_url)
+        repo.conn.commit()
+    return dict(counts)
+
+
+# ----------------------------------------------------------------------------- kontakty
+
+_CONTACT_PAGE = re.compile(r"(?i)kontakt|contact|o-nas|onas|about|o-firmie|biuro")
+_FREE_MAIL = {"gmail.com", "wp.pl", "o2.pl", "onet.pl", "op.pl", "interia.pl", "interia.eu", "poczta.fm", "tlen.pl",
+              "outlook.com", "hotmail.com", "icloud.com", "yahoo.com", "gazeta.pl", "vp.pl", "go2.pl"}
+
+
+def contact_page_urls(links: list[tuple[str, str]], base_url: str, limit: int = 2) -> list[str]:
+    """Podstrony z kontaktem (Kontakt, O nas) tej samej domeny, najlepsze pierwsze."""
+    base_domain = registrable_domain(base_url)
+    scored: dict[str, int] = {}
+    for href, anchor in links:
+        if not href or href.startswith(("mailto:", "tel:", "javascript:", "#")):
+            continue
+        absolute = urljoin(base_url, href)
+        if registrable_domain(absolute) != base_domain:
+            continue
+        haystack = f"{urlsplit(absolute).path} {anchor}"
+        if not _CONTACT_PAGE.search(haystack):
+            continue
+        score = 3 if re.search(r"(?i)kontakt|contact", haystack) else 1
+        url = canonical_url(absolute)
+        if url != canonical_url(base_url):
+            scored[url] = max(scored.get(url, 0), score)
+    return [u for u, _ in sorted(scored.items(), key=lambda i: (-i[1], i[0]))[:limit]]
+
+
+def pick_contacts(pages: list[PageExtraction], host: str) -> dict:
+    """Telefony (najpierw z linków tel: i JSON-LD), adresy e-mail firmowe (bez imiennych) i profile społecznościowe."""
+    domain = registrable_domain(f"https://{host}/")
+    phones: dict[str, tuple[int, str]] = {}
+    emails: dict[str, tuple[int, str]] = {}
+    socials: dict[str, tuple[str, str]] = {}
+    for page in pages:
+        for org in page.organizations:
+            tel = org.get("telephone")
+            for raw in tel if isinstance(tel, list) else [tel]:
+                if isinstance(raw, str) and (e164 := _e164(raw)):
+                    phones.setdefault(e164, (0, page.url))
+        for hit in page.phones:
+            rank = {"tel": 0, "jsonld": 0}.get(hit.source, 1)
+            if hit.e164 not in phones or phones[hit.e164][0] > rank:
+                phones[hit.e164] = (rank, page.url)
+        for hit in page.emails:
+            if hit.kind == "personal_like":
+                continue
+            mail_domain = hit.address.rsplit("@", 1)[-1].lower()
+            if mail_domain != domain and not mail_domain.endswith("." + domain) and mail_domain not in _FREE_MAIL:
+                continue
+            rank = (0 if hit.kind == "role" else 1) + (0 if hit.source == "mailto" else 1)
+            if hit.address.lower() not in emails or emails[hit.address.lower()][0] > rank:
+                emails[hit.address.lower()] = (rank, page.url)
+        for link in page.socials:
+            socials.setdefault(link.network, (link.url, page.url))
+    return {
+        "phones": [(v, src) for v, (_, src) in sorted(phones.items(), key=lambda i: i[1][0])[:3]],
+        "emails": [(v, src) for v, (_, src) in sorted(emails.items(), key=lambda i: i[1][0])[:3]],
+        "socials": [(net, url, src) for net, (url, src) in socials.items()],
+    }
+
+
+def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> dict:
+    """Telefon, e-mail firmowy i profile społecznościowe ze strony głównej i podstrony Kontakt zweryfikowanych biur."""
+    repo = ctx.repo
+    counts: Counter = Counter()
+    for row in repo.domains_for_contacts(limit):
+        home_url = row["canonical_url"] or f"https://{row['host']}/"
+        home = fetcher.fetch(home_url)
+        if not home.ok:
+            counts["home_failed"] += 1
+            continue
+        pages = [extract_page(home.text, home.final_url)]
+        for url in contact_page_urls(pages[0].links, home.final_url):
+            result = fetcher.fetch(url)
+            if result.ok:
+                pages.append(extract_page(result.text, result.final_url))
+        found = pick_contacts(pages, row["host"])
+        repo.save_contacts(str(row["brand_id"]), found)
+        counts["domains"] += 1
+        for key in ("phones", "emails", "socials"):
+            counts[f"with_{key}"] += bool(found[key])
+        print(json.dumps({"host": row["host"], **{k: [list(x) for x in v] for k, v in found.items()}}, ensure_ascii=False),
+              file=sys.stderr)
         repo.conn.commit()
     return dict(counts)
 

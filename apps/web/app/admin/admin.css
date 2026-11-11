@@ -225,3 +225,17 @@
 .adm .answer { background: #f0fdf4; border: 1px solid #bbf7d0; color: var(--a-fg); border-radius: var(--a-r); padding: 16px 18px; font-size: 0.98rem; line-height: 1.6; }
 .adm details > summary { cursor: pointer; color: var(--a-muted); font-size: 0.88rem; margin: 10px 0 6px; }
 .adm pre.mono { background: var(--a-bg); border: 1px solid var(--a-soft-line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; white-space: pre-wrap; }
+
+/* karta firmy */
+.adm .contact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 12px 0 6px; }
+.adm .contact-grid .panel { margin: 0; }
+.adm .panel h3 { margin: 0 0 8px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--a-faint); }
+.adm .panel p { margin: 4px 0; }
+.adm .contact-grid a { color: var(--a-fg); font-weight: 600; text-decoration: none; }
+.adm .contact-grid a:hover { text-decoration: underline; }
+.adm .checks { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.adm .checks li { position: relative; padding-left: 26px; }
+.adm .checks li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--a-accent-soft); color: var(--a-accent-ink); font-size: 0.72rem; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
+.adm .checks li.warn::before { content: "!"; background: var(--a-warn-soft); color: var(--a-warn); }
+.adm .crumbs { color: var(--a-faint); font-size: 0.88rem; margin: 0 0 10px; }
+.adm .crumbs a { color: var(--a-muted); }

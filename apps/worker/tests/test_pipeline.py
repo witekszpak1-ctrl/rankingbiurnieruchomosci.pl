@@ -618,3 +618,24 @@ def test_offers_saved_refreshed_and_kept_when_read_fails(flow, capsys):
     assert stage_offers(ctx, fetcher) == {"domains": 1, "without_offers": 1}
     assert conn.execute("select count(*)::int as n from offers where is_active").fetchone()["n"] == 3
     assert conn.execute("select offers_url from domains where offers_url is not null").fetchone()["offers_url"] == AGENCY + "oferty"
+
+
+def test_pick_contacts_prefers_tel_links_and_skips_personal_and_foreign_emails():
+    from katalog_worker.extract import extract_page
+    from katalog_worker.pipeline import contact_page_urls, pick_contacts
+
+    html = """<html><body>
+      <a href="/kontakt">Kontakt</a><a href="/o-nas">O nas</a><a href="/oferty">Oferty</a>
+      <a href="tel:+48600100200">600 100 200</a>
+      <a href="mailto:biuro@przyklad.pl">biuro@przyklad.pl</a>
+      <a href="mailto:jan.kowalski@przyklad.pl">Jan</a>
+      <a href="mailto:kontakt@innafirma.pl">x</a>
+      <a href="https://www.facebook.com/przyklad.nieruchomosci">FB</a>
+      <a href="https://www.instagram.com/przyklad_nieruchomosci/">IG</a>
+    </body></html>"""
+    page = extract_page(html, "https://przyklad.pl/")
+    assert contact_page_urls(page.links, "https://przyklad.pl/")[0].endswith("/kontakt")
+    found = pick_contacts([page], "przyklad.pl")
+    assert [v for v, _ in found["phones"]] == ["+48600100200"]
+    assert [v for v, _ in found["emails"]] == ["biuro@przyklad.pl"]
+    assert {n for n, _, _ in found["socials"]} == {"facebook", "instagram"}

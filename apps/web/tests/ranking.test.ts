@@ -8,7 +8,7 @@ const NOW = new Date("2026-11-10T12:00:00Z");
 describe("scoreListing", () => {
   it("daje 100 przy pełnych danych", () => {
     const { score } = scoreListing(
-      { startDate: "2005-01-01", hasPublicPrices: true, verificationScore: 100, servicesCount: 8 },
+      { startDate: "2005-01-01", hasPublicPrices: true, verificationScore: 100, servicesCount: 8, offersCount: 25 },
       NOW,
     );
     expect(score).toBe(100);
@@ -19,9 +19,9 @@ describe("scoreListing", () => {
       { startDate: null, hasPublicPrices: false, verificationScore: 80, servicesCount: 3 },
       NOW,
     );
-    expect(breakdown.map((b) => b.key)).toEqual(["jawnosc_cennika", "spojnosc_danych", "zakres_uslug"]);
-    // (0*15 + 0.8*10 + 0.5*10) / 35 * 100 = 37.1
-    expect(score).toBe(37);
+    expect(breakdown.map((b) => b.key)).toEqual(["jawnosc_cennika", "spojnosc_danych", "zakres_uslug", "aktualne_oferty"]);
+    // (0*15 + 0.8*10 + 0.5*10 + 0*15) / 50 * 100 = 26
+    expect(score).toBe(26);
   });
 
   it("daje 0 bez żadnych danych i nie dzieli przez zero", () => {
@@ -30,13 +30,22 @@ describe("scoreListing", () => {
   });
 
   it("staż rośnie liniowo do 15 lat", () => {
-    const base = { hasPublicPrices: true, verificationScore: 100, servicesCount: 6 };
+    const base = { hasPublicPrices: true, verificationScore: 100, servicesCount: 6, offersCount: 20 };
     const young = scoreListing({ ...base, startDate: "2026-01-01" }, NOW).score;
     const mid = scoreListing({ ...base, startDate: "2019-01-01" }, NOW).score;
     const old = scoreListing({ ...base, startDate: "2000-01-01" }, NOW).score;
     expect(young).toBeLessThan(mid);
     expect(mid).toBeLessThan(old);
     expect(old).toBe(100);
+  });
+
+  it("aktualne oferty podnoszą wynik", () => {
+    const base = { startDate: "2010-01-01", hasPublicPrices: false, verificationScore: 90, servicesCount: 4 };
+    const without = scoreListing(base, NOW).score;
+    const some = scoreListing({ ...base, offersCount: 8 }, NOW).score;
+    const many = scoreListing({ ...base, offersCount: 40 }, NOW).score;
+    expect(without).toBeLessThan(some);
+    expect(some).toBeLessThan(many);
   });
 
   it("nieprawidłowa data nie psuje wyniku", () => {
@@ -48,7 +57,7 @@ describe("scoreListing", () => {
   });
 
   it("wagi parametrów zgadzają się z opisem metodologii", () => {
-    expect(PARAMETERS.map((p) => p.weight)).toEqual([10, 15, 10, 10]);
+    expect(PARAMETERS.map((p) => p.weight)).toEqual([10, 15, 10, 10, 15]);
   });
 });
 

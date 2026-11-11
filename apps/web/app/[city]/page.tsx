@@ -16,6 +16,7 @@ const toInput = (l: ListingCard): RankingInput => ({
   hasPublicPrices: l.hasPublicPrices,
   verificationScore: l.verificationScore,
   servicesCount: l.servicesCount,
+  offersCount: l.offersCount,
 });
 
 async function load(slug: string) {

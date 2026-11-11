@@ -12,6 +12,7 @@ export const PARAMETERS = [
   { key: "jawnosc_cennika", label: "Jawność cennika", weight: 15, description: "Firma publikuje ceny usług na swojej stronie." },
   { key: "spojnosc_danych", label: "Spójność danych", weight: 10, description: "Zgodność strony firmy z danymi rejestrów (NIP, nazwa, adres)." },
   { key: "zakres_uslug", label: "Zakres usług", weight: 10, description: "Liczba usług, które firma wprost wymienia (pełna punktacja od 6)." },
+  { key: "aktualne_oferty", label: "Aktualne oferty", weight: 15, description: "Liczba aktualnych ofert nieruchomości na stronie firmy, sprawdzana codziennie (pełna punktacja od 20)." },
 ] as const;
 
 export type RankingInput = {
@@ -19,6 +20,7 @@ export type RankingInput = {
   hasPublicPrices: boolean;
   verificationScore: number | null;
   servicesCount: number;
+  offersCount?: number;
 };
 
 export type BreakdownItem = { key: string; label: string; value: number; weight: number };
@@ -36,6 +38,7 @@ export function scoreListing(input: RankingInput, now: Date = new Date()): Score
     jawnosc_cennika: input.hasPublicPrices ? 1 : 0,
     spojnosc_danych: input.verificationScore == null ? null : clamp01(input.verificationScore / 100),
     zakres_uslug: clamp01(input.servicesCount / 6),
+    aktualne_oferty: clamp01((input.offersCount ?? 0) / 20),
   };
   if (input.startDate) {
     const start = new Date(input.startDate);

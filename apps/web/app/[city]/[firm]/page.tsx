@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
-import { absoluteUrl, formatDate, formatOfferPrice, formatPrice, formatYear } from "@/lib/format";
+import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice, formatYear } from "@/lib/format";
 import { scoreListing } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -35,6 +35,7 @@ export default async function FirmPage({ params }: Props) {
     hasPublicPrices: listing.hasPublicPrices,
     verificationScore: listing.verificationScore,
     servicesCount: listing.servicesCount,
+    offersCount: listing.offersCount,
   });
 
   return (
@@ -65,6 +66,20 @@ export default async function FirmPage({ params }: Props) {
               <tr>
                 <th>Forma prawna</th>
                 <td>{listing.legalForm}</td>
+              </tr>
+            )}
+            {listing.address && (
+              <tr>
+                <th>Adres</th>
+                <td>{listing.address}</td>
+              </tr>
+            )}
+            {listing.phone && (
+              <tr>
+                <th>Telefon</th>
+                <td>
+                  <a href={`tel:${listing.phone}`}>{formatPhone(listing.phone)}</a>
+                </td>
               </tr>
             )}
             {listing.websiteUrl && (
