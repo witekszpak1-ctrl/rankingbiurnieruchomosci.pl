@@ -95,10 +95,12 @@ jobs:
         env:
           INPUT_LIMIT: ${{ inputs.limit || '200' }}
         run: |
-          # Otwieranie stron i rejestry są szybkie (kilka sekund na stronę), więc biorą 2 razy więcej niż reszta.
-          katalog probe --limit "$((INPUT_LIMIT * 2))"
-          katalog verify --limit "$((INPUT_LIMIT * 2))"
-          katalog crawl-deep --limit "$INPUT_LIMIT"
+          # Cały przebieg ma 120 minut. Otwieranie 400 stron trwało ok. 47 min, a pobranie 200 serwisów ponad godzinę,
+          # więc zadanie było przerywane przed przygotowaniem paczek. Mniejsze porcje i twarde limity czasu: paczki
+          # (bundle) powstają zawsze, a reszta stron przechodzi do następnego przebiegu (co 3 godziny).
+          timeout 30m katalog probe --limit "$INPUT_LIMIT" || echo "probe: limit czasu, reszta w następnym przebiegu"
+          timeout 15m katalog verify --limit "$((INPUT_LIMIT * 2))" || echo "verify: limit czasu"
+          timeout 35m katalog crawl-deep --limit "$((INPUT_LIMIT / 3))" || echo "crawl-deep: limit czasu, reszta w następnym przebiegu"
           katalog bundle --limit "$INPUT_LIMIT"
           katalog status
       # Nowe firmy dostają telefon, e-mail, social media i logo od razu, a nie dopiero następnego ranka.
