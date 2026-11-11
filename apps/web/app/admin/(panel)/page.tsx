@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { Flash, Kpi, RunsTable } from "@/components/admin";
-import { getDashboard } from "@/lib/admin-data";
+import { ActivityFeed, Flash } from "@/components/admin";
+import { getDashboard, listFirms, type FirmRow } from "@/lib/admin-data";
 import { countNewRequests } from "@/lib/requests";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -9,27 +9,70 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 const n = (counts: Record<string, number>, key: string) => counts[key] ?? 0;
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
 
+type Column = { key: string; title: string; hint: string; firms: FirmRow[]; href: string };
+
+function Board({ columns }: { columns: Column[] }) {
+  return (
+    <div className="board">
+      {columns.map((col) => (
+        <section key={col.key} className={`board-col ${col.key}`}>
+          <header>
+            <b>{col.title}</b>
+            <span className="board-count">{col.firms.length}</span>
+            <span className="board-auto">automatycznie</span>
+          </header>
+          <p className="board-hint">{col.hint}</p>
+          {col.firms.length === 0 ? (
+            <p className="board-empty">Pusto</p>
+          ) : (
+            <>
+              {col.firms.slice(0, 6).map((f) => (
+                <Link key={f.id} href={`/admin/firms/${f.id}`} className="board-card">
+                  <b>{f.name}</b>
+                  <span>
+                    {f.city}
+                    {f.host ? ` · ${f.host}` : ""}
+                  </span>
+                  <span className={`chip ${f.hasDescription ? "ok" : "warn"}`}>
+                    {f.hasDescription ? "opis gotowy" : "opis w przygotowaniu"}
+                  </span>
+                </Link>
+              ))}
+              {col.firms.length > 6 && (
+                <Link className="board-more" href={col.href}>
+                  i {col.firms.length - 6} więcej
+                </Link>
+              )}
+            </>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
-  const [d, newRequests] = await Promise.all([getDashboard(), countNewRequests()]);
-  const toReview = n(d.listings, "needs_review") + n(d.domains, "probable");
-  const toVerify = n(d.domains, "needs_review") + n(d.domains, "probable");
-  const toPublish = n(d.listings, "verified");
-  const waiting = n(d.queue, "describe:pending") + n(d.queue, "classify:pending");
-  const rejected = n(d.queue, "describe:rejected") + n(d.queue, "classify:rejected");
+  const [d, newRequests, firms] = await Promise.all([getDashboard(), countNewRequests(), listFirms({})]);
+  const published = firms.filter((f) => f.status === "published");
+  const preparing = firms.filter((f) => ["candidate", "needs_review", "verified"].includes(f.status));
+  const removed = firms.filter((f) => ["rejected", "removed"].includes(f.status));
+  const offers = sum(d.offers);
+  const withDescription = firms.filter((f) => f.hasDescription).length;
+
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Przegląd</h1>
-          <p className="page-sub">Stan katalogu i to, co czeka na Twoją decyzję.</p>
+          <p className="page-sub">Katalog rośnie sam. Tu widzisz, ile firm już jest i co system robi.</p>
         </div>
         <div className="actions">
-          <Link className="btn" href="/admin/requests">
-            Zgłoszenia ({newRequests})
+          <Link className="btn" href="/admin/offers">
+            Oferty
           </Link>
-          <Link className="btn primary" href="/admin/review">
-            Kolejka weryfikacji ({toReview})
+          <Link className="btn primary" href="/" target="_blank">
+            Zobacz stronę
           </Link>
         </div>
       </div>
@@ -37,99 +80,67 @@ export default async function DashboardPage({ searchParams }: Props) {
 
       <div className="stats">
         <div className="stat">
-          <b>{n(d.listings, "published")}</b>
-          <span>opublikowanych firm</span>
+          <b>{published.length}</b>
+          <span>firm w katalogu</span>
         </div>
         <div className="stat">
-          <b>{sum(d.domains)}</b>
-          <span>domen w bazie</span>
+          <b>{preparing.length}</b>
+          <span>w przygotowaniu</span>
         </div>
         <div className="stat">
-          <b>{n(d.domains, "verified")}</b>
-          <span>zweryfikowanych</span>
+          <b>{withDescription}</b>
+          <span>firm z opisem</span>
         </div>
         <div className="stat">
-          <b>{sum(d.descriptions)}</b>
-          <span>opisów</span>
+          <b>{offers}</b>
+          <span>aktualnych ofert</span>
         </div>
         <div className="stat">
           <b>{newRequests}</b>
-          <span>nowych zgłoszeń</span>
+          <span>nowych wiadomości od firm</span>
         </div>
       </div>
 
-      <h2>Do zrobienia</h2>
-      <div className="kpis">
-        <Link className={`kpi${toVerify ? " hot" : ""}`} href="/admin/review">
-          <b>{toVerify}</b>
-          <span>domen do weryfikacji ręcznej</span>
-        </Link>
-        <Link className={`kpi${toPublish ? " hot" : ""}`} href="/admin/firms?status=verified">
-          <b>{toPublish}</b>
-          <span>wpisów zweryfikowanych, niepublikowanych</span>
-        </Link>
-        <Kpi value={waiting} label="paczek czeka na Claude Code" />
-        <Kpi value={rejected} label="wyników odrzuconych przez walidator" />
-        <Link className={`kpi${newRequests ? " hot" : ""}`} href="/admin/requests">
-          <b>{newRequests}</b>
-          <span>nowych zgłoszeń ze strony dla firm</span>
-        </Link>
-      </div>
+      <h2>Droga firmy do katalogu</h2>
+      <Board
+        columns={[
+          {
+            key: "prep",
+            title: "W przygotowaniu",
+            hint: "Znalezione biura. System sprawdza dane w rejestrach i pisze opis.",
+            firms: preparing,
+            href: "/admin/firms?status=verified",
+          },
+          {
+            key: "live",
+            title: "W katalogu",
+            hint: "Widoczne na stronie, z opisem i ofertami.",
+            firms: published,
+            href: "/admin/firms?status=published",
+          },
+          {
+            key: "out",
+            title: "Odrzucone",
+            hint: "Nie są biurami nieruchomości albo zostały usunięte.",
+            firms: removed,
+            href: "/admin/firms?status=rejected",
+          },
+        ]}
+      />
 
-      <h2>Lejek</h2>
-      <div className="kpis">
-        <Kpi value={sum(d.domains)} label="domen razem" />
-        <Kpi value={n(d.domains, "verified")} label="zweryfikowanych" />
-        <Kpi value={n(d.domains, "rejected")} label="odrzuconych" />
-        <Kpi value={sum(d.listings)} label="wpisów (listings)" />
-        <Kpi value={n(d.listings, "published")} label="opublikowanych" />
-        <Kpi value={sum(d.descriptions)} label="opisów" />
-      </div>
+      <h2>Co ostatnio zrobił automat</h2>
+      <ActivityFeed runs={d.runs} />
+      <p>
+        <Link href="/admin/runs">Cała historia automatu</Link>
+      </p>
 
-      <h2>Domeny według klasyfikacji</h2>
-      <div className="kpis">
-        {Object.entries(d.classification).map(([label, count]) => (
-          <Kpi key={label} value={count} label={label} />
-        ))}
-      </div>
-
-      <h2>Wydajność wyszukiwania</h2>
-      {d.yields.length === 0 ? (
-        <p className="note">Brak zapytań.</p>
-      ) : (
-        <div className="tablewrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Dostawca</th>
-                <th className="num">Zapytania</th>
-                <th className="num">Wyniki</th>
-                <th className="num">Nowe domeny</th>
-                <th className="num">Koszt (USD)</th>
-                <th className="num">Koszt / nowa domena</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.yields.map((y) => (
-                <tr key={y.provider}>
-                  <td>{y.provider}</td>
-                  <td className="num">{y.queries}</td>
-                  <td className="num">{y.results}</td>
-                  <td className="num">{y.newDomains}</td>
-                  <td className="num">{y.cost.toFixed(3)}</td>
-                  <td className="num">{y.newDomains ? (y.cost / y.newDomains).toFixed(4) : "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {newRequests > 0 && (
+        <div className="alert warn">
+          Masz {newRequests} nowych wiadomości od firm (poprawki lub prośby o usunięcie).{" "}
+          <Link href="/admin/requests">Zobacz</Link>
         </div>
       )}
-
-      <h2>Ostatnie przebiegi</h2>
-      <RunsTable runs={d.runs} />
-      <p>
-        <Link href="/admin/runs">Wszystkie przebiegi</Link>
-      </p>
+      <p className="note">Znalezione strony w bazie: {sum(d.domains)}.</p>
     </>
   );
 }

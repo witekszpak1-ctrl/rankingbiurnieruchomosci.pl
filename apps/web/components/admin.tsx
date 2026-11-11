@@ -1,10 +1,10 @@
 import type { RunRow } from "@/lib/admin-data";
 
 const LABELS: Record<string, string> = {
-  candidate: "kandydat",
-  needs_review: "do weryfikacji",
-  probable: "prawdopodobna",
-  verified: "zweryfikowana",
+  candidate: "znaleziona",
+  needs_review: "w przygotowaniu",
+  probable: "w przygotowaniu",
+  verified: "potwierdzona",
   published: "opublikowana",
   rejected: "odrzucona",
   removed: "usunięta",
@@ -67,34 +67,69 @@ export function when(value: Date | string | null | undefined): string {
   return date.toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Warsaw" });
 }
 
-export function RunsTable({ runs }: { runs: RunRow[] }) {
-  if (runs.length === 0) return <p className="note">Brak przebiegów.</p>;
+const STAGES: Record<string, { title: string; icon: string }> = {
+  discover: { title: "Szukanie nowych biur w internecie", icon: "🔎" },
+  probe: { title: "Sprawdzanie znalezionych stron", icon: "🌐" },
+  verify: { title: "Potwierdzanie firm w rejestrach (KRS, VAT)", icon: "✅" },
+  crawl_deep: { title: "Zbieranie informacji ze stron firm", icon: "📄" },
+  bundle: { title: "Przygotowanie danych do opisów", icon: "📦" },
+  import: { title: "Zapisywanie nowych opisów", icon: "✍️" },
+  publish: { title: "Dodawanie firm do katalogu", icon: "🚀" },
+  offers: { title: "Pobieranie ofert ze stron biur", icon: "🏠" },
+};
+
+const COUNT_LABELS: Record<string, string> = {
+  queries: "wyszukiwań",
+  candidates: "wyników",
+  new_domains: "nowych stron",
+  blocked_results: "pominiętych portali",
+  official: "to strony biur",
+  media: "portale i media",
+  marketplace: "serwisy ogłoszeniowe",
+  uncertain: "niepewnych",
+  fetch_error: "nie otworzyło się",
+  robots_disallowed: "zablokowało roboty",
+  verified: "potwierdzonych",
+  needs_review: "bez potwierdzenia",
+  rejected: "odrzuconych",
+  published: "dodanych do katalogu",
+  domains: "sprawdzonych stron",
+  with_offers: "z ofertami",
+  without_offers: "bez ofert",
+  offers_new: "nowych ofert",
+  offers_updated: "zaktualizowanych ofert",
+  offers_deactivated: "zniknęło",
+};
+const HIDDEN_COUNTS = new Set(["mf_requests", "krs_requests", "cost", "tokens"]);
+
+export function describeRun(run: RunRow): { title: string; icon: string; detail: string } {
+  const stage = STAGES[run.stage] ?? { title: run.stage, icon: "⚙️" };
+  const parts = Object.entries(run.counts)
+    .filter(([key, value]) => value && !HIDDEN_COUNTS.has(key))
+    .map(([key, value]) => `${value} ${COUNT_LABELS[key] ?? key.replace(/_/g, " ")}`);
+  const detail = run.status === "failed" ? "nie udało się, spróbuje ponownie przy następnym przebiegu" : parts.join(" · ") || "nic nowego";
+  return { ...stage, detail };
+}
+
+export function ActivityFeed({ runs }: { runs: RunRow[] }) {
+  if (runs.length === 0) return <p className="note">Automat jeszcze nic nie zrobił.</p>;
   return (
-    <div className="tablewrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Etap</th>
-            <th>Status</th>
-            <th>Start</th>
-            <th>Wyniki</th>
-            <th className="num">Koszt (USD)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.map((run) => (
-            <tr key={run.id}>
-              <td>{run.stage}</td>
-              <td>
-                <StatusBadge status={run.status} />
-              </td>
-              <td>{when(run.startedAt)}</td>
-              <td className="mono">{Object.entries(run.counts).map(([k, v]) => `${k}: ${v}`).join(", ") || "-"}</td>
-              <td className="num">{run.cost.toFixed(3)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul className="feed">
+      {runs.map((run) => {
+        const d = describeRun(run);
+        return (
+          <li key={run.id} className={run.status === "failed" ? "bad" : ""}>
+            <span className="feed-icon" aria-hidden="true">
+              {d.icon}
+            </span>
+            <span className="feed-main">
+              <b>{d.title}</b>
+              <span>{d.detail}</span>
+            </span>
+            <span className="feed-when">{when(run.startedAt)}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

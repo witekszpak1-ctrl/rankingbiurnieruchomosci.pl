@@ -38,7 +38,7 @@ export async function searchYield(): Promise<YieldRow[]> {
 }
 
 export async function getDashboard() {
-  const [domains, classification, listings, queue, descriptions, runs, yields] = await Promise.all([
+  const [domains, classification, listings, queue, descriptions, runs, yields, offers] = await Promise.all([
     group("select verification_status as k, count(*)::int as n from domains group by 1 order by 1"),
     group("select classification as k, count(*)::int as n from domains group by 1 order by 1"),
     group("select status as k, count(*)::int as n from listings group by 1 order by 1"),
@@ -46,8 +46,9 @@ export async function getDashboard() {
     group("select status as k, count(*)::int as n from descriptions group by 1 order by 1"),
     listRuns(8),
     searchYield(),
+    group("select (case when price_amount is null then 'bez_ceny' else 'z_cena' end) as k, count(*)::int as n from offers where is_active group by 1"),
   ]);
-  return { domains, classification, listings, queue, descriptions, runs, yields };
+  return { domains, classification, listings, queue, descriptions, runs, yields, offers };
 }
 
 export type FirmRow = {
