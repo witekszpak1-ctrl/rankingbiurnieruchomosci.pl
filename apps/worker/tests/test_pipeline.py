@@ -445,3 +445,45 @@ def test_probe_skips_privacy_policy_when_nip_is_already_found(ctx):
     stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
     stage_probe(ctx, fetcher, 50)
     assert AGENCY + "polityka-prywatnosci" not in fetcher.requested
+
+
+def test_bundle_skips_leaking_brand_without_stopping_and_rolls_back_its_facts(ctx, monkeypatch):
+    import katalog_worker.pipeline as pipeline_module
+    from katalog_worker.bundle import ContactLeakError
+
+    fetcher = make_fetcher()
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    stage_verify(ctx, make_mf(), make_krs(), 50)
+    stage_crawl_deep(ctx, fetcher, 10)
+
+    def leaking(bundle, queue_dir):
+        raise ContactLeakError(["facts[f1:site_title].value"])
+
+    monkeypatch.setattr(pipeline_module, "write_bundle", leaking)
+    counts = stage_bundle(ctx, 10)
+    assert counts.get("blocked_contacts") == 1 and "describe" not in counts
+    assert ctx.repo.conn.execute("select count(*) as n from facts").fetchone()["n"] == 0
+    assert ctx.repo.conn.execute("select count(*) as n from queue_items").fetchone()["n"] == 0
+
+
+def test_lost_snapshots_and_bundles_are_recovered_on_next_run(flow):
+    import shutil
+
+    ctx = flow["ctx"]
+    assert flow["bundle_path"].exists()
+    # nowy runner: brak zrzutów stron i brak pliku paczki, a w bazie zostało zadanie 'pending'
+    shutil.rmtree(ctx.snapshots_dir)
+    flow["bundle_path"].unlink()
+
+    from katalog_worker.pipeline import stage_requeue_lost
+
+    assert stage_requeue_lost(ctx) == {"requeued_lost": 1}
+    deep = stage_crawl_deep(ctx, flow["fetcher"], 10)
+    assert deep.get("refetched_home") == 1
+
+    counts = stage_bundle(ctx, 10)
+    assert counts.get("describe") == 1
+    assert flow["bundle_path"].exists()
+    statuses = [r["status"] for r in ctx.repo.conn.execute("select status from queue_items").fetchall()]
+    assert statuses == ["pending"]  # to samo zadanie wróciło do kolejki z nowym plikiem paczki

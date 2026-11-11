@@ -13,11 +13,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .bundle import Fact, build_classify_bundle, build_describe_bundle, facts_from_pages, write_bundle
+from .bundle import ContactLeakError, Fact, build_classify_bundle, build_describe_bundle, facts_from_pages, write_bundle
 from .classify import DEFAULT_BLOCKLIST, Classification, classify_page
 from .discovery import discover
 from .extract import PageExtraction, extract_page, merge_extractions
@@ -66,10 +67,13 @@ def _save_page(ctx: Context, domain_id: str, host: str, result: FetchResult) -> 
 
 
 def _load_pages(ctx: Context, domain_id: str) -> list[PageExtraction]:
+    """Strony domeny z lokalnych zrzutów. Zrzuty z innego runnera mogą nie istnieć: takie pomijamy."""
     pages = []
     for row in ctx.repo.pages_for_domain(domain_id):
-        html = Path(row["storage_path"]).read_text(encoding="utf-8")
-        pages.append(extract_page(html, row["url"]))
+        path = Path(row["storage_path"])
+        if not path.is_file():
+            continue
+        pages.append(extract_page(path.read_text(encoding="utf-8"), row["url"]))
     return pages
 
 
@@ -270,10 +274,21 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
 def stage_crawl_deep(ctx: Context, fetcher: PoliteFetcher, limit: int = 20, max_pages: int = 8) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
-    for row in repo.domains_for_deep_crawl(limit):
+    candidates: dict[str, dict] = {}
+    for row in list(repo.domains_for_deep_crawl(limit)) + list(repo.domains_awaiting_bundle(limit)):
+        candidates.setdefault(str(row["id"]), row)
+    for row in candidates.values():
         pages = _load_pages(ctx, row["id"])
         if not pages:
-            continue
+            # Brak lokalnych zrzutów (np. przebieg na nowym runnerze): pobieramy stronę główną od nowa.
+            home = fetcher.fetch(row["canonical_url"] or f"https://{row['host']}/")
+            if not home.ok:
+                counts[f"refetch_failed_{home.error}"] += 1
+                repo.conn.commit()
+                continue
+            _save_page(ctx, row["id"], row["host"], home)
+            pages = [extract_page(home.text, home.final_url)]
+            counts["refetched_home"] += 1
         have = {canonical_url(p.url) for p in pages}
         links = [link for p in pages for link in p.links]
         for url in pick_pages(links, pages[0].url, limit=max_pages):
@@ -307,6 +322,24 @@ def _registry_facts(ctx: Context, brand_id: str) -> list[Fact]:
     return [Fact("registry_start_date", iso, f"{label}: {iso}", f"rejestr:{row['registry_source']}")]
 
 
+def stage_requeue_lost(ctx: Context) -> dict:
+    """Zadania 'pending', których pliku paczki nie ma lokalnie (zginął z runnerem), oznacza jako 'failed'.
+
+    Marka wraca wtedy do kolejki crawla i budowania paczki. Uruchamiać tylko po pobraniu kolejki z gałęzi queue-data,
+    przed crawl-deep, bo inaczej każde zadanie wyglądałoby na zgubione.
+    """
+    lost = 0
+    for item in ctx.repo.pending_queue_items():
+        if not Path(item["bundle_path"]).is_file():
+            ctx.repo.finish_queue_item(
+                item["id"], "failed", None,
+                {"ok": False, "errors": [{"code": "bundle_lost", "message": "Plik paczki nie istnieje, paczka zostanie zbudowana od nowa."}]},
+            )
+            lost += 1
+    ctx.repo.conn.commit()
+    return {"requeued_lost": lost}
+
+
 def stage_bundle(ctx: Context, limit: int = 50) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
@@ -325,7 +358,14 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
             vertical=ctx.vertical.slug, firm_id=str(row["brand_id"]), name=row["name"], city=row["city"],
             pages=pages, preset_facts=facts,
         )
-        path = write_bundle(bundle, ctx.queue_dir)
+        try:
+            path = write_bundle(bundle, ctx.queue_dir)
+        except ContactLeakError as exc:
+            # Pojedyncza paczka z niewyczyszczonym kontaktem nie zatrzymuje etapu. Fakty tej marki wycofujemy.
+            repo.conn.rollback()
+            print(f"Pominięto paczkę describe dla marki {row['brand_id']}: {exc}", file=sys.stderr)
+            counts["blocked_contacts"] += 1
+            continue
         repo.enqueue("describe", str(path), bundle["bundle_sha256"], brand_id=row["brand_id"])
         counts["describe"] += 1
         repo.conn.commit()
@@ -338,7 +378,12 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
             vertical=ctx.vertical.slug, firm_id=str(row["id"]), url=row["canonical_url"], page=merged,
             reasons=list(row["classification_reasons"] or []),
         )
-        path = write_bundle(bundle, ctx.queue_dir)
+        try:
+            path = write_bundle(bundle, ctx.queue_dir)
+        except ContactLeakError as exc:
+            print(f"Pominięto paczkę classify dla domeny {row['id']}: {exc}", file=sys.stderr)
+            counts["blocked_contacts"] += 1
+            continue
         repo.enqueue("classify", str(path), bundle["bundle_sha256"], domain_id=row["id"])
         counts["classify"] += 1
         repo.conn.commit()

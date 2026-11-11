@@ -58,8 +58,11 @@ tego samego repozytorium (bez wspólnej historii z `main`, tylko katalog `queue/
    portalami i katalogami, żeby trafiały strony samych firm), zapisuje je w `queue/candidates/<miasto>-<data>.json`
    (format w `katalog_worker/search/file.py`) i wysyła `bash scripts/queue_sync.sh push-candidates`. Ten sam plik
    importuje się tylko raz (suma SHA-256 w `search_queries.params`).
-1. Workflow **pipeline** (ręcznie, źródło `file`, `serper` albo `brave`): discover (dla `file` z plików kandydatów),
-   probe, verify, crawl-deep, bundle, potem `push-pending` wysyła nowe paczki na `queue-data` (istniejących nie nadpisuje).
+1. Workflow **pipeline** (ręcznie, źródło `file`, `serper` albo `brave`): pobiera kolejkę z `queue-data`, odtwarza zadania,
+   których pliki paczek zginęły (`katalog requeue-lost`), przywraca zrzuty stron z cache Actions, potem discover (dla `file`
+   z plików kandydatów), probe, verify, crawl-deep (strony bez zrzutów pobiera od nowa) i bundle. Paczka z kontaktem,
+   którego redakcja nie usunęła, jest pomijana i opisana w logu nazwą pola (bez treści). Publikacja paczek
+   (`push-pending`, istniejących nie nadpisuje) i zapis zrzutów wykonują się także po błędzie.
 2. Sesja Claude Code: `bash scripts/queue_sync.sh pull`, opis każdej paczki z `queue/pending/` według
    `packages/verticals/nieruchomosci/prompts/`, wynik do `queue/results/<typ>/<id>.json`, sprawdzenie
    `katalog validate --bundle B --result R`, potem `bash scripts/queue_sync.sh push-results`.

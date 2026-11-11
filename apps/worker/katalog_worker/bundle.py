@@ -67,7 +67,8 @@ def facts_from_pages(pages: list[PageExtraction]) -> list[Fact]:
         key = (type_, value)
         if value and key not in seen:
             seen.add(key)
-            facts.append(Fact(type_, value, redact_contacts(quote), url))
+            # Tytuły i opisy meta często zawierają telefon ("Biuro XYZ, tel. 71 ..."), więc redagujemy też wartość.
+            facts.append(Fact(type_, redact_contacts(value), redact_contacts(quote), url))
 
     for page in pages:
         if page.meta_description:
@@ -108,8 +109,8 @@ def build_describe_bundle(
             {
                 "fact_id": f"f{index}",
                 "type": fact.type,
-                "value": fact.value,
-                "quote": fact.quote,
+                "value": redact_contacts(fact.value) if isinstance(fact.value, str) else fact.value,
+                "quote": redact_contacts(fact.quote) if isinstance(fact.quote, str) else fact.quote,
                 "source_url": fact.source_url,
                 "db_id": fact.db_id,
             }
@@ -138,7 +139,7 @@ def build_describe_bundle(
         "type": "describe",
         "firm_id": firm_id,
         "vertical": vertical,
-        "name": name,
+        "name": redact_contacts(name),
         "city": city,
         "facts": facts,
         "source_text": source_text,
@@ -174,6 +175,33 @@ def build_classify_bundle(
     return bundle
 
 
+class ContactLeakError(ValueError):
+    """Paczka zawiera e-mail lub telefon. Komunikat wymienia pola, nigdy ich treści."""
+
+    def __init__(self, fields: list[str]):
+        self.fields = fields
+        super().__init__(f"Paczka zawiera e-mail lub telefon w polach: {', '.join(fields)}. Zredaguj dane przed zapisem.")
+
+
+def contact_fields(bundle: dict) -> list[str]:
+    """Ścieżki pól z treścią, w których jest e-mail lub telefon (do logów, bez wartości)."""
+    found: list[str] = []
+    for key in ("name", "city", "url"):
+        if contains_contacts(str(bundle.get(key, ""))):
+            found.append(key)
+    for fact in bundle.get("facts", []):
+        for part in ("value", "quote"):
+            if contains_contacts(str(fact.get(part, ""))):
+                found.append(f"facts[{fact.get('fact_id')}:{fact.get('type')}].{part}")
+    for i, source in enumerate(bundle.get("source_text", [])):
+        if contains_contacts(str(source.get("text", ""))):
+            found.append(f"source_text[{i}].text")
+    for candidate in bundle.get("price_candidates", []):
+        if contains_contacts(str(candidate.get("snippet", ""))):
+            found.append(f"price_candidates[{candidate.get('candidate_id')}].snippet")
+    return found
+
+
 def _content_strings(bundle: dict) -> str:
     """Pola z treścią (bez sum kontrolnych i identyfikatorów, które mają długie ciągi cyfr)."""
     parts: list[str] = [str(bundle.get(k, "")) for k in ("name", "city", "url")]
@@ -189,7 +217,7 @@ def _content_strings(bundle: dict) -> str:
 def write_bundle(bundle: dict, queue_dir: Path) -> Path:
     """Zapisuje paczkę do queue/pending/<typ>/<firm_id>.json. Odmawia, gdy w paczce są kontakty."""
     if contains_contacts(_content_strings(bundle)):
-        raise ValueError("Paczka zawiera e-mail lub telefon. Zredaguj dane przed zapisem.")
+        raise ContactLeakError(contact_fields(bundle) or ["(nieznane pole)"])
     target = queue_dir / "pending" / bundle["type"] / f"{bundle['firm_id']}.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

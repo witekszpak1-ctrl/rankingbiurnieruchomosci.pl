@@ -331,3 +331,33 @@ def test_ngram_overlap_basics():
     assert ngram_overlap("a b c d e f", "x y z") == 0.0
     assert ngram_overlap("a b c d e f", "a b c d e f g") == 1.0
     assert ngram_overlap("krótko", "cokolwiek") == 0.0
+
+
+def test_fact_values_and_name_are_redacted_and_leaks_report_fields(tmp_path):
+    from katalog_worker.bundle import ContactLeakError, build_describe_bundle, contact_fields, write_bundle
+    from katalog_worker.extract import extract_page
+
+    html = (
+        "<html><head><title>Biuro XYZ Wrocław, tel. 71 123 45 67</title>"
+        '<meta name="description" content="Pośrednictwo nieruchomości. Napisz: biuro@xyz.pl"></head>'
+        "<body><p>Pośrednictwo w sprzedaży mieszkań we Wrocławiu.</p></body></html>"
+    )
+    page = extract_page(html, "https://xyz.pl/")
+    bundle = build_describe_bundle(
+        vertical="nieruchomosci", firm_id="b1", name="Biuro XYZ tel. 600 700 800", city="Wrocław", pages=[page]
+    )
+    assert contact_fields(bundle) == []
+    assert "600 700 800" not in bundle["name"]
+    values = {f["type"]: f["value"] for f in bundle["facts"]}
+    assert "71 123 45 67" not in values["site_title"] and "[telefon]" in values["site_title"]
+    assert "biuro@xyz.pl" not in values["meta_description"]
+    write_bundle(bundle, tmp_path)  # nie rzuca
+
+    bundle["city"] = "Wrocław, tel. 71 123 45 67"
+    try:
+        write_bundle(bundle, tmp_path)
+    except ContactLeakError as exc:
+        assert exc.fields == ["city"]
+        assert "71 123 45 67" not in str(exc)  # komunikat nie ujawnia treści
+    else:  # pragma: no cover
+        raise AssertionError("oczekiwano ContactLeakError")

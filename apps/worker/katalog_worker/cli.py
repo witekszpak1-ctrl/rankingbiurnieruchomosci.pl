@@ -109,6 +109,15 @@ def cmd_crawl_deep(args) -> int:
     return 0
 
 
+def cmd_requeue_lost(args) -> int:
+    from .pipeline import stage_requeue_lost
+
+    with connect() as conn:
+        ctx, _ = _context(args, conn)
+        _print(stage_requeue_lost(ctx))
+    return 0
+
+
 def cmd_bundle(args) -> int:
     from .pipeline import stage_bundle
 
@@ -185,8 +194,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=50)
     p = add("crawl-deep", cmd_crawl_deep, "S5: kolejne podstrony zweryfikowanych domen")
     p.add_argument("--limit", type=int, default=20)
+    add(
+        "requeue-lost", cmd_requeue_lost,
+        "zadania bez pliku paczki oznacz jako failed (tylko po pobraniu kolejki z queue-data, przed crawl-deep)",
+    )
     p = add("bundle", cmd_bundle, "S6: przygotuj paczki dla Claude Code")
     p.add_argument("--limit", type=int, default=50)
+
     add("import", cmd_import, "S7: zwaliduj i zaimportuj wyniki z kolejki")
     p = add("validate", cmd_validate, "zwaliduj pojedynczy wynik względem paczki", vertical=False)
     p.add_argument("--bundle", required=True)

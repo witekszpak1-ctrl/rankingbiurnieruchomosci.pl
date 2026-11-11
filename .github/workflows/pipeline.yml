@@ -52,10 +52,20 @@ jobs:
       - run: pip install -e apps/worker
       - name: Migracje
         run: katalog migrate
+      - name: Pobranie kolejki z gałęzi queue-data
+        run: bash scripts/queue_sync.sh pull
+      - name: Odtworzenie zadań bez plików paczek
+        run: katalog requeue-lost
+      # Zrzuty stron przechodzą między przebiegami przez cache Actions (runner jest tymczasowy).
+      - name: Przywrócenie zrzutów stron
+        uses: actions/cache/restore@v4
+        with:
+          path: snapshots
+          key: snapshots-${{ github.run_id }}
+          restore-keys: snapshots-
       - name: S1 discover z plików kandydatów (bez klucza API)
         if: ${{ inputs.provider == 'file' }}
         run: |
-          bash scripts/queue_sync.sh pull
           shopt -s nullglob
           files=(queue/candidates/*.json)
           if [ ${#files[@]} -eq 0 ]; then
@@ -79,9 +89,18 @@ jobs:
           katalog crawl-deep --limit "$INPUT_LIMIT"
           katalog bundle --limit "$INPUT_LIMIT"
           katalog status
+      # Publikacja i zapis zrzutów także po błędzie: paczki zapisane w bazie muszą mieć swoje pliki na gałęzi.
       - name: Publikacja paczek na gałąź queue-data
+        if: ${{ always() }}
         run: bash scripts/queue_sync.sh push-pending
+      - name: Zapis zrzutów stron
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: snapshots
+          key: snapshots-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
         with:
           name: queue
           path: queue/
