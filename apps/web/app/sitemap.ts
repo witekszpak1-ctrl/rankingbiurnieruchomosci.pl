@@ -12,6 +12,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Strona główna zmienia się razem z katalogiem; strony informacyjne bez lastmod (nie znamy daty ich zmiany).
   const staticPages = [
     { url: absoluteUrl("/"), lastModified: newest },
+    // Ranking ogólnopolski jest indeksowany od 10 biur (app/ranking/page.tsx); lista ofert ma noindex.
+    ...(entries.filter((e) => e.firmSlug).length >= 10 ? [{ url: absoluteUrl("/ranking"), lastModified: newest }] : []),
     ...["/metodologia", "/dla-firm", "/reklama", "/bot"].map((path) => ({ url: absoluteUrl(path) })),
   ];
   const dynamicPages = entries

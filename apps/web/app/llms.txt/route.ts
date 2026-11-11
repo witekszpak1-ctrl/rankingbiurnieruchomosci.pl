@@ -15,6 +15,7 @@ export async function GET() {
     "> Niezależny katalog i ranking biur nieruchomości w Polsce, podzielony na miasta. Dane z rejestrów publicznych (KRS, wykaz VAT) i oficjalnych stron biur, jawna metodologia rankingu, płatność nie wpływa na pozycję. Biura potwierdzone w rejestrze są oznaczone; biura bez potwierdzenia są w katalogu niżej w rankingu.",
     "",
     "## Zasady",
+    `- [Ranking ogólnopolski](${absoluteUrl("/ranking")}): najwyżej ocenione biura w całym katalogu`,
     `- [Metodologia rankingu](${absoluteUrl("/metodologia")}): źródła danych, parametry, wagi, progi publikacji`,
     `- [Reklama i niezależność](${absoluteUrl("/reklama")})`,
     `- [Dla biur nieruchomości](${absoluteUrl("/dla-firm")}): jakie dane publikujemy, korekta i usunięcie wpisu`,

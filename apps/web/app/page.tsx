@@ -101,10 +101,10 @@ export default async function HomePage({ searchParams }: Props) {
                 <span className="search-tab active" role="tab" aria-selected="true">
                   Biura
                 </span>
-                <Link className="search-tab" href="/#oferty">
+                <Link className="search-tab" href="/oferty">
                   Oferty
                 </Link>
-                <Link className="search-tab" href="/#ranking">
+                <Link className="search-tab" href="/ranking">
                   Ranking
                 </Link>
                 <Link className="search-tab" href="/metodologia">

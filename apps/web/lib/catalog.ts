@@ -304,6 +304,43 @@ export async function homeStats(): Promise<{ firms: number; cities: number; offe
   return rows[0] ?? { firms: 0, cities: 0, offers: 0, withPrices: 0 };
 }
 
+/** Aktywne oferty z biur w katalogu (lista ofert), najnowsze najpierw, opcjonalnie z jednego miasta biura. */
+export async function listOffersPage(opts: { citySlug?: string; page: number; perPage: number }): Promise<{ offers: LatestOffer[]; total: number }> {
+  const params: unknown[] = [];
+  let cond = "";
+  if (opts.citySlug) {
+    params.push(opts.citySlug);
+    cond = `and c.slug = $${params.length}`;
+  }
+  const base = `from offers o
+     join brands b on b.id = o.brand_id
+     join listings l on l.brand_id = b.id and l.status = 'published'
+     join cities c on c.id = l.city_id
+     where o.is_active and o.last_seen_at > now() - interval '14 days' ${cond}`;
+  const [offers, total] = await Promise.all([
+    query<LatestOffer>(
+      `select o.title, o.url, o.price_amount::float8 as "priceAmount", o.price_currency as "priceCurrency",
+              o.price_period as "pricePeriod", b.name as "firmName", l.slug as "firmSlug", c.slug as "citySlug",
+              c.name as "cityName", coalesce(b.logo_url, b.image_url) as "imageUrl"
+       ${base}
+       order by o.first_seen_at desc, o.position limit $${params.length + 1} offset $${params.length + 2}`,
+      [...params, opts.perPage, opts.page * opts.perPage],
+    ),
+    query<{ n: number }>(`select count(*)::int as n ${base}`, params),
+  ]);
+  return { offers, total: total[0]?.n ?? 0 };
+}
+
+/** Miasta biur, które mają aktywne oferty (filtr listy ofert). */
+export async function offerCities(): Promise<{ slug: string; name: string; n: number }[]> {
+  return query<{ slug: string; name: string; n: number }>(
+    `select c.slug, c.name, count(*)::int as n
+     from offers o join listings l on l.brand_id = o.brand_id and l.status = 'published' join cities c on c.id = l.city_id
+     where o.is_active and o.last_seen_at > now() - interval '14 days'
+     group by c.slug, c.name order by n desc, c.name`,
+  );
+}
+
 export type CityPriceExample = {
   firmName: string;
   firmSlug: string;

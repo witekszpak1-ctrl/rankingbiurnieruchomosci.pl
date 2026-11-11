@@ -25,7 +25,7 @@ export function SiteHeader() {
         </Link>
         <nav className="nav" aria-label="Główna nawigacja">
           <Link href="/#miasta">Miasta</Link>
-          <Link href="/#ranking">Ranking</Link>
+          <Link href="/ranking">Ranking</Link>
           <Link href="/metodologia">Jak oceniamy</Link>
           <Link href="/dla-firm">Dla biur</Link>
         </nav>
@@ -66,10 +66,10 @@ export async function SiteFooter() {
           <h3>Katalog</h3>
           <ul>
             <li>
-              <Link href="/#ranking">Najlepsze biura</Link>
+              <Link href="/ranking">Najlepsze biura w Polsce</Link>
             </li>
             <li>
-              <Link href="/#oferty">Aktualne oferty</Link>
+              <Link href="/oferty">Aktualne oferty biur</Link>
             </li>
             <li>
               <Link href="/metodologia">Jak powstaje ranking</Link>
