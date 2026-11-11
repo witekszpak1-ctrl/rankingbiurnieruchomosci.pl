@@ -65,8 +65,8 @@ tego samego repozytorium (bez wspólnej historii z `main`, tylko katalog `queue/
    `katalog validate --bundle B --result R`, potem `bash scripts/queue_sync.sh push-results`.
 3. Workflow **import** (ręcznie): pobiera kolejkę z `queue-data`, `katalog import` waliduje wyniki i zapisuje je w bazie.
 
-Wymagane w ustawieniach repozytorium: sekret `DATABASE_URL` oraz zmienna `CRAWLER_USER_AGENT` z prawdziwym adresem
-kontaktowym (patrz `.env.example`). Klucze `SERPER_API_KEY` lub `BRAVE_API_KEY` są potrzebne tylko dla źródeł `serper` i `brave`. Skrypt kolejki przetestowano lokalnie na
+Wymagane w ustawieniach repozytorium: sekret `DATABASE_URL`. Zmienna `CRAWLER_USER_AGENT` jest nieobowiązkowa (domyślnie
+`KatalogBot/0.1 (+https://rankingbiurnieruchomosci.pl/bot)`, a strona `/bot` prowadzi do formularza kontaktowego). Klucze `SERPER_API_KEY` lub `BRAVE_API_KEY` są potrzebne tylko dla źródeł `serper` i `brave`. Skrypt kolejki przetestowano lokalnie na
 tymczasowym zdalnym repozytorium. Same workflowy nie były uruchamiane w Actions.
 
 ## Zasady

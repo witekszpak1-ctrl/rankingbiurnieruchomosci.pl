@@ -25,7 +25,7 @@ class Settings:
     )
     crawler_user_agent: str = field(
         default_factory=lambda: os.environ.get("CRAWLER_USER_AGENT")
-        or "KatalogBot/0.1 (+kontakt: ustaw-adres-kontaktowy)"
+        or "KatalogBot/0.1 (+https://rankingbiurnieruchomosci.pl/bot)"
     )
     crawler_min_delay_seconds: float = field(
         default_factory=lambda: _float("CRAWLER_MIN_DELAY_SECONDS", 2.0)
