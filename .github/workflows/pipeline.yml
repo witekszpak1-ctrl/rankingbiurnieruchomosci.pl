@@ -95,6 +95,9 @@ jobs:
           katalog crawl-deep --limit "$INPUT_LIMIT"
           katalog bundle --limit "$INPUT_LIMIT"
           katalog status
+      # Nowe firmy dostają telefon, e-mail, social media i logo od razu, a nie dopiero następnego ranka.
+      - name: Kontakty i zdjęcia nowych firm
+        run: katalog contacts --only-new --limit 150
       # Publikacja i zapis zrzutów także po błędzie: paczki zapisane w bazie muszą mieć swoje pliki na gałęzi.
       - name: Publikacja paczek na gałąź queue-data
         if: ${{ always() }}

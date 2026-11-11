@@ -141,7 +141,7 @@ def cmd_contacts(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        _print(stage_contacts(ctx, _fetcher(settings), args.limit))
+        _print(stage_contacts(ctx, _fetcher(settings), args.limit, only_new=args.only_new))
     return 0
 
 
@@ -278,6 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=100)
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
     p.add_argument("--limit", type=int, default=300)
+    p.add_argument("--only-new", action="store_true", help="tylko firmy jeszcze niesprawdzone (po każdym przebiegu)")
     p = add("publish-ready", cmd_publish_ready, "opublikuj wpisy spełniające bramkę (gdy auto_publish = true)")
     p.add_argument("--limit", type=int, default=200)
     add(

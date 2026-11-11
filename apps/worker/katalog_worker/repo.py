@@ -482,15 +482,20 @@ class Repo:
         ).rowcount
         return counts
 
-    def domains_for_contacts(self, limit: int) -> list[dict]:
-        """Zweryfikowane domeny marek z wpisem w katalogu albo w przygotowaniu, jedna domena na markę."""
+    def domains_for_contacts(self, limit: int, only_new: bool = False) -> list[dict]:
+        """Zweryfikowane domeny marek z wpisem w katalogu albo w przygotowaniu, jedna domena na markę.
+        Najpierw marki jeszcze nigdy niesprawdzone; only_new = tylko takie (szybkie uzupełnienie nowych firm)."""
         return self.conn.execute(
-            """select distinct on (d.brand_id) d.id, d.host, d.canonical_url, d.brand_id from domains d
-               where d.verification_status = 'verified' and d.brand_id is not null
-                 and exists (select 1 from listings l where l.brand_id = d.brand_id
-                             and l.status in ('published', 'verified', 'needs_review'))
-               order by d.brand_id, d.verification_score desc nulls last limit %s""",
-            (limit,),
+            """select * from (
+                 select distinct on (d.brand_id) d.id, d.host, d.canonical_url, d.brand_id, b.image_checked_at
+                 from domains d join brands b on b.id = d.brand_id
+                 where d.verification_status = 'verified'
+                   and exists (select 1 from listings l where l.brand_id = d.brand_id
+                               and l.status in ('published', 'verified', 'needs_review'))
+                   and (not %s or b.image_checked_at is null)
+                 order by d.brand_id, d.verification_score desc nulls last
+               ) x order by image_checked_at nulls first limit %s""",
+            (only_new, limit),
         ).fetchall()
 
     def save_contacts(self, brand_id: str, found: dict) -> None:

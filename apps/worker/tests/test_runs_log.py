@@ -64,3 +64,11 @@ def _with_func(parser, name, func):
     for action in parser._subparsers._group_actions:
         action.choices[name].set_defaults(func=func)
     return parser
+
+
+def test_spaced_mobile_without_keyword_is_a_phone_but_regon_is_not():
+    from katalog_worker.extract import extract_page
+
+    html = "<html><body><h2>Biuro w centrum miasta, zapraszamy</h2><div><i class='icon-phone'></i> 600 123 456</div><p>REGON 123456785</p></body></html>"
+    page = extract_page(html, "https://biuro.pl/kontakt")
+    assert [h.e164 for h in page.phones] == ["+48600123456"]

@@ -825,18 +825,18 @@ def pick_images(html: str, page_url: str) -> dict:
     return {"logo": logo, "cover": cover}
 
 
-def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> dict:
+def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300, only_new: bool = False) -> dict:
     """Telefon, e-mail firmowy i profile społecznościowe ze strony głównej i podstrony Kontakt zweryfikowanych biur."""
     repo = ctx.repo
     counts: Counter = Counter()
-    for row in repo.domains_for_contacts(limit):
+    for row in repo.domains_for_contacts(limit, only_new=only_new):
         home_url = row["canonical_url"] or f"https://{row['host']}/"
         home = fetcher.fetch(home_url)
         if not home.ok:
             counts["home_failed"] += 1
             continue
         pages = [extract_page(home.text, home.final_url)]
-        for url in contact_page_urls(pages[0].links, home.final_url):
+        for url in contact_page_urls(pages[0].links, home.final_url, limit=3):
             result = fetcher.fetch(url)
             if result.ok:
                 pages.append(extract_page(result.text, result.final_url))

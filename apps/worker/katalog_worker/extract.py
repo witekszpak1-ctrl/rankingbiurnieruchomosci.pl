@@ -163,7 +163,10 @@ def _phones_from_text(text: str) -> list[PhoneHit]:
         raw = match.raw_string
         before = text[max(0, match.start - 25) : match.start]
         explicit_prefix = raw.strip().startswith(("+", "00"))
-        if not (explicit_prefix or _PHONE_KEYWORDS.search(before)):
+        # Komórka zapisana z odstępami ("600 123 456", "600-123-456") to telefon, nawet bez słowa "tel" obok
+        # (strony często dają tylko ikonę słuchawki). REGON, KRS i NIP piszemy bez odstępów, więc ich to nie łapie.
+        spaced_mobile = bool(re.search(r"\d[ \-]\d", raw)) and phonenumbers.number_type(match.number) == phonenumbers.PhoneNumberType.MOBILE
+        if not (explicit_prefix or spaced_mobile or _PHONE_KEYWORDS.search(before)):
             # bez prefiksu i bez słowa "tel" to często REGON/KRS/NIP albo numer ofertowy
             continue
         e164 = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
