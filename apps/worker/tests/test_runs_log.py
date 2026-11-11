@@ -128,3 +128,16 @@ def test_discover_queue_stops_on_search_error(db, tmp_path):
     result = stage_discover_queue(ctx, _Provider(fail_after=3), 5, {})
     assert result["search_errors"] == 1 and result["cities"] == 1
     assert db.execute("select count(*) as n from cities where last_searched_at is not null").fetchone()["n"] == 0
+
+
+def test_prompts_export_writes_panel_prompt(db, db_url, monkeypatch, tmp_path):
+    from psycopg.types.json import Jsonb
+
+    monkeypatch.setenv("DATABASE_URL", db_url)
+    out = tmp_path / "prompts" / "describe.md"
+    assert cli.main(["prompts", "--export", str(out)]) == 0
+    assert not out.exists()
+    db.execute("insert into settings (key, value) values ('describe_prompt', %s)", (Jsonb({"text": "Pisz krótko."}),))
+    db.commit()
+    assert cli.main(["prompts", "--export", str(out)]) == 0
+    assert out.read_text(encoding="utf-8") == "Pisz krótko.\n"

@@ -178,6 +178,21 @@ def cmd_cities(args) -> int:
     return 0
 
 
+def cmd_prompts(args) -> int:
+    """Zapisuje prompt opisów ustawiony w panelu (settings.describe_prompt) do pliku dla sesji Claude."""
+    with connect() as conn:
+        row = conn.execute("select value from settings where key = 'describe_prompt'").fetchone()
+    text = (row or {}).get("value", {}).get("text") if row else None
+    out = Path(args.export)
+    if not isinstance(text, str) or not text.strip():
+        _print({"exported": 0})
+        return 0
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text.strip() + "\n", encoding="utf-8")
+    _print({"exported": 1, "chars": len(text)})
+    return 0
+
+
 def cmd_google_reviews(args) -> int:
     from .pipeline import stage_google_reviews
 
@@ -295,6 +310,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("cities", cmd_cities, "dopisz miasta z listy branży do bazy i zapisz kolejkę wyszukiwania")
     p.add_argument("--file", default="packages/verticals/nieruchomosci/cities.txt")
     p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
+    p = add("prompts", cmd_prompts, "zapisz prompt opisów z panelu do pliku dla sesji Claude", vertical=False)
+    p.add_argument("--export", default="queue/prompts/describe.md")
     p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Google (Places API, wymaga GOOGLE_PLACES_API_KEY)")
     p.add_argument("--limit", type=int, default=100)
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")

@@ -263,3 +263,36 @@ export async function claimAction(formData: FormData) {
   revalidatePath(path);
   back(path, "ok", "Zapisano.");
 }
+
+
+/** Zapis prompta opisów (settings.describe_prompt). Automat GitHub przekazuje go sesjom Claude przez gałąź queue-data. */
+export async function promptAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const action = String(formData.get("action") ?? "save");
+  const path = "/admin/prompt";
+  let text = String(formData.get("text") ?? "").replace(/\r\n/g, "\n");
+  if (action === "reset") {
+    const rows = await query<{ value: { text?: string } }>("select value from settings where key = 'describe_prompt_default'");
+    text = rows[0]?.value?.text ?? "";
+    if (!text) back(path, "error", "Brak wersji domyślnej.");
+  }
+  text = text.replace(/[\u2013\u2014]/g, "-").trim();
+  if (text.length < 200) back(path, "error", "Prompt jest za krótki (najmniej 200 znaków).");
+  if (text.length > 20000) back(path, "error", "Prompt jest za długi (najwięcej 20000 znaków).");
+  await withTransaction(async (client) => {
+    await client.query(
+      `insert into settings (key, value, updated_at) values ('describe_prompt', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify({ text, updated_by: admin })],
+    );
+    await writeAudit(client, {
+      actor: admin,
+      action: action === "reset" ? "prompt.reset" : "prompt.update",
+      entityType: "settings",
+      entityId: "describe_prompt",
+      after: { length: text.length },
+    });
+  });
+  revalidatePath(path);
+  back(path, "ok", action === "reset" ? "Przywrócono wersję domyślną." : "Zapisano. Claude użyje nowego prompta od najbliższej sesji po przebiegu automatu.");
+}

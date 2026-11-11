@@ -54,6 +54,12 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M12 7v5l3 2" />
     </>
   ),
+  prompt: (
+    <>
+      <path d="M4 5h16v11H8l-4 4z" />
+      <path d="M8 9h8M8 12h5" />
+    </>
+  ),
   site: (
     <>
       <circle cx="12" cy="12" r="9" />

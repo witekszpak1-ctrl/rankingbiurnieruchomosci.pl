@@ -4,6 +4,7 @@
 #
 #   queue_sync.sh push-pending   kopiuje queue/pending na gałąź (istniejących plików nie nadpisuje)
 #   queue_sync.sh push-results   kopiuje queue/results na gałąź (nadpisuje)
+#   queue_sync.sh push-prompts   kopiuje queue/prompts (prompt opisów z panelu) na gałąź
 #   queue_sync.sh push-candidates kopiuje queue/candidates (wyniki wyszukiwania zebrane przez Claude Code) na gałąź
 #   queue_sync.sh push-cities    kopiuje queue/cities.json (kolejka miast z panelu) na gałąź (nadpisuje)
 #   queue_sync.sh pull           pobiera całą gałąź do ./queue (nadpisuje lokalne pliki o tych samych nazwach)
@@ -95,6 +96,9 @@ case "$cmd" in
   push-pending)
     push_with_retry pending "queue: nowe paczki ($(date -u +%Y-%m-%dT%H:%MZ))"
     ;;
+  push-prompts)
+    push_with_retry prompts "queue: prompt opisów z panelu ($(date -u +%Y-%m-%dT%H:%MZ))"
+    ;;
   push-results)
     push_with_retry results "queue: wyniki ($(date -u +%Y-%m-%dT%H:%MZ))"
     ;;
@@ -129,7 +133,7 @@ case "$cmd" in
     echo "Pobrano kolejkę z gałęzi $BRANCH do ./queue."
     ;;
   *)
-    echo "Użycie: $0 {push-pending|push-results|push-candidates|push-cities|pull}" >&2
+    echo "Użycie: $0 {push-pending|push-results|push-candidates|push-cities|push-prompts|pull}" >&2
     exit 2
     ;;
 esac

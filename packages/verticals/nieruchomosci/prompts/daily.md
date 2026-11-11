@@ -21,7 +21,8 @@ bash scripts/queue_sync.sh pull
    ani w `queue/results/describe/`, ani w `queue/results/skipped/describe/`. Maksymalnie 150 na jedną sesję. Przy dużej liczbie paczek wysyłaj
    wyniki partiami (`bash scripts/queue_sync.sh push-results` po każdej partii około 30), żeby import nie czekał na koniec sesji.
 2. Rozdziel je na subagentów (narzędzie Agent), po 4-5 paczek na agenta, do 8 równolegle. Każdy agent dostaje ścieżki
-   swoich paczek i instrukcję: przeczytać `packages/verticals/nieruchomosci/prompts/describe.md`, zapisać wynik
+   swoich paczek i instrukcję: przeczytać prompt opisów `queue/prompts/describe.md` (wersja ustawiona w panelu;
+   gdy pliku nie ma, `packages/verticals/nieruchomosci/prompts/describe.md`), zapisać wynik
    w `queue/results/describe/<firm_id>.json`, sprawdzić go poleceniem
    `cd apps/worker && . .venv/bin/activate && katalog validate --bundle <paczka> --result <wynik>` (kod 0 = poprawny),
    poprawić najwyżej 3 razy. Paczkę, która nie dotyczy biura nieruchomości (deweloper, portal, firma z innej branży),

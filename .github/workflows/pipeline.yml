@@ -112,6 +112,11 @@ jobs:
         run: |
           katalog cities --export queue/cities.json
           bash scripts/queue_sync.sh push-cities
+      - name: Prompt opisów z panelu dla sesji Claude
+        if: ${{ always() }}
+        run: |
+          katalog prompts --export queue/prompts/describe.md
+          if [ -f queue/prompts/describe.md ]; then bash scripts/queue_sync.sh push-prompts; fi
       - name: Zapis zrzutów stron
         if: ${{ always() }}
         uses: actions/cache/save@v4

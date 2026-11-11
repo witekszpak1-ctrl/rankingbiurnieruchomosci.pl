@@ -37,6 +37,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <AdminNavLink href="/admin/requests" label="Wiadomości od firm" icon="inbox" count={newRequests} />
           <div className="side-group">System</div>
           <AdminNavLink href="/admin/runs" label="Automat" icon="runs" />
+          <AdminNavLink href="/admin/prompt" label="Prompt opisów" icon="prompt" />
           <AdminNavLink href="/admin/audit" label="Historia zmian" icon="audit" />
           <AdminNavLink href="/" label="Strona publiczna" icon="site" />
           <div className="side-foot">
