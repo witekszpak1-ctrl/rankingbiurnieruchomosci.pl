@@ -9,6 +9,7 @@ import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing, listCityListings, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
+import { optimizedImage, responsiveSrcSet } from "@/lib/images";
 import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
 import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel, plural } from "@/lib/plural";
 import { isPlausible, priceBasis } from "@/lib/prices";
@@ -141,7 +142,17 @@ export default async function FirmPage({ params, searchParams }: Props) {
         <div className="profile-cover">
           {listing.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={listing.coverUrl} alt={`Zdjęcie ze strony biura ${listing.name}`} referrerPolicy="no-referrer" />
+            <img
+              src={optimizedImage(listing.coverUrl, 1200)}
+              srcSet={responsiveSrcSet(listing.coverUrl, [640, 960, 1200, 1800])}
+              sizes="(max-width: 1180px) 100vw, 1140px"
+              width={1200}
+              height={240}
+              alt={`Zdjęcie ze strony biura ${listing.name}`}
+              referrerPolicy="no-referrer"
+              fetchPriority="high"
+              decoding="async"
+            />
           ) : (
             <span className="cover-pattern" aria-hidden="true" />
           )}
