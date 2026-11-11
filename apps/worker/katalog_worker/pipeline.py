@@ -322,7 +322,7 @@ def listing_city(registry_city: str | None, city_hint: str | None, pages_text: s
     return city_hint
 
 
-def _brand_name(pages: list[PageExtraction], entity: RegistryEntity) -> str:
+def _brand_name(pages: list[PageExtraction], entity: RegistryEntity | None) -> str:
     home = pages[0]
     candidates = [home.og_site_name]
     candidates += [str(o["name"]) for o in home.organizations if o.get("name")]
@@ -330,6 +330,8 @@ def _brand_name(pages: list[PageExtraction], entity: RegistryEntity) -> str:
     for name in candidates:
         if name and 2 <= len(name) <= 80:
             return name
+    if entity is None:
+        return urlsplit(home.url).hostname.removeprefix("www.") if urlsplit(home.url).hostname else "Biuro nieruchomości"
     return entity.name.title()
 
 
@@ -380,7 +382,13 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
             verification = Verification(0, "needs_review", None, ["NIP ze strony nie występuje w wykazie VAT"])
 
         legal_entity_id = brand_id = None
-        if entity and verification.status != "rejected":
+        if entity is None and verification.status == "needs_review" and row["classification"] == "official":
+            # Biuro bez potwierdzenia w rejestrze (np. brak NIP na stronie): trafia do katalogu z niższym rankingiem.
+            brand_id = row.get("brand_id") or repo.insert_unregistered_brand(_brand_name(pages, None))
+            city_name = listing_city(None, row["city_hint"], " ".join(p.text for p in pages))
+            if city_name:
+                repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), "needs_review")
+        elif entity and verification.status != "rejected":
             legal_entity_id = repo.upsert_legal_entity(entity)
             brand_id = repo.upsert_brand(legal_entity_id, _brand_name(pages, entity))
             city_name = listing_city(entity.city, row["city_hint"], " ".join(p.text for p in pages))

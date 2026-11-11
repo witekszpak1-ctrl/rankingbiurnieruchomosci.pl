@@ -14,6 +14,7 @@ export type ListingCard = {
   websiteUrl: string | null;
   startDate: Date | null;
   verificationScore: number | null;
+  registryConfirmed: boolean;
   servicesCount: number;
   hasPublicPrices: boolean;
   offersCount: number;
@@ -81,6 +82,7 @@ const CARD_SQL = `
     (select g.rating::float8 from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleRating",
     (select g.rating_count from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleCount",
     le.start_date as "startDate", d.verification_score as "verificationScore",
+    (b.legal_entity_id is not null) as "registryConfirmed",
     (select count(*)::int from facts f where f.brand_id = b.id and f.type = 'service' and f.is_current) as "servicesCount",
     exists (select 1 from price_items p where p.brand_id = b.id and p.is_current) as "hasPublicPrices",
     (select count(*)::int from offers o where o.brand_id = b.id and o.is_active
@@ -90,7 +92,7 @@ const CARD_SQL = `
     l.published_at as "publishedAt"
   from listings l
   join brands b on b.id = l.brand_id
-  join legal_entities le on le.id = b.legal_entity_id
+  left join legal_entities le on le.id = b.legal_entity_id
   join cities c on c.id = l.city_id
   left join lateral (
     select host, canonical_url, verification_score from domains
@@ -123,7 +125,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
      from (${CARD_SQL} where c.slug = $1 and l.slug = $2 and l.status = 'published') card
      join listings l on l.id = card."listingId"
      join brands b on b.id = l.brand_id
-     join legal_entities le on le.id = b.legal_entity_id
+     left join legal_entities le on le.id = b.legal_entity_id
      join cities c on c.id = l.city_id`,
     [citySlug, firmSlug],
   );

@@ -69,6 +69,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
     startDate: listing.startDate,
     hasPublicPrices: listing.hasPublicPrices,
     verificationScore: listing.verificationScore,
+    registryConfirmed: listing.registryConfirmed,
     servicesCount: listing.servicesCount,
     offersCount: listing.offersCount,
     googleRating: listing.googleRating,
@@ -117,6 +118,13 @@ export default async function FirmPage({ params, searchParams }: Props) {
               <li>{listing.cityName}</li>
               {listing.offersCount > 0 && <li>{listing.offersCount} aktualnych ofert</li>}
               {listing.hasPublicPrices && <li className="ok">jawny cennik</li>}
+              {listing.registryConfirmed ? (
+                <li className="ok">potwierdzona w rejestrze</li>
+              ) : (
+                <li title="Strona biura nie podaje NIP albo dane nie zgadzają się z rejestrem. Firma jest w katalogu, ale niżej w rankingu.">
+                  bez potwierdzenia w rejestrze
+                </li>
+              )}
               {listing.websiteUrl && (
                 <li>
                   <a href={listing.websiteUrl} rel="noopener nofollow" target="_blank">
@@ -136,7 +144,11 @@ export default async function FirmPage({ params, searchParams }: Props) {
               <section className="profile-section">
                 <h2>O biurze</h2>
                 <p className="profile-about">{listing.description}</p>
-                <p className="note">Opis przygotowaliśmy na podstawie strony biura i rejestrów publicznych.</p>
+                <p className="note">
+                  {listing.registryConfirmed
+                    ? "Opis przygotowaliśmy na podstawie strony biura i rejestrów publicznych."
+                    : "Opis przygotowaliśmy na podstawie strony biura. Nie udało się jeszcze potwierdzić firmy w rejestrach publicznych."}
+                </p>
               </section>
             )}
 

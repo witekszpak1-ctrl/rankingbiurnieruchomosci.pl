@@ -14,6 +14,7 @@ export type SiteRow = {
   firmName: string | null;
   listingStatus: string | null;
   query: string | null;
+  reasons: string[] | null;
 };
 
 export const SITE_STATES: Record<string, { label: string; where: string }> = {
@@ -49,7 +50,10 @@ export async function listSites(filters: { state: string; city: string; q: strin
   const rows = await query<SiteRow>(
     `select d.id, d.host, d.canonical_url as url, d.city_hint as city, d.first_seen_at as "firstSeenAt",
             d.last_checked_at as "checkedAt", d.classification, d.verification_status as verification,
-            d.verification_score as score, l.id as "listingId", b.name as "firmName", l.status as "listingStatus",
+            d.verification_score as score,
+            (case when jsonb_typeof(d.verification_reasons) = 'array' and jsonb_array_length(d.verification_reasons) > 0
+                  then d.verification_reasons else d.classification_reasons end) as reasons,
+            l.id as "listingId", b.name as "firmName", l.status as "listingStatus",
             (select sq.query from search_results sr join search_queries sq on sq.id = sr.query_id
               where sr.host = d.host order by sq.created_at limit 1) as query
      from domains d

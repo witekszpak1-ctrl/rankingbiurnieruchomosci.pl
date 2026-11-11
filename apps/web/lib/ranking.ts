@@ -8,6 +8,7 @@ export const CITY_RANKING_MIN = 5; // poniżej tej liczby firm pokazujemy listę
 export const PRICE_STAT_MIN = 3; // minimalna próba do publikacji mediany prowizji
 
 export const PARAMETERS = [
+  { key: "rejestr", label: "Potwierdzenie w rejestrze", weight: 20, description: "Firma potwierdzona w KRS, wykazie VAT albo CEIDG (NIP ze strony zgodny z rejestrem). Firmy bez potwierdzenia są w katalogu, ale niżej w rankingu." },
   { key: "staz", label: "Staż w rejestrze", weight: 10, description: "Lata od wpisu do rejestru (pełna punktacja od 15 lat)." },
   { key: "jawnosc_cennika", label: "Jawność cennika", weight: 15, description: "Firma publikuje ceny usług na swojej stronie." },
   { key: "spojnosc_danych", label: "Spójność danych", weight: 10, description: "Zgodność strony firmy z danymi rejestrów (NIP, nazwa, adres)." },
@@ -20,6 +21,7 @@ export type RankingInput = {
   startDate: Date | string | null;
   hasPublicPrices: boolean;
   verificationScore: number | null;
+  registryConfirmed?: boolean;
   servicesCount: number;
   offersCount?: number;
   googleRating?: number | null;
@@ -37,6 +39,7 @@ function clamp01(x: number): number {
 
 export function scoreListing(input: RankingInput, now: Date = new Date()): Scored {
   const values: Record<string, number | null> = {
+    rejestr: input.registryConfirmed === undefined ? null : input.registryConfirmed ? 1 : 0,
     staz: null,
     jawnosc_cennika: input.hasPublicPrices ? 1 : 0,
     spojnosc_danych: input.verificationScore == null ? null : clamp01(input.verificationScore / 100),

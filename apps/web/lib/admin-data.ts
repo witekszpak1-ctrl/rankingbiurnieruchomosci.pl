@@ -231,7 +231,7 @@ export async function getFirm(listingId: string): Promise<FirmDetail | null> {
     socials,
     offers: offerCounts[0] ?? { active: 0, priced: 0 },
     gate: {
-      domainVerified: domains.some((d) => d.verificationStatus === "verified"),
+      domainVerified: domains.some((d) => d.verificationStatus === "verified" || d.verificationStatus === "needs_review"),
       hasValidatedDescription: !!description && ["validated", "published"].includes(description.status),
       factsCount: facts.length,
       minFacts,

@@ -28,6 +28,14 @@ const CLASS_LABEL: Record<string, string> = {
   unknown: "jeszcze nie otwarta",
 };
 
+function reasonText(reasons: unknown): string {
+  if (!Array.isArray(reasons) || reasons.length === 0) return "-";
+  return reasons
+    .slice(0, 2)
+    .map((r) => (typeof r === "string" ? r : typeof r === "object" && r && "message" in r ? String((r as { message: unknown }).message) : JSON.stringify(r)))
+    .join("; ");
+}
+
 export default async function SitesPage({ searchParams }: Props) {
   const params = await searchParams;
   const view = one(params.widok) === "wyszukiwania" ? "wyszukiwania" : "strony";
@@ -117,6 +125,7 @@ async function Sites({
               <th>Znaleziona</th>
               <th>Stan</th>
               <th>Co to jest</th>
+              <th>Powód</th>
               <th>Firma w katalogu</th>
               <th>Fraza w Google</th>
             </tr>
@@ -137,6 +146,7 @@ async function Sites({
                     <span className={`badge ${TONE[state]}`}>{SITE_STATES[state].label}</span>
                   </td>
                   <td className="note">{CLASS_LABEL[r.classification] ?? r.classification}</td>
+                  <td className="note wrap-cell">{reasonText(r.reasons)}</td>
                   <td>
                     {r.listingId ? <Link href={`/admin/firms/${r.listingId}`}>{r.firmName}</Link> : <span className="note">-</span>}
                   </td>

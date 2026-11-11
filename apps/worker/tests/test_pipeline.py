@@ -699,3 +699,22 @@ def test_pick_images_separates_logo_from_cover_photo():
     assert pick_images(photo_og, base)["cover"] == "https://przyklad.pl/share/biuro.jpg"
     square_og = '<html><head><meta property="og:image" content="/share/x.png"><meta property="og:image:width" content="500"><meta property="og:image:height" content="500"></head></html>'
     assert pick_images(square_og, base) == {"logo": "https://przyklad.pl/share/x.png", "cover": None}
+
+
+def test_agency_without_any_nip_gets_unconfirmed_brand_listing_and_bundle(ctx):
+    pages = _agency_without_nip_pages()
+    pages[AGENCY + "polityka-prywatnosci"] = "<html><body><h1>Polityka prywatności</h1><p>Dane są bezpieczne.</p></body></html>"
+    fetcher = FakeFetcher(pages)
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    verify = stage_verify(ctx, make_mf(), make_krs(), 50)
+    assert verify.get("needs_review") == 1
+    brand = ctx.repo.conn.execute("select id, legal_entity_id, name from brands").fetchone()
+    assert brand["legal_entity_id"] is None and brand["name"]
+    listing = ctx.repo.conn.execute("select status from listings where brand_id = %s", (brand["id"],)).fetchone()
+    assert listing["status"] == "needs_review"
+    # drugi przebieg nie zakłada drugiej marki
+    stage_verify(ctx, make_mf(), make_krs(), 50)
+    assert ctx.repo.conn.execute("select count(*) as n from brands").fetchone()["n"] == 1
+    stage_crawl_deep(ctx, fetcher, 10)
+    assert stage_bundle(ctx, 10).get("describe") == 1

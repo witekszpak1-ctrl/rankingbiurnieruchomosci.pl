@@ -68,7 +68,7 @@ describe("scoreListing", () => {
   });
 
   it("wagi parametrów zgadzają się z opisem metodologii", () => {
-    expect(PARAMETERS.map((p) => p.weight)).toEqual([10, 15, 10, 10, 10, 15]);
+    expect(PARAMETERS.map((p) => p.weight)).toEqual([20, 10, 15, 10, 10, 10, 15]);
   });
 });
 
@@ -115,5 +115,14 @@ describe("evaluateGate", () => {
   it("próg faktów jest włącznie", () => {
     expect(evaluateGate({ ...ok, factsCount: 5 }).ok).toBe(false);
     expect(evaluateGate({ ...ok, factsCount: 6 }).ok).toBe(true);
+  });
+});
+
+describe("firma bez potwierdzenia w rejestrze", () => {
+  it("ma niższy wynik niż taka sama firma potwierdzona", () => {
+    const base = { startDate: null, hasPublicPrices: false, verificationScore: 40, servicesCount: 4, offersCount: 10 };
+    const confirmed = scoreListing({ ...base, registryConfirmed: true }).score;
+    const unconfirmed = scoreListing({ ...base, registryConfirmed: false }).score;
+    expect(unconfirmed).toBeLessThan(confirmed);
   });
 });

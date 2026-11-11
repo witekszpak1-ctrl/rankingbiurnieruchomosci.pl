@@ -193,6 +193,11 @@ export default async function RunsPage({ searchParams }: Props) {
               <li key={x.at.toISOString()}>
                 <span className="pulse" aria-hidden="true" />
                 <b>{x.title}</b> {x.state === "plan_running" ? `(start ${hhmm(x.at)}, według planu)` : runDuration(x)}
+                {x.runs.some((r) => r.status === "running") && (
+                  <span className="badge live" style={{ marginLeft: 8 }}>
+                    teraz: {x.runs.filter((r) => r.status === "running").map((r) => STAGE_NAME[r.stage] ?? r.stage).join(", ")}
+                  </span>
+                )}
                 <span className="note"> {x.runs.length > 0 ? slotSummary(x) || x.what : x.what}</span>
               </li>
             ))}

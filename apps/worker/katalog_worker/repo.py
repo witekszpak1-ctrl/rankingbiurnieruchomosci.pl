@@ -190,8 +190,9 @@ class Repo:
 
     def domains_to_verify(self, limit: int) -> list[dict]:
         return self.conn.execute(
-            """select id, host, canonical_url, city_hint, classification from domains
-               where classification in ('official', 'uncertain') and verification_status = 'candidate'
+            """select id, host, canonical_url, city_hint, classification, brand_id from domains
+               where (classification in ('official', 'uncertain') and verification_status = 'candidate')
+                  or (classification = 'official' and verification_status = 'needs_review' and brand_id is null)
                order by first_seen_at limit %s""",
             (limit,),
         ).fetchall()
@@ -209,7 +210,7 @@ class Repo:
     def domains_for_deep_crawl(self, limit: int) -> list[dict]:
         return self.conn.execute(
             """select d.id, d.host, d.canonical_url from domains d
-               where d.verification_status = 'verified'
+               where (d.verification_status = 'verified' or (d.verification_status = 'needs_review' and d.brand_id is not null))
                  and (select count(*) from crawl_pages p where p.domain_id = d.id) < 3
                order by d.first_seen_at limit %s""",
             (limit,),
@@ -221,7 +222,7 @@ class Repo:
             """select distinct d.id, d.host, d.canonical_url, d.first_seen_at from domains d
                join brands b on b.id = d.brand_id
                join listings l on l.brand_id = b.id and l.status in ('verified', 'needs_review')
-               where d.verification_status = 'verified'
+               where d.verification_status in ('verified', 'needs_review')
                  and not exists (select 1 from descriptions x where x.brand_id = b.id and x.status <> 'rejected')
                  and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
                                  and q.status in ('pending', 'claimed'))
@@ -282,6 +283,13 @@ class Repo:
                 "pkd_main": entity.pkd_codes[0] if entity.pkd_codes else None, "pkd": entity.pkd_codes,
                 "addr": Jsonb(address), "source": entity.source,
             },
+        ).fetchone()
+        return str(row["id"])
+
+    def insert_unregistered_brand(self, name: str) -> str:
+        """Marka biura bez potwierdzenia w rejestrze (bez podmiotu). Każda domena dostaje własną markę."""
+        row = self.conn.execute(
+            "insert into brands (legal_entity_id, name, slug) values (null, %s, %s) returning id", (name, slugify(name))
         ).fetchone()
         return str(row["id"])
 
@@ -391,15 +399,17 @@ class Repo:
         """Wpisy spełniające bramkę publikacji: domena zweryfikowana, zwalidowany opis, minimum faktów."""
         return self.conn.execute(
             """select l.id, l.vertical_id, l.city_id, l.slug, c.name as city_name, b.id as brand_id, b.name as brand_name,
-                      (select d.city_hint from domains d where d.brand_id = b.id and d.verification_status = 'verified'
+                      (select d.city_hint from domains d where d.brand_id = b.id
+                        and d.verification_status in ('verified', 'needs_review')
                         order by d.verification_score desc nulls last limit 1) as city_hint,
                       (select x.id from descriptions x where x.brand_id = b.id and x.status <> 'rejected'
                         order by x.version desc limit 1) as description_id
                from listings l
                join brands b on b.id = l.brand_id
                join cities c on c.id = l.city_id
-               where l.status = 'verified'
-                 and exists (select 1 from domains d where d.brand_id = b.id and d.verification_status = 'verified')
+               where l.status in ('verified', 'needs_review')
+                 and exists (select 1 from domains d where d.brand_id = b.id
+                             and d.verification_status in ('verified', 'needs_review'))
                  and (select x.status from descriptions x where x.brand_id = b.id and x.status <> 'rejected'
                        order by x.version desc limit 1) = 'validated'
                  and (select count(*) from facts f where f.brand_id = b.id and f.is_current) >= %s
@@ -445,7 +455,7 @@ class Repo:
         """Zweryfikowane domeny marek z opublikowanym wpisem, najdawniej sprawdzane pierwsze."""
         return self.conn.execute(
             """select d.id, d.host, d.canonical_url, d.brand_id, d.offers_url, d.offers_checked_at from domains d
-               where d.verification_status = 'verified' and d.brand_id is not null
+               where d.verification_status in ('verified', 'needs_review') and d.brand_id is not null
                  and exists (select 1 from listings l where l.brand_id = d.brand_id and l.status = 'published')
                order by d.offers_checked_at nulls first, d.host limit %s""",
             (limit,),
@@ -490,7 +500,7 @@ class Repo:
             """select * from (
                  select distinct on (d.brand_id) d.id, d.host, d.canonical_url, d.brand_id, b.image_checked_at
                  from domains d join brands b on b.id = d.brand_id
-                 where d.verification_status = 'verified'
+                 where d.verification_status in ('verified', 'needs_review')
                    and exists (select 1 from listings l where l.brand_id = d.brand_id
                                and l.status in ('published', 'verified', 'needs_review'))
                    and (not %s or b.image_checked_at is null)

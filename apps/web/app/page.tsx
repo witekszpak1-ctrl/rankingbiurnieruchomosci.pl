@@ -15,6 +15,7 @@ const toInput = (l: TopListing): RankingInput => ({
   startDate: l.startDate,
   hasPublicPrices: l.hasPublicPrices,
   verificationScore: l.verificationScore,
+  registryConfirmed: l.registryConfirmed,
   servicesCount: l.servicesCount,
   offersCount: l.offersCount,
   googleRating: l.googleRating,
