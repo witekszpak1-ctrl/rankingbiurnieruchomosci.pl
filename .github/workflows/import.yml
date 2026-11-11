@@ -25,6 +25,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e apps/worker
+      - name: Migracje
+        run: katalog migrate
       - name: Pobranie kolejki z gałęzi queue-data
         run: bash scripts/queue_sync.sh pull
       - name: S7 import
