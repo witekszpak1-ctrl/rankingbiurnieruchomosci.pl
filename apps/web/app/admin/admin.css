@@ -242,3 +242,17 @@
 .adm .row-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
 .adm .row-actions button { padding: 5px 10px; font-size: 0.82rem; }
 .adm td b { font-weight: 600; }
+
+/* zapytania klientów */
+.adm .tabs { display: flex; gap: 6px; margin: 8px 0 14px; }
+.adm .tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--a-line); color: var(--a-muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+.adm .tab.active { background: var(--a-fg); color: var(--a-panel); border-color: var(--a-fg); }
+.adm .leads { display: grid; gap: 10px; }
+.adm .lead-card { border: 1px solid var(--a-line); border-radius: var(--a-r); padding: 16px 18px; background: var(--a-panel); }
+.adm .lead-card.new { border-left: 4px solid var(--a-accent); }
+.adm .lead-card header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.adm .lead-msg { white-space: pre-wrap; margin: 10px 0; }
+.adm .lead-contact { display: flex; gap: 16px; flex-wrap: wrap; }
+.adm .lead-contact a { color: var(--a-fg); font-weight: 600; }
+.adm a.stat { color: inherit; text-decoration: none; }
+.adm a.stat:hover b { text-decoration: underline; }

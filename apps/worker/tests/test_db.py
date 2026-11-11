@@ -31,7 +31,7 @@ def test_schema_has_expected_tables(db):
 def test_migrate_is_idempotent(db):
     assert migrate(db) == []  # szablon ma już wszystko zastosowane
     versions = [r["version"] for r in db.execute("select version from schema_migrations order by version").fetchall()]
-    assert versions == ["0001_init", "0002_requests", "0003_auto_publish", "0004_offers", "0005_offer_prices", "0006_city_search"]
+    assert versions == ["0001_init", "0002_requests", "0003_auto_publish", "0004_offers", "0005_offer_prices", "0006_city_search", "0007_leads"]
 
 
 def test_changed_applied_migration_is_rejected(db, tmp_path):

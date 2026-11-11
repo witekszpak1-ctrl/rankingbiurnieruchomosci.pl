@@ -4,12 +4,16 @@ import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
+import { LeadForm } from "@/components/LeadForm";
 import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice, formatYear } from "@/lib/format";
 import { scoreListing } from "@/lib/ranking";
 
 export const revalidate = 300;
 
-type Props = { params: Promise<{ city: string; firm: string }> };
+type Props = {
+  params: Promise<{ city: string; firm: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city, firm } = await params;
@@ -26,8 +30,9 @@ function newest(dates: Date[]): Date {
   return new Date(Math.max(...dates.map((d) => new Date(d).getTime())));
 }
 
-export default async function FirmPage({ params }: Props) {
+export default async function FirmPage({ params, searchParams }: Props) {
   const { city, firm } = await params;
+  const sp = (await searchParams) ?? {};
   const listing = await getPublishedListing(city, firm);
   if (!listing) notFound();
   const { breakdown, score } = scoreListing({
@@ -150,6 +155,14 @@ export default async function FirmPage({ params }: Props) {
           </p>
         </>
       )}
+
+      <LeadForm
+        listingId={listing.listingId}
+        firmName={listing.name}
+        path={`/${listing.citySlug}/${listing.slug}`}
+        sent={sp.sent === "1"}
+        error={typeof sp.error === "string" ? sp.error : null}
+      />
 
       <h2>Ceny usług</h2>
       {listing.prices.length > 0 ? (

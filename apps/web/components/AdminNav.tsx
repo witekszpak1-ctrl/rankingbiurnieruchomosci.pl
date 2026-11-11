@@ -36,6 +36,11 @@ const ICONS: Record<string, React.ReactNode> = {
       <circle cx="12" cy="9.5" r="2.5" />
     </>
   ),
+  leads: (
+    <>
+      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
+    </>
+  ),
   runs: <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />,
   audit: (
     <>

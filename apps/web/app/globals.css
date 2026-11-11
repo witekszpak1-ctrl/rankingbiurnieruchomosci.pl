@@ -127,3 +127,15 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4
   .offer-title { flex-basis: 100%; }
   .offer-price { text-align: left; min-width: 0; flex: 1; }
 }
+.lead { margin: 32px 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 18px; }
+.lead-head h2 { margin: 0 0 4px; }
+.lead-head p { margin: 0 0 14px; color: var(--muted); }
+.lead-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.lead-field input, .lead-field select, .lead-field textarea { width: 100%; padding: 10px 12px; border-radius: 10px; }
+.lead-field.full, .lead-consent.full, .lead-form .alert { grid-column: 1 / -1; }
+.lead-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; color: var(--muted); margin: 0; }
+.lead-consent input { margin-top: 3px; }
+.lead-submit { grid-column: 1 / -1; justify-self: start; background: var(--accent); color: var(--bg); border: 0; padding: 11px 20px; border-radius: 10px; font-weight: 600; }
+.lead-submit:hover { filter: brightness(1.12); }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+@media (max-width: 640px) { .lead-form { grid-template-columns: 1fr; } }

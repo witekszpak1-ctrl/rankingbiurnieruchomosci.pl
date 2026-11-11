@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ActivityFeed, Flash } from "@/components/admin";
 import { getDashboard, listFirms, type FirmRow } from "@/lib/admin-data";
+import { countNewLeads } from "@/lib/leads";
 import { countNewRequests } from "@/lib/requests";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -53,7 +54,12 @@ function Board({ columns }: { columns: Column[] }) {
 
 export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
-  const [d, newRequests, firms] = await Promise.all([getDashboard(), countNewRequests(), listFirms({})]);
+  const [d, newRequests, firms, newLeads] = await Promise.all([
+    getDashboard(),
+    countNewRequests(),
+    listFirms({}),
+    countNewLeads(),
+  ]);
   const published = firms.filter((f) => f.status === "published");
   const preparing = firms.filter((f) => ["candidate", "needs_review", "verified"].includes(f.status));
   const removed = firms.filter((f) => ["rejected", "removed"].includes(f.status));
@@ -95,10 +101,10 @@ export default async function DashboardPage({ searchParams }: Props) {
           <b>{offers}</b>
           <span>aktualnych ofert</span>
         </div>
-        <div className="stat">
-          <b>{newRequests}</b>
-          <span>nowych wiadomości od firm</span>
-        </div>
+        <Link className="stat" href="/admin/leads">
+          <b>{newLeads}</b>
+          <span>nowych zapytań klientów</span>
+        </Link>
       </div>
 
       <h2>Droga firmy do katalogu</h2>

@@ -212,3 +212,22 @@ export async function cityAction(formData: FormData) {
   revalidatePath(path);
   back(path, "ok", action === "next" ? "Miasto będzie szukane jako następne." : "Zapisano.");
 }
+
+/** Zapytanie klienta: oznaczenie jako załatwione albo przywrócenie do nowych. */
+export async function leadAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const action = String(formData.get("action") ?? "");
+  const path = "/admin/leads";
+  if (!UUID_RE.test(id) || !["done", "new"].includes(action)) back(path, "error", "Nieprawidłowe zapytanie.");
+  await withTransaction(async (client) => {
+    await client.query(
+      `update leads set status = $2, handled_by = case when $2 = 'done' then $3 else null end,
+         handled_at = case when $2 = 'done' then now() else null end where id = $1`,
+      [id, action, admin],
+    );
+    await writeAudit(client, { actor: admin, action: `lead.${action}`, entityType: "lead", entityId: id });
+  });
+  revalidatePath(path);
+  back(path, "ok", action === "done" ? "Oznaczono jako załatwione." : "Przywrócono do nowych.");
+}
