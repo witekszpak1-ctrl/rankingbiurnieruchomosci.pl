@@ -33,6 +33,16 @@ const TONE: Record<string, string> = {
   failed: "bad",
 };
 
+/** Statusy wpisu firmy po ludzku (filtr na liście Firmy). */
+export const FIRM_STATUS_LABELS: Record<string, string> = {
+  published: "na stronie",
+  verified: "potwierdzona, czeka na opis",
+  needs_review: "bez potwierdzenia w rejestrze",
+  candidate: "nowa, niesprawdzona",
+  rejected: "odrzucona",
+  removed: "usunięta",
+};
+
 export function StatusBadge({ status }: { status: string | null | undefined }) {
   if (!status) return <span className="badge">brak</span>;
   return <span className={`badge ${TONE[status] ?? ""}`}>{LABELS[status] ?? status}</span>;
@@ -60,11 +70,13 @@ export function Kpi({ value, label }: { value: number | string; label: string })
   );
 }
 
+import { ADMIN_TZ } from "@/lib/tz";
+
 export function when(value: Date | string | null | undefined): string {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Warsaw" });
+  return date.toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short", timeZone: ADMIN_TZ });
 }
 
 const STAGES: Record<string, { title: string; icon: string }> = {

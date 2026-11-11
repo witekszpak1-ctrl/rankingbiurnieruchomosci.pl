@@ -63,28 +63,45 @@ export type FirmRow = {
   score: number | null;
   hasDescription: boolean;
   prices: number;
+  createdAt: Date;
+  updatedAt: Date | null;
 };
 
-export type FirmFilters = { status?: string; city?: string; q?: string };
+export type FirmFilters = { status?: string; city?: string; q?: string; page?: number };
+export const FIRMS_PAGE = 100;
+
+export async function countFirms(filters: FirmFilters): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `select count(*)::int as n from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
+     where ($1::text is null or l.status = $1) and ($2::text is null or c.slug = $2)
+       and ($3::text is null or b.name ilike '%' || $3 || '%')`,
+    [filters.status || null, filters.city || null, filters.q || null],
+  );
+  return rows[0]?.n ?? 0;
+}
 
 export async function listFirms(filters: FirmFilters): Promise<FirmRow[]> {
   return query<FirmRow>(
     `select l.id, l.status, l.slug, b.name, c.name as city, c.slug as "citySlug", d.host,
             d.verification_status as "domainStatus", d.verification_score as score,
             exists (select 1 from descriptions x where x.brand_id = b.id and x.status in ('validated', 'published')) as "hasDescription",
-            (select count(*)::int from price_items p where p.brand_id = b.id and p.is_current) as prices
+            (select count(*)::int from price_items p where p.brand_id = b.id and p.is_current) as prices,
+            l.created_at as "createdAt",
+            greatest(l.created_at, l.published_at, b.image_checked_at, d.last_checked_at, d.offers_checked_at,
+                     (select max(x.created_at) from descriptions x where x.brand_id = b.id),
+                     (select max(f.created_at) from facts f where f.brand_id = b.id)) as "updatedAt"
      from listings l
      join brands b on b.id = l.brand_id
      join cities c on c.id = l.city_id
      left join lateral (
-       select host, verification_status, verification_score from domains
+       select host, verification_status, verification_score, last_checked_at, offers_checked_at from domains
        where brand_id = b.id order by verification_score desc nulls last limit 1
      ) d on true
      where ($1::text is null or l.status = $1)
        and ($2::text is null or c.slug = $2)
        and ($3::text is null or b.name ilike '%' || $3 || '%')
-     order by c.name, b.name limit 300`,
-    [filters.status || null, filters.city || null, filters.q || null],
+     order by l.created_at desc, b.name limit $4 offset $5`,
+    [filters.status || null, filters.city || null, filters.q || null, FIRMS_PAGE, (filters.page ?? 0) * FIRMS_PAGE],
   );
 }
 

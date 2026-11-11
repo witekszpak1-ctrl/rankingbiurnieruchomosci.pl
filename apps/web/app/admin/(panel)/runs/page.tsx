@@ -1,11 +1,12 @@
 import Link from "next/link";
 
 import { getAutomatStatus } from "@/lib/automat";
+import { ADMIN_TZ_LABEL } from "@/lib/tz";
 import {
   buildDayPlan,
   hhmm,
   runDuration,
-  warsawDay,
+  dayIn,
   slotSummary,
   STATE_LABEL,
   type Run,
@@ -178,7 +179,7 @@ export default async function RunsPage({ searchParams }: Props) {
       <div className="page-head">
         <div>
           <h1>Automat</h1>
-          <p className="page-sub">Co działa teraz, co będzie dziś i co działo się wcześniej. Godziny w czasie polskim.</p>
+          <p className="page-sub">Co działa teraz, co będzie dziś i co działo się wcześniej. Godziny: {ADMIN_TZ_LABEL}.</p>
         </div>
       </div>
 
@@ -217,7 +218,7 @@ export default async function RunsPage({ searchParams }: Props) {
                         <b>{hhmm(x.at)}</b>
                         <span className="note">
                           {" "}
-                          {warsawDay(x.at) === tomorrow ? "jutro" : "dziś"}
+                          {dayIn(x.at) === tomorrow ? "jutro" : "dziś"}
                           {i === 0 ? `, ${inMinutes(x.at, now)}` : ""}
                         </span>
                       </td>
@@ -236,15 +237,21 @@ export default async function RunsPage({ searchParams }: Props) {
         <h3 className="up-title">Znalezione strony i firmy (wszystkie miasta)</h3>
         <ol className="funnel">
           <li>
-            <b>{s.funnel.toCheck}</b>
+            <b>
+              <Link href="/admin/sites?stan=czeka">{s.funnel.toCheck}</Link>
+            </b>
             <span>stron czeka na sprawdzenie (automat otwiera je co 3 godziny, do 400 naraz)</span>
           </li>
           <li>
-            <b>{s.funnel.agencies}</b>
+            <b>
+              <Link href="/admin/sites?stan=biuro">{s.funnel.agencies}</Link>
+            </b>
             <span>to strony biur nieruchomości</span>
           </li>
           <li>
-            <b>{s.funnel.confirmed}</b>
+            <b>
+              <Link href="/admin/sites?stan=potwierdzona">{s.funnel.confirmed}</Link>
+            </b>
             <span>firm potwierdzonych w KRS lub VAT</span>
           </li>
           <li>

@@ -1,29 +1,33 @@
 import Link from "next/link";
 
-import { Flash, StatusBadge } from "@/components/admin";
-import { listAdminCities, listFirms } from "@/lib/admin-data";
+import { FIRM_STATUS_LABELS, Flash, StatusBadge, when } from "@/components/admin";
+import { countFirms, FIRMS_PAGE, listAdminCities, listFirms } from "@/lib/admin-data";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-const STATUSES = ["candidate", "needs_review", "verified", "published", "rejected", "removed"];
+const STATUSES = Object.keys(FIRM_STATUS_LABELS);
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
 
 export default async function FirmsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const filters = { status: one(params.status), city: one(params.city), q: one(params.q) };
-  const [firms, cities] = await Promise.all([listFirms(filters), listAdminCities()]);
+  const page = Math.max(0, Number.parseInt(one(params.strona), 10) || 0);
+  const filters = { status: one(params.status), city: one(params.city), q: one(params.q), page };
+  const [firms, cities, total] = await Promise.all([listFirms(filters), listAdminCities(), countFirms(filters)]);
+  const pages = Math.max(1, Math.ceil(total / FIRMS_PAGE));
+  const link = (p: number) =>
+    `/admin/firms?${new URLSearchParams({ ...(filters.status && { status: filters.status }), ...(filters.city && { city: filters.city }), ...(filters.q && { q: filters.q }), strona: String(p) })}`;
   return (
     <>
       <h1>Firmy</h1>
       <Flash params={params} />
       <form method="get" className="form-row">
         <div>
-          <label htmlFor="status">Status wpisu</label>
+          <label htmlFor="status">Status firmy</label>
           <select id="status" name="status" defaultValue={filters.status}>
             <option value="">wszystkie</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {FIRM_STATUS_LABELS[s]}
               </option>
             ))}
           </select>
@@ -45,7 +49,10 @@ export default async function FirmsPage({ searchParams }: Props) {
         </div>
         <button type="submit">Filtruj</button>
       </form>
-      <p className="note">{firms.length} wpisów (maks. 300).</p>
+      <p className="note">
+        {total} firm, strona {page + 1} z {pages} (po {FIRMS_PAGE}). Wszystkie znalezione strony, także jeszcze niesprawdzone,
+        są w zakładce <Link href="/admin/sites">Znalezione strony</Link>.
+      </p>
       <div className="tablewrap">
         <table>
           <thead>
@@ -56,6 +63,8 @@ export default async function FirmsPage({ searchParams }: Props) {
               <th>Domena</th>
               <th className="num">Wynik weryfikacji</th>
               <th>Opis</th>
+              <th>Dodana</th>
+              <th>Ostatnia aktualizacja</th>
               <th className="num">Ceny</th>
             </tr>
           </thead>
@@ -76,11 +85,27 @@ export default async function FirmsPage({ searchParams }: Props) {
                 <td className="num">{f.score ?? "-"}</td>
                 <td>{f.hasDescription ? <span className="badge ok">jest</span> : <span className="badge warn">brak</span>}</td>
                 <td className="num">{f.prices}</td>
+                <td className="nowrap">{when(f.createdAt)}</td>
+                <td className="nowrap">{when(f.updatedAt)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {pages > 1 && (
+        <p className="pager">
+          {page > 0 && (
+            <Link className="btn" href={link(page - 1)}>
+              Poprzednia strona
+            </Link>
+          )}
+          {page + 1 < pages && (
+            <Link className="btn" href={link(page + 1)}>
+              Następna strona
+            </Link>
+          )}
+        </p>
+      )}
     </>
   );
 }

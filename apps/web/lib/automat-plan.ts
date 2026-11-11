@@ -1,7 +1,9 @@
 /**
- * Plan pracy automatu na dany dzień (czas polski) i dopasowanie faktycznych przebiegów z pipeline_runs do pozycji planu.
+ * Plan pracy automatu na dany dzień (w strefie panelu, harmonogramy w czasie polskim) i dopasowanie faktycznych przebiegów z pipeline_runs do pozycji planu.
  * Harmonogramy muszą odpowiadać plikom .github/workflows/*.yml i zaplanowanemu zadaniu Claude.
  */
+
+import { ADMIN_TZ } from "./tz";
 
 export type Run = {
   id: string;
@@ -39,9 +41,9 @@ const OFFERS_STAGES = new Set(["offers", "google_reviews"]);
 
 const MIN = 60 * 1000;
 
-function offsetMinutes(at: Date): number {
+function offsetMinutes(at: Date, tz = "Europe/Warsaw"): number {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Warsaw",
+    timeZone: tz,
     hourCycle: "h23",
     year: "numeric",
     month: "2-digit",
@@ -61,21 +63,41 @@ export function warsawAt(day: string, h: number, m: number): Date {
   return new Date(guess - offsetMinutes(new Date(guess)) * MIN);
 }
 
-export function warsawDay(at: Date): string {
-  return at.toLocaleDateString("sv-SE", { timeZone: "Europe/Warsaw" });
+/** Dzień (RRRR-MM-DD) w strefie panelu. */
+export function dayIn(at: Date, tz = ADMIN_TZ): string {
+  return at.toLocaleDateString("sv-SE", { timeZone: tz });
 }
 
-export function hhmm(at: Date): string {
-  return at.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Warsaw" });
+export function hhmm(at: Date, tz = ADMIN_TZ): string {
+  return at.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", timeZone: tz });
 }
 
-function utcSlotsOnWarsawDay(day: string, hours: number[], minute: number): Date[] {
+function shift(day: string, days: number): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Godziny z harmonogramu UTC, które w strefie panelu wypadają w dniu `day`. */
+function utcSlotsOnDay(day: string, hours: number[], minute: number, tz: string): Date[] {
   const [y, mo, d] = day.split("-").map(Number);
   const out: Date[] = [];
-  for (const dayShift of [-1, 0]) {
+  for (const dayShift of [-1, 0, 1]) {
     for (const h of hours) {
       const at = new Date(Date.UTC(y, mo - 1, d + dayShift, h, minute));
-      if (warsawDay(at) === day) out.push(at);
+      if (dayIn(at, tz) === day) out.push(at);
+    }
+  }
+  return out;
+}
+
+/** Sesje Claude (czas polski), które w strefie panelu wypadają w dniu `day`. */
+function sessionSlotsOnDay(day: string, tz: string): Date[] {
+  const out: Date[] = [];
+  for (const dayShift of [-1, 0, 1]) {
+    for (const h of SESSION_HOURS) {
+      const at = warsawAt(shift(day, dayShift), h, 41);
+      if (dayIn(at, tz) === day) out.push(at);
     }
   }
   return out;
@@ -87,23 +109,23 @@ function kindOf(stage: string): SlotKind {
   return "pipeline";
 }
 
-export function buildDayPlan(day: string, runs: Run[], now = new Date()): Slot[] {
+export function buildDayPlan(day: string, runs: Run[], now = new Date(), tz = ADMIN_TZ): Slot[] {
   const slots: Slot[] = [
-    ...SESSION_HOURS.map((h) => ({
+    ...sessionSlotsOnDay(day, tz).map((at) => ({
       kind: "claude" as const,
-      at: warsawAt(day, h, 41),
+      at,
       title: "Sesja Claude",
       system: "Claude (chmura Anthropic, zaplanowane zadanie)",
       what: "pisze własne opisy firm, które czekają (do 150 naraz)",
     })),
-    ...utcSlotsOnWarsawDay(day, PIPELINE_UTC_HOURS, 17).map((at) => ({
+    ...utcSlotsOnDay(day, PIPELINE_UTC_HOURS, 17, tz).map((at) => ({
       kind: "pipeline" as const,
       at,
       title: "Automat GitHub",
       system: "GitHub Actions + Serper + rejestry KRS i VAT",
       what: "zapisuje opisy i publikuje firmy, szuka biur w Google (Serper) w 15 kolejnych miastach, otwiera znalezione strony, sprawdza KRS i VAT, zbiera dane do opisów, pobiera kontakty nowych firm",
     })),
-    ...utcSlotsOnWarsawDay(day, [OFFERS_UTC.h], OFFERS_UTC.m).map((at) => ({
+    ...utcSlotsOnDay(day, [OFFERS_UTC.h], OFFERS_UTC.m, tz).map((at) => ({
       kind: "offers" as const,
       at,
       title: "Automat GitHub: dane firm",
