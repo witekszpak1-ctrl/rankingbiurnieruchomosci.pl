@@ -17,6 +17,7 @@ export type ListingCard = {
   servicesCount: number;
   hasPublicPrices: boolean;
   offersCount: number;
+  imageUrl: string | null;
   description: string | null;
   publishedAt: Date | null;
 };
@@ -59,7 +60,7 @@ export type ListingDetail = ListingCard & {
 };
 
 const CARD_SQL = `
-  select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl",
+  select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl",
     le.start_date as "startDate", d.verification_score as "verificationScore",
     (select count(*)::int from facts f where f.brand_id = b.id and f.type = 'service' and f.is_current) as "servicesCount",
     exists (select 1 from price_items p where p.brand_id = b.id and p.is_current) as "hasPublicPrices",

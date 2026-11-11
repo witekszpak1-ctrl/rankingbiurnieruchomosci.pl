@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { listingAction } from "../../../actions";
 import { Flash, StatusBadge, when } from "@/components/admin";
+import { FirmImage } from "@/components/FirmImage";
 import { getFirm } from "@/lib/admin-data";
 import { addressText, formatPhone, formatPrice } from "@/lib/format";
 import { evaluateGate } from "@/lib/gate";
@@ -90,11 +91,14 @@ export default async function FirmDetailPage({ params, searchParams }: Props) {
         <Link href="/admin/firms">Firmy</Link> / {firm.brandName}
       </p>
       <div className="page-head">
-        <div>
+        <div className="firm-head">
+          <FirmImage src={firm.imageUrl} name={firm.brandName} size="md" />
+          <div>
           <h1>{firm.brandName}</h1>
           <p className="page-sub">
             <StatusBadge status={listing.status} /> · {firm.city.name}
           </p>
+          </div>
         </div>
         <div className="actions">
           {siteUrl && (

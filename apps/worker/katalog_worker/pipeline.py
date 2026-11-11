@@ -641,6 +641,54 @@ def pick_contacts(pages: list[PageExtraction], host: str) -> dict:
     }
 
 
+_IMG_EXT_BAD = re.compile(r"(?i)\.(svg|ico)(?:$|\?)")
+
+
+def pick_image(html: str, page_url: str) -> tuple[str, str] | None:
+    """Obrazek reprezentujący firmę: og:image (podgląd strony), potem logo z JSON-LD, potem duża ikona strony.
+
+    Zwraca (adres https, rodzaj) albo None. Obrazy SVG i favicony .ico pomijamy, bo źle wyglądają na liście."""
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "lxml")
+
+    def ok(url: str | None) -> str | None:
+        if not url or not isinstance(url, str):
+            return None
+        absolute = urljoin(page_url, url.strip())
+        if not absolute.startswith("https://") or _IMG_EXT_BAD.search(absolute) or len(absolute) > 1000:
+            return None
+        return absolute
+
+    for attrs in ({"property": "og:image:secure_url"}, {"property": "og:image"}, {"name": "og:image"},
+                  {"name": "twitter:image"}, {"property": "twitter:image"}):
+        tag = soup.find("meta", attrs=attrs)
+        if tag and (url := ok(tag.get("content"))):
+            return url, "og"
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+        except (ValueError, TypeError):
+            continue
+        for node in data if isinstance(data, list) else [data]:
+            if not isinstance(node, dict):
+                continue
+            for item in [node, *(node.get("@graph") or [])]:
+                if isinstance(item, dict):
+                    logo = item.get("logo") or item.get("image")
+                    if isinstance(logo, dict):
+                        logo = logo.get("url")
+                    if isinstance(logo, list):
+                        logo = logo[0] if logo else None
+                    if (url := ok(logo if isinstance(logo, str) else None)):
+                        return url, "logo"
+    for rel in ("apple-touch-icon", "apple-touch-icon-precomposed"):
+        tag = soup.find("link", rel=lambda v: v and rel in (v if isinstance(v, list) else [v]))
+        if tag and (url := ok(tag.get("href"))):
+            return url, "icon"
+    return None
+
+
 def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> dict:
     """Telefon, e-mail firmowy i profile społecznościowe ze strony głównej i podstrony Kontakt zweryfikowanych biur."""
     repo = ctx.repo
@@ -658,10 +706,14 @@ def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> di
                 pages.append(extract_page(result.text, result.final_url))
         found = pick_contacts(pages, row["host"])
         repo.save_contacts(str(row["brand_id"]), found)
+        image = pick_image(home.text, home.final_url)
+        repo.save_brand_image(str(row["brand_id"]), image)
+        counts["with_image"] += bool(image)
         counts["domains"] += 1
         for key in ("phones", "emails", "socials"):
             counts[f"with_{key}"] += bool(found[key])
-        print(json.dumps({"host": row["host"], **{k: [list(x) for x in v] for k, v in found.items()}}, ensure_ascii=False),
+        print(json.dumps({"host": row["host"], "image": image, **{k: [list(x) for x in v] for k, v in found.items()}},
+                         ensure_ascii=False),
               file=sys.stderr)
         repo.conn.commit()
     return dict(counts)

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
+import { FirmImage } from "@/components/FirmImage";
 import { LeadForm } from "@/components/LeadForm";
 import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice, formatYear } from "@/lib/format";
 import { scoreListing } from "@/lib/ranking";
@@ -48,6 +49,9 @@ export default async function FirmPage({ params, searchParams }: Props) {
       <p className="crumbs">
         <Link href="/">Strona główna</Link> / <Link href={`/${listing.citySlug}`}>{listing.cityName}</Link> / {listing.name}
       </p>
+      <div className="firm-hero">
+        <FirmImage src={listing.imageUrl} name={listing.name} size="lg" />
+      </div>
       <h1>{listing.name}</h1>
       <p className="note">Biuro nieruchomości, {listing.cityName}</p>
 

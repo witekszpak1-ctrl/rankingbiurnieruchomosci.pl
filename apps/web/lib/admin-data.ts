@@ -105,6 +105,7 @@ export type FactRow = {
 export type FirmDetail = {
   listing: { id: string; status: string; slug: string | null; noindex: boolean; publishedAt: Date | null; brandId: string };
   brandName: string;
+  imageUrl: string | null;
   city: { name: string; slug: string };
   entity: {
     nip: string;
@@ -144,9 +145,9 @@ export async function getSetting(key: string, fallback: number): Promise<number>
 }
 
 export async function getFirm(listingId: string): Promise<FirmDetail | null> {
-  const listings = await query<FirmDetail["listing"] & { brandName: string; cityName: string; citySlug: string; entityId: string }>(
+  const listings = await query<FirmDetail["listing"] & { brandName: string; imageUrl: string | null; cityName: string; citySlug: string; entityId: string }>(
     `select l.id, l.status, l.slug, l.noindex, l.published_at as "publishedAt", l.brand_id as "brandId",
-            b.name as "brandName", c.name as "cityName", c.slug as "citySlug", b.legal_entity_id as "entityId"
+            b.name as "brandName", b.image_url as "imageUrl", c.name as "cityName", c.slug as "citySlug", b.legal_entity_id as "entityId"
      from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id where l.id = $1`,
     [listingId],
   );
@@ -202,6 +203,7 @@ export async function getFirm(listingId: string): Promise<FirmDetail | null> {
   return {
     listing: { id: base.id, status: base.status, slug: base.slug, noindex: base.noindex, publishedAt: base.publishedAt, brandId: base.brandId },
     brandName: base.brandName,
+    imageUrl: base.imageUrl,
     city: { name: base.cityName, slug: base.citySlug },
     entity: entities[0],
     domains,

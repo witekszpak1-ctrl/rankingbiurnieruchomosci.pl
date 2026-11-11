@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+
+import { FirmImage } from "@/components/FirmImage";
 import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
@@ -93,7 +95,10 @@ export default async function CityPage({ params }: Props) {
               <tr key={row.listingId}>
                 {ranked && <td className="num">{row.position}</td>}
                 <td>
-                  <Link href={`/${city.slug}/${row.slug}`}>{row.name}</Link>
+                  <Link href={`/${city.slug}/${row.slug}`} className="firm-cell">
+                    <FirmImage src={row.imageUrl} name={row.name} size="sm" />
+                    <span>{row.name}</span>
+                  </Link>
                 </td>
                 {ranked && (
                   <td>

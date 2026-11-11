@@ -639,3 +639,17 @@ def test_pick_contacts_prefers_tel_links_and_skips_personal_and_foreign_emails()
     assert [v for v, _ in found["phones"]] == ["+48600100200"]
     assert [v for v, _ in found["emails"]] == ["biuro@przyklad.pl"]
     assert {n for n, _, _ in found["socials"]} == {"facebook", "instagram"}
+
+
+def test_pick_image_prefers_og_then_logo_then_icon_and_skips_svg():
+    from katalog_worker.pipeline import pick_image
+
+    base = "https://przyklad.pl/"
+    og = '<html><head><meta property="og:image" content="/img/share.jpg"></head></html>'
+    assert pick_image(og, base) == ("https://przyklad.pl/img/share.jpg", "og")
+    logo = ('<html><head><meta property="og:image" content="/a.svg"><script type="application/ld+json">'
+            '{"@type": "RealEstateAgent", "logo": {"url": "https://cdn.przyklad.pl/logo.png"}}</script></head></html>')
+    assert pick_image(logo, base) == ("https://cdn.przyklad.pl/logo.png", "logo")
+    icon = '<html><head><link rel="apple-touch-icon" href="/apple.png"></head></html>'
+    assert pick_image(icon, base) == ("https://przyklad.pl/apple.png", "icon")
+    assert pick_image('<html><head><meta property="og:image" content="http://x.pl/a.jpg"></head></html>', base) is None

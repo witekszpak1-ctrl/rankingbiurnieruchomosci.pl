@@ -498,6 +498,16 @@ class Repo:
                 (brand_id, network, url, source),
             )
 
+    def save_brand_image(self, brand_id: str, image: tuple[str, str] | None) -> None:
+        """Zapamiętuje obrazek firmy. Gdy odczyt nic nie dał, poprzedni obrazek zostaje."""
+        if image:
+            self.conn.execute(
+                "update brands set image_url = %s, image_kind = %s, image_checked_at = now() where id = %s",
+                (image[0], image[1], brand_id),
+            )
+        else:
+            self.conn.execute("update brands set image_checked_at = now() where id = %s", (brand_id,))
+
     def mark_offers_checked(self, domain_id: str, offers_url: str | None) -> None:
         """Zapamiętuje stronę z ofertami (gdy się udało) i czas sprawdzenia."""
         self.conn.execute(
