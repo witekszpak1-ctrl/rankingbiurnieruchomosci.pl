@@ -292,3 +292,11 @@
 .adm .step { display: flex; gap: 12px; border: 1px solid var(--a-line); border-radius: 12px; padding: 14px 16px; background: var(--a-bg); }
 .adm .step-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--a-fg); color: var(--a-bg); display: grid; place-items: center; font-weight: 700; font-size: 0.85rem; }
 .adm .step p { margin: 4px 0 0; color: var(--a-muted); font-size: 0.9rem; line-height: 1.45; }
+
+/* Zwarta tabela (Miasta) */
+.adm table.tight { font-size: 0.86rem; }
+.adm table.tight th, .adm table.tight td { padding: 7px 10px; vertical-align: middle; white-space: nowrap; }
+.adm table.tight .chip { display: inline-block; margin-top: 0; font-size: 0.68rem; padding: 1px 6px; }
+.adm table.tight .badge { font-size: 0.74rem; padding: 1px 7px; }
+.adm table.tight .row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
+.adm table.tight .row-actions button { padding: 3px 9px; font-size: 0.78rem; border-radius: 7px; }
