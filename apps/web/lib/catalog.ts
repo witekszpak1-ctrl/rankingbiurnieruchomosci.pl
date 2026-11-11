@@ -30,7 +30,14 @@ export type PriceRow = {
   observedAt: Date;
 };
 
-export type OfferRow = { title: string; url: string; lastSeenAt: Date };
+export type OfferRow = {
+  title: string;
+  url: string;
+  lastSeenAt: Date;
+  priceAmount: number | null;
+  priceCurrency: string | null;
+  pricePeriod: string | null;
+};
 
 /** Oferty niewidziane na stronie firmy dłużej niż tyle dni nie są pokazywane (strona ofert mogła przestać działać). */
 export const OFFERS_MAX_AGE_DAYS = 14;
@@ -113,7 +120,8 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
       [card.brandId],
     ),
     query<OfferRow>(
-      `select title, url, last_seen_at as "lastSeenAt" from offers
+      `select title, url, last_seen_at as "lastSeenAt", price_amount::float8 as "priceAmount",
+              price_currency as "priceCurrency", price_period as "pricePeriod" from offers
        where brand_id = $1 and is_active and last_seen_at > now() - make_interval(days => $2)
        order by position, first_seen_at desc limit $3`,
       [card.brandId, OFFERS_MAX_AGE_DAYS, OFFERS_LIMIT],

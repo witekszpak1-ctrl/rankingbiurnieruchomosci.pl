@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
-import { absoluteUrl, formatDate, formatPrice, formatYear } from "@/lib/format";
+import { absoluteUrl, formatDate, formatOfferPrice, formatPrice, formatYear } from "@/lib/format";
 import { scoreListing } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -101,14 +101,22 @@ export default async function FirmPage({ params }: Props) {
       {listing.offers.length > 0 && (
         <>
           <h2>Aktualne oferty</h2>
-          <ul className="offers">
-            {listing.offers.map((offer) => (
-              <li key={offer.url}>
-                <a href={offer.url} rel="noopener nofollow" target="_blank">
-                  {offer.title}
-                </a>
-              </li>
-            ))}
+          <ul className="offer-grid">
+            {listing.offers.map((offer) => {
+              const price = formatOfferPrice(offer.priceAmount, offer.priceCurrency, offer.pricePeriod);
+              return (
+                <li key={offer.url} className="offer-card">
+                  <span className="offer-title">{offer.title}</span>
+                  <span className={price ? "offer-price" : "offer-price none"}>{price ?? "cena na stronie biura"}</span>
+                  <a className="offer-go" href={offer.url} rel="noopener nofollow" target="_blank">
+                    Zobacz ofertę
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M7 17 17 7M9 7h8v8" />
+                    </svg>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
           <p className="note">
             Najnowsze oferty ze strony firmy

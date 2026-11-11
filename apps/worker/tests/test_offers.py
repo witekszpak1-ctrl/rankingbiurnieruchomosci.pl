@@ -286,3 +286,40 @@ def test_repeated_generic_titles_get_location_and_area_but_not_agent_names():
         "Działka na sprzedaż, Wrocław, Psie Pole, 763 m²",
     ]
     assert all("Kowalski" not in o.title for o in offers)
+
+
+def test_parse_price_total_rent_and_per_area():
+    from katalog_worker.offers import format_price, parse_price
+
+    assert parse_price("Cena: 599 000 zł 11 280 zł/m²") == (599000.0, "PLN", None)
+    assert parse_price("12 500 zł/m2 · 750.000 PLN") == (750000.0, "PLN", None)
+    assert parse_price("3 200 zł / mies.") == (3200.0, "PLN", "month")
+    assert parse_price("2 800 zł", rent_hint=True) == (2800.0, "PLN", "month")
+    assert parse_price("120 000 €") == (120000.0, "EUR", None)
+    assert parse_price("2 pokoje, 48 m2, 3 piętro") is None
+    assert parse_price("tel. 600 100 200") is None
+    assert format_price(599000, "PLN", None) == "599 000 zł"
+    assert format_price(3200, "PLN", "month") == "3 200 zł/mies."
+
+
+def test_prices_from_cards_and_from_offer_urls():
+    from katalog_worker.offers import extract_offers
+
+    offers, method = extract_offers(page(crm_cards(4)), "https://biuro.pl/oferty")
+    assert method == "links"
+    assert {o.price_text for o in offers} == {"450\u00a0000 zł"}
+
+    links = "".join(
+        f'<li><a href="/dzialki-na-sprzedaz-1200m2-wroclaw-{p}zl/72{i}">Działka na sprzedaż, Wrocław</a></li>'
+        for i, p in enumerate([358680, 311040, 240000])
+    )
+    offers, _ = extract_offers(f"<html><body><ul>{links}</ul></body></html>", "https://biuro.pl/oferty")
+    prices = {o.url.rsplit("/", 1)[-1]: (o.price_amount, o.price_period) for o in offers}
+    assert prices["720"] == (358680.0, None)
+
+    rent = "".join(
+        f'<li><a href="/oferty/mieszkania/mieszkania-na-wynajem-{p}zl-39m2-wroclaw-o72{i}">Mieszkanie na wynajem, Wrocław</a></li>'
+        for i, p in enumerate([3000, 2700, 2000])
+    )
+    offers, _ = extract_offers(f"<html><body><ul>{rent}</ul></body></html>", "https://biuro.pl/oferty")
+    assert [(o.price_amount, o.price_period) for o in offers] == [(3000.0, "month"), (2700.0, "month"), (2000.0, "month")]

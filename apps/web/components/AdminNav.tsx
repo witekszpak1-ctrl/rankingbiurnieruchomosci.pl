@@ -23,6 +23,13 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M5 5h14l2 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z" />
     </>
   ),
+  offers: (
+    <>
+      <path d="M3 11 12 4l9 7" />
+      <path d="M5 10v10h14V10" />
+      <path d="M10 20v-5h4v5" />
+    </>
+  ),
   runs: <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />,
   audit: (
     <>

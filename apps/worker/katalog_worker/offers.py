@@ -97,6 +97,93 @@ class Offer:
     url: str
     title: str
     position: int
+    price_amount: float | None = None
+    price_currency: str | None = None
+    price_period: str | None = None  # month dla najmu, None dla ceny jednorazowej
+
+    @property
+    def price_text(self) -> str | None:
+        return format_price(self.price_amount, self.price_currency, self.price_period)
+
+
+# Cena: liczba z separatorami tysięcy i waluta, np. "599 000 zł", "3.200 PLN/mies.", "120 000 €".
+_PRICE_RE = re.compile(
+    r"(?i)(?<![\d.,])(\d{1,3}(?:[ \u00a0\u202f.]\d{3})+|\d{3,9})(?:,(\d{1,2}))?\s*(zł|zl|pln|eur|€|usd|\$)"
+    r"(\s*/\s*(?:mies\w*|m-c|mc|msc|miesiąc|month)\.?)?"
+)
+_PER_AREA_RE = re.compile(r"(?i)^\s*/\s*(?:m2|m²|m\.?\s*kw|mkw|ar|ha)")
+_PRICE_CLASS = re.compile(r"price|cena|cost|koszt|amount|kwota", re.I)
+_SLUG_PRICE_RE = re.compile(r"(?i)-(\d{3,9})(?:zl|pln)(?=[-/._]|$)")
+_CURRENCY = {"zł": "PLN", "zl": "PLN", "pln": "PLN", "eur": "EUR", "€": "EUR", "usd": "USD", "$": "USD"}
+_MIN_PRICE = {"PLN": 300, "EUR": 70, "USD": 70}
+_RENT_HINT = re.compile(r"(?i)wynaj|najem|najm|do-wynajecia|rent")
+
+
+def format_price(amount: float | None, currency: str | None, period: str | None) -> str | None:
+    if not amount or not currency:
+        return None
+    whole = int(round(amount))
+    digits = f"{whole:,}".replace(",", "\u00a0")
+    unit = {"PLN": "zł", "EUR": "EUR", "USD": "USD"}.get(currency, currency)
+    return f"{digits} {unit}" + ("/mies." if period == "month" else "")
+
+
+def parse_price(text: str, rent_hint: bool = False) -> tuple[float, str, str | None] | None:
+    """Pierwsza cena całkowita w tekście (ceny za m2 pomijamy). Zwraca (kwota, waluta, okres)."""
+    for match in _PRICE_RE.finditer(text):
+        if _PER_AREA_RE.match(text[match.end():]):
+            continue
+        number = re.sub(r"[ \u00a0\u202f.]", "", match.group(1))
+        amount = float(number) + (float(f"0.{match.group(2)}") if match.group(2) else 0.0)
+        currency = _CURRENCY[match.group(3).lower()]
+        if amount < _MIN_PRICE[currency] or amount > 500_000_000:
+            continue
+        period = "month" if match.group(4) else None
+        if period is None and rent_hint and currency == "PLN" and amount < 40_000:
+            period = "month"
+        return amount, currency, period
+    return None
+
+
+def price_from_card(card: Tag | None, url: str) -> tuple[float, str, str | None] | None:
+    """Cena z karty oferty (najpierw element oznaczony jako cena), a gdy jej brak, z adresu oferty (np. -358680zl/)."""
+    rent = bool(_RENT_HINT.search(url))
+    if card is not None:
+        candidates = [" ".join(e.get_text(" ").split()) for e in card.find_all(class_=_PRICE_CLASS)]
+        candidates.append(" ".join(card.get_text(" ").split()))
+        for text in candidates:
+            if text and len(text) <= 2000:
+                rent_here = rent or bool(_RENT_HINT.search(text))
+                found = parse_price(text, rent_here)
+                if found:
+                    return found
+    match = _SLUG_PRICE_RE.search(urlsplit(url).path)
+    if match:
+        amount = float(match.group(1))
+        if amount >= _MIN_PRICE["PLN"]:
+            return amount, "PLN", "month" if rent and amount < 40_000 else None
+    return None
+
+
+def _jsonld_price(node: dict, url: str) -> tuple[float, str, str | None] | None:
+    for offer in [node, *_as_list(node.get("offers"))]:
+        if not isinstance(offer, dict):
+            continue
+        price = offer.get("price") or offer.get("lowPrice")
+        if isinstance(offer.get("priceSpecification"), dict):
+            price = price or offer["priceSpecification"].get("price")
+        if price in (None, ""):
+            continue
+        try:
+            amount = float(str(price).replace(" ", "").replace("\u00a0", "").replace(",", "."))
+        except ValueError:
+            continue
+        currency = str(offer.get("priceCurrency") or "PLN").upper()
+        if currency not in _MIN_PRICE or amount < _MIN_PRICE[currency]:
+            continue
+        rent = bool(_RENT_HINT.search(url))
+        return amount, currency, "month" if rent and currency == "PLN" and amount < 40_000 else None
+    return None
 
 
 @dataclass
@@ -359,7 +446,11 @@ def offers_from_jsonld(soup: BeautifulSoup, page_url: str) -> list[Offer]:
         title = clean_title(name)
         key = canonical_url(absolute)
         if title and key not in found:
-            found[key] = Offer(absolute, title, len(found))
+            offer = Offer(absolute, title, len(found))
+            price = _jsonld_price(node, absolute) or price_from_card(None, absolute)
+            if price:
+                offer.price_amount, offer.price_currency, offer.price_period = price
+            found[key] = offer
 
     offer_types = {"Offer", "Product", "Residence", "Apartment", "House", "SingleFamilyResidence", "Accommodation",
                    "RealEstateListing", "Room", "Suite"}
@@ -442,12 +533,17 @@ def offers_from_links(soup: BeautifulSoup, page_url: str) -> list[Offer]:
             chosen = sorted(group["items"], key=lambda e: e["order"])[:MAX_OFFERS]
             titles = [_best_title(e["titles"]) for e in chosen]
             repeated = {t for t in titles if titles.count(t) > 1}
+            offers: list[Offer] = []
             for index, entry in enumerate(chosen):
-                if titles[index] in repeated:
-                    card = _card_node(entry["anchors"][0], canonical_url(entry["url"]), page_url)
-                    if card is not None:
-                        titles[index] = _enrich_title(titles[index], card)
-            return [Offer(e["url"], titles[i], i) for i, e in enumerate(chosen)]
+                card = _card_node(entry["anchors"][0], canonical_url(entry["url"]), page_url)
+                if titles[index] in repeated and card is not None:
+                    titles[index] = _enrich_title(titles[index], card)
+                offer = Offer(entry["url"], titles[index], index)
+                price = price_from_card(card, entry["url"])
+                if price:
+                    offer.price_amount, offer.price_currency, offer.price_period = price
+                offers.append(offer)
+            return offers
     return []
 
 

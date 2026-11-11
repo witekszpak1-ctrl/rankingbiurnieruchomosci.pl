@@ -24,6 +24,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <div className="side-group">Katalog</div>
           <AdminNavLink href="/admin" label="Przegląd" icon="home" />
           <AdminNavLink href="/admin/firms" label="Firmy" icon="firms" />
+          <AdminNavLink href="/admin/offers" label="Oferty" icon="offers" />
           <AdminNavLink href="/admin/review" label="Kolejka weryfikacji" icon="review" />
           <AdminNavLink href="/admin/requests" label="Zgłoszenia" icon="inbox" count={newRequests} />
           <div className="side-group">System</div>

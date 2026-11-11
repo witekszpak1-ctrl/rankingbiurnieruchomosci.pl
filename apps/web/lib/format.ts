@@ -41,3 +41,11 @@ export function formatPrice(price: Pick<PriceRow, "unit" | "amountMin" | "amount
 export function absoluteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+/** Cena oferty nieruchomości, np. "599 000 zł" albo "3 200 zł/mies.". */
+export function formatOfferPrice(amount: number | null, currency: string | null, period: string | null): string | null {
+  if (!amount || !currency) return null;
+  const unit = currency === "PLN" ? "zł" : currency;
+  const value = Math.round(amount).toLocaleString("pl-PL").replace(/\s/g, " ");
+  return `${value} ${unit}${period === "month" ? "/mies." : ""}`;
+}

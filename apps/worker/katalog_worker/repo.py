@@ -425,13 +425,18 @@ class Repo:
                 continue
             keys.append(key)
             row = self.conn.execute(
-                """insert into offers (brand_id, domain_id, url, url_key, title, position)
-                   values (%s, %s, %s, %s, %s, %s)
+                """insert into offers (brand_id, domain_id, url, url_key, title, position,
+                                      price_amount, price_currency, price_period)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                    on conflict (domain_id, url_key) do update
                      set url = excluded.url, title = excluded.title, position = excluded.position,
+                         price_amount = excluded.price_amount, price_currency = excluded.price_currency,
+                         price_period = excluded.price_period,
                          brand_id = excluded.brand_id, is_active = true, last_seen_at = now()
                    returning (xmax = 0) as inserted""",
-                (brand_id, domain_id, offer.url, key, offer.title, offer.position),
+                (brand_id, domain_id, offer.url, key, offer.title, offer.position,
+                 getattr(offer, "price_amount", None), getattr(offer, "price_currency", None),
+                 getattr(offer, "price_period", None)),
             ).fetchone()
             counts["new" if row["inserted"] else "updated"] += 1
         counts["deactivated"] = self.conn.execute(

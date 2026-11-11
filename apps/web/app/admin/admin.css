@@ -176,3 +176,26 @@
   .adm .stats { gap: 16px 28px; }
   .adm .stat b { font-size: 1.5rem; }
 }
+
+/* oferty */
+.adm .offer-firms { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.adm .offer-firm { background: var(--a-panel); border: 1px solid var(--a-line); border-radius: var(--a-r); box-shadow: var(--a-shadow); }
+.adm .offer-firm[open] { border-color: var(--a-faint); }
+.adm .offer-firm summary {
+  list-style: none; cursor: pointer; display: grid; align-items: center; gap: 12px 18px; padding: 14px 18px;
+  grid-template-columns: minmax(180px, 2.2fr) minmax(80px, 1fr) 70px 70px minmax(110px, 1fr) auto;
+}
+.adm .offer-firm summary::-webkit-details-marker { display: none; }
+.adm .offer-firm summary:hover { background: var(--a-bg); border-radius: var(--a-r); }
+.adm .of-name { display: flex; flex-direction: column; min-width: 0; }
+.adm .of-name b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm .of-city, .adm .of-when { color: var(--a-muted); font-size: 0.88rem; }
+.adm .of-num { display: flex; flex-direction: column; line-height: 1.2; }
+.adm .of-num b { font-size: 1.1rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.adm .of-num span { font-size: 0.75rem; color: var(--a-faint); }
+.adm .of-body { padding: 0 18px 16px; border-top: 1px solid var(--a-line); }
+@media (max-width: 860px) {
+  .adm .offer-firm summary { grid-template-columns: 1fr auto; }
+  .adm .of-city, .adm .of-when { display: none; }
+  .adm .of-num { flex-direction: row; gap: 4px; align-items: baseline; }
+}
