@@ -103,6 +103,20 @@ class Repo:
             (status, Jsonb(counts), cost_usd, Jsonb(errors or []), run_id),
         )
 
+    def save_session_run(self, counts: dict, started_at: str, finished_at: str | None, status: str, errors) -> bool:
+        """Zapisuje raport sesji Claude jako przebieg 'claude_session'. False, gdy ten plik już był zapisany."""
+        exists = self.conn.execute(
+            "select 1 from pipeline_runs where stage = 'claude_session' and counts->>'file' = %s", (counts["file"],)
+        ).fetchone()
+        if exists:
+            return False
+        self.conn.execute(
+            """insert into pipeline_runs (stage, status, counts, errors, started_at, finished_at)
+               values ('claude_session', %s, %s, %s, %s, coalesce(%s::timestamptz, %s::timestamptz))""",
+            (status, Jsonb(counts), Jsonb(errors or []), started_at, finished_at, started_at),
+        )
+        return True
+
     def record_query(
         self, run_id: str, vertical_id: str, provider: str, query: str, params: dict,
         results_count: int, new_domains: int, cost_usd: float,

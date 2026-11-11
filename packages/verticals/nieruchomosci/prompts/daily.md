@@ -36,6 +36,26 @@ Według `packages/verticals/nieruchomosci/prompts/candidates.md`: **3 miasta na 
 kandydatów), każde w osobnym pliku. Miasta możesz zlecić 3 subagentom równolegle (każdy dostaje jedno miasto i treść
 candidates.md). Na koniec `bash scripts/queue_sync.sh push-candidates`.
 
+## 3. Raport sesji (widoczny w panelu, zakładka Automat)
+
+Na samym początku sesji zapamiętaj czas startu (`date -u +%Y-%m-%dT%H:%M:%SZ`). Na końcu zapisz
+`queue/results/sessions/<RRRR-MM-DD>T<GGMM>.json` (data i godzina startu w UTC, np. `2026-11-11T0941.json`):
+
+```json
+{
+  "started_at": "2026-11-11T09:41:05Z",
+  "finished_at": "2026-11-11T10:32:40Z",
+  "status": "ok",
+  "described": 42,
+  "skipped": 3,
+  "cities": [{"name": "Kraków", "deep": true, "domains": 120}, {"name": "Tarnów", "deep": false, "domains": 15}],
+  "errors": []
+}
+```
+
+`domains` to liczba różnych domen w pliku kandydatów miasta. Gdy coś się nie udało, `"status": "failed"` i opis
+w `errors` (lista obiektów `{"message": "..."}`). Potem `bash scripts/queue_sync.sh push-results`.
+
 ## Zasady
 
 - Nie zmieniaj kodu ani gałęzi `main`. Piszesz tylko do gałęzi `queue-data` przez `scripts/queue_sync.sh`.

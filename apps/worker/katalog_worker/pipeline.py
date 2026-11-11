@@ -549,6 +549,33 @@ def stage_import(ctx: Context) -> dict:
     return dict(counts)
 
 
+def import_sessions(ctx: Context) -> int:
+    """Raporty sesji Claude (queue/results/sessions/*.json) zapisuje w pipeline_runs, każdy plik raz."""
+    folder = ctx.queue_dir / "results" / "sessions"
+    added = 0
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(data, dict) or not data.get("started_at"):
+            continue
+        cities = [c for c in data.get("cities") or [] if isinstance(c, dict) and c.get("name")]
+        counts = {
+            "file": path.name,
+            "described": int(data.get("described") or 0),
+            "skipped": int(data.get("skipped") or 0),
+            "cities_searched": len(cities),
+            "new_domains": sum(int(c.get("domains") or 0) for c in cities),
+            "city_list": ", ".join(f"{c['name']}{' (dokładnie)' if c.get('deep') else ''}" for c in cities)[:500],
+        }
+        status = "failed" if data.get("status") == "failed" else "ok"
+        if ctx.repo.save_session_run(counts, data["started_at"], data.get("finished_at"), status, data.get("errors")):
+            added += 1
+    ctx.repo.conn.commit()
+    return added
+
+
 # ----------------------------------------------------------------------------- oferty
 
 

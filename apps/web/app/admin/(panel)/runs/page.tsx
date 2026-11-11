@@ -1,9 +1,18 @@
 import Link from "next/link";
 
-import { ActivityFeed, when } from "@/components/admin";
-import type { RunRow } from "@/lib/admin-data";
-import { getAutomatStatus, warsawTime } from "@/lib/automat";
+import { getAutomatStatus } from "@/lib/automat";
+import {
+  buildDayPlan,
+  hhmm,
+  runDuration,
+  slotSummary,
+  STATE_LABEL,
+  type Run,
+  type Slot,
+} from "@/lib/automat-plan";
 import { METRICS, dailyTotals, dayDetail, isDay, runsOfDay, warsawToday, type DayRow } from "@/lib/automat-report";
+
+export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -46,6 +55,20 @@ const STEPS = [
   },
 ];
 
+const STAGE_NAME: Record<string, string> = {
+  claude_session: "Sesja Claude",
+  discover: "Dopisanie znalezionych stron",
+  probe: "Otwieranie stron",
+  verify: "Sprawdzanie w KRS i VAT",
+  crawl_deep: "Pobieranie podstron",
+  bundle: "Dane do opisów",
+  import: "Zapis opisów",
+  publish: "Publikacja firm",
+  offers: "Oferty",
+  contacts: "Kontakty i zdjęcia",
+  google_reviews: "Opinie Google",
+};
+
 const SHORT: { key: keyof DayRow; label: string }[] = [
   { key: "searches", label: "Wyszukiwań" },
   { key: "found", label: "Stron www" },
@@ -53,14 +76,23 @@ const SHORT: { key: keyof DayRow; label: string }[] = [
   { key: "descriptions", label: "Opisów" },
   { key: "published", label: "Dodanych" },
   { key: "offers", label: "Ofert" },
-  { key: "contacts", label: "Kontaktów" },
 ];
 
+const STATE_CLASS: Record<string, string> = {
+  done: "ok",
+  running: "live",
+  plan_running: "live",
+  failed: "bad",
+  missed: "bad",
+  queued: "warn",
+  waiting_report: "warn",
+  planned: "",
+};
+
 function dayLabel(day: string): string {
-  const today = warsawToday();
-  if (day === today) return "dziś";
+  if (day === warsawToday()) return "dziś";
   if (day === warsawToday(-1)) return "wczoraj";
-  return new Date(`${day}T12:00:00Z`).toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "long" });
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
 }
 
 function shiftDay(day: string, days: number): string {
@@ -69,105 +101,136 @@ function shiftDay(day: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Godziny sesji Claude (czas polski): co 2 godziny od 6:41 do 22:41. */
-const SESSION_HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
-/** Sprawdzanie stron i zapis do katalogu: GitHub Actions o :17 co 3 godziny (UTC). */
-const PIPELINE_UTC = [0, 3, 6, 9, 12, 15, 18, 21];
-const CITIES_PER_DAY = SESSION_HOURS.length * 3;
-
-function warsawNow(): { h: number; m: number } {
-  const t = new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Warsaw" });
-  const [h, m] = t.split(":").map(Number);
-  return { h, m };
+function inMinutes(at: Date, now: Date): string {
+  const m = Math.round((at.getTime() - now.getTime()) / 60000);
+  if (m < 60) return `za ${m} min`;
+  return `za ${Math.floor(m / 60)} godz. ${m % 60} min`;
 }
 
-function nextSession(): string {
-  const { h, m } = warsawNow();
-  const next = SESSION_HOURS.find((x) => x > h || (x === h && m < 41));
-  return next === undefined ? `jutro o ${SESSION_HOURS[0]}:41` : `o ${next}:41`;
+function Timeline({ slots, showFuture = true }: { slots: Slot[]; showFuture?: boolean }) {
+  const list = showFuture ? slots : slots.filter((s) => s.state !== "planned");
+  return (
+    <ol className="timeline">
+      {list.map((s) => (
+        <li key={`${s.kind}-${s.at.toISOString()}`} className={`tl-${STATE_CLASS[s.state] || "plan"}`}>
+          <span className="tl-time">{hhmm(s.at)}</span>
+          <span className="tl-dot" aria-hidden="true" />
+          <div className="tl-body">
+            <div className="tl-head">
+              <b>{s.title}</b>
+              <span className={`badge ${STATE_CLASS[s.state]}`}>{STATE_LABEL[s.state]}</span>
+              {s.runs.length > 0 && <span className="note">{runDuration(s)}</span>}
+            </div>
+            <p>{s.runs.length > 0 ? slotSummary(s) : s.what}</p>
+            {s.kind !== "claude" && s.runs.length > 1 && (
+              <p className="tl-steps">
+                {s.runs.map((r) => (
+                  <span key={r.id} className={r.status === "failed" ? "bad" : r.status === "running" ? "live" : ""}>
+                    {STAGE_NAME[r.stage] ?? r.stage}
+                    {r.status === "failed" ? " (błąd)" : r.status === "running" ? " (trwa)" : ""}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
 }
-
-const pipelineTimes = () => PIPELINE_UTC.map((h) => warsawTime(h, 17)).sort().join(", ");
-
-const DAY = [
-  {
-    time: () => SESSION_HOURS.map((h) => `${h}:41`).join(", "),
-    title: "Sesja Claude: opisy i nowe miasta (9 razy dziennie)",
-    text: "Za każdym razem: pisze opisy firm, które czekają (do 150 naraz), a potem wyszukuje biura w 3 kolejnych miastach z kolejki. Duże miasta przeszukuje dokładnie, dzielnica po dzielnicy (około 50 wyszukiwań zamiast 7). Cała sesja trwa zwykle 30-60 minut."
-  },
-  {
-    time: pipelineTimes,
-    title: "Sprawdzanie stron i publikacja (8 razy dziennie)",
-    text: "Automat otwiera znalezione strony, odrzuca portale i deweloperów, potwierdza firmy w KRS i wykazie VAT, zbiera informacje do opisu (do 150 firm naraz). W tym samym przebiegu zapisuje gotowe opisy i publikuje firmy w katalogu."
-  },
-  {
-    time: () => warsawTime(5, 7),
-    title: "Raz dziennie rano: oferty, kontakt, zdjęcia, opinie",
-    text: "Dla wszystkich firm w katalogu: aktualne oferty z cenami, telefon, e-mail, social media, logo i zdjęcie, a gdy jest klucz Google, ocena i opinie."
-  },
-];
 
 export default async function RunsPage({ searchParams }: Props) {
   const params = await searchParams;
+  const now = new Date();
   const today = warsawToday();
   const yesterday = warsawToday(-1);
-  const chosen = isDay(one(params.dzien)) ? (one(params.dzien) as string) : today;
+  const tomorrow = warsawToday(1);
+  const chosen = isDay(one(params.dzien)) && one(params.dzien) !== today ? (one(params.dzien) as string) : yesterday;
   const page = Math.max(0, Number.parseInt(one(params.strona) ?? "0", 10) || 0);
   const rangeTo = shiftDay(today, -14 * page);
   const rangeFrom = shiftDay(rangeTo, -13);
-  const [s, history, pair, chosenTotals, detail, dayRuns] = await Promise.all([
+
+  const [s, history, pair, todayRuns, chosenRuns, chosenTotals, detail] = await Promise.all([
     getAutomatStatus(),
     dailyTotals(rangeFrom, rangeTo),
     dailyTotals(yesterday, today),
+    runsOfDay(today),
+    runsOfDay(chosen),
     dailyTotals(chosen, chosen),
     dayDetail(chosen),
-    runsOfDay(chosen),
   ]);
+  const todayPlan = buildDayPlan(today, todayRuns as Run[], now);
+  const chosenPlan = buildDayPlan(chosen, chosenRuns as Run[], now);
+  const tomorrowFirst = buildDayPlan(tomorrow, [], now)[0];
+  const live = todayPlan.filter((x) => x.state === "running" || x.state === "plan_running");
+  const next = todayPlan.find((x) => x.state === "planned") ?? tomorrowFirst;
   const todayRow = pair.find((r) => r.day === today);
   const yesterdayRow = pair.find((r) => r.day === yesterday);
   const chosenRow = chosenTotals[0];
-  const daysLeft = Math.ceil(s.citiesQueued / CITIES_PER_DAY);
-  const finish = new Date(Date.now() + daysLeft * 24 * 3600 * 1000);
+  const left = s.citiesTotal - s.citiesSearched;
+
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Automat</h1>
-          <p className="page-sub">Jak katalog sam się powiększa: co, kiedy i z jakim skutkiem.</p>
+          <p className="page-sub">Co działa teraz, co będzie dziś i co działo się wcześniej. Godziny w czasie polskim.</p>
         </div>
       </div>
 
-      <div className="stats">
-        <div className="stat">
-          <b>
-            {s.citiesSearched}/{s.citiesTotal}
-          </b>
-          <span>miast przeszukanych</span>
+      <section className="now-box">
+        <h2>Teraz ({hhmm(now)})</h2>
+        {live.length === 0 ? (
+          <p className="now-idle">W tej chwili nic nie pracuje.</p>
+        ) : (
+          <ul className="now-list">
+            {live.map((x) => (
+              <li key={x.at.toISOString()}>
+                <span className="pulse" aria-hidden="true" />
+                <b>{x.title}</b> {x.state === "plan_running" ? `(start ${hhmm(x.at)}, według planu)` : runDuration(x)}
+                <span className="note"> {x.runs.length > 0 ? slotSummary(x) || x.what : x.what}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {next && (
+          <p className="now-next">
+            Następne: <b>{next.title}</b> o {hhmm(next.at)}
+            {next.at.getTime() > now.getTime() ? ` (${inMinutes(next.at, now)})` : ""}
+            {next === tomorrowFirst ? ", jutro" : ""}: {next.what}.
+          </p>
+        )}
+        <div className="now-stats">
+          <span>
+            <b>{s.published}</b> firm w katalogu
+          </span>
+          <span>
+            <b>{s.preparing}</b> w przygotowaniu
+          </span>
+          <span>
+            <b>{s.bundlesWaiting}</b> czeka na opis
+          </span>
+          <span>
+            <b>
+              {s.citiesSearched}/{s.citiesTotal}
+            </b>{" "}
+            miast przeszukanych, zostało {left} (około {Math.ceil(left / 27)} dni)
+          </span>
         </div>
-        <div className="stat">
-          <b>{s.foundLast7}</b>
-          <span>nowych stron w 7 dni</span>
-        </div>
-        <div className="stat">
-          <b>{s.publishedLast7}</b>
-          <span>firm dodanych w 7 dni</span>
-        </div>
-        <div className="stat">
-          <b>{s.preparing}</b>
-          <span>firm w przygotowaniu</span>
-        </div>
-        <div className="stat">
-          <b>{s.bundlesWaiting}</b>
-          <span>opisów czeka na sesję {nextSession()}</span>
-        </div>
-      </div>
+      </section>
 
-      <h2>Raport: dziś i wczoraj</h2>
+      <h2>Dziś: plan i wykonanie</h2>
+      <p className="note">
+        Sesja Claude wysyła raport po zakończeniu, a panel pokazuje go po najbliższym przebiegu automatu GitHub (do 3 godzin).
+      </p>
+      <Timeline slots={todayPlan} />
+
+      <h2>Dziś i wczoraj w liczbach</h2>
       <div className="table-wrap">
         <table className="report">
           <thead>
             <tr>
-              <th>Co zrobił automat</th>
+              <th>Co zrobiono</th>
               <th className="num">Dziś</th>
               <th className="num">Wczoraj</th>
             </tr>
@@ -186,10 +249,10 @@ export default async function RunsPage({ searchParams }: Props) {
         </table>
       </div>
 
-      <h2 id="historia">Historia</h2>
+      <h2 id="historia">Co działo się wcześniej</h2>
       <form method="get" action="/admin/runs#dzien" className="form-row">
         <div>
-          <label htmlFor="dzien">Pokaż dowolny dzień</label>
+          <label htmlFor="dzien">Wybierz dzień</label>
           <input id="dzien" name="dzien" type="date" defaultValue={chosen} max={today} />
         </div>
         <button className="primary" type="submit">
@@ -212,7 +275,11 @@ export default async function RunsPage({ searchParams }: Props) {
             {history.map((row) => (
               <tr key={row.day} className={row.day === chosen ? "sel" : ""}>
                 <td>
-                  <Link href={`/admin/runs?dzien=${row.day}&strona=${page}#dzien`}>{dayLabel(row.day)}</Link>
+                  {row.day === today ? (
+                    <b>dziś</b>
+                  ) : (
+                    <Link href={`/admin/runs?dzien=${row.day}&strona=${page}#dzien`}>{dayLabel(row.day)}</Link>
+                  )}
                   <span className="note"> {row.day}</span>
                 </td>
                 {SHORT.map((c) => (
@@ -236,133 +303,69 @@ export default async function RunsPage({ searchParams }: Props) {
         )}
       </p>
 
-      <h2 id="dzien">Szczegóły dnia: {dayLabel(chosen)} ({chosen})</h2>
-      <div className="kpis compact">
-        {METRICS.filter((m) => (chosenRow?.[m.key] ?? 0) > 0).map((m) => (
-          <div className="kpi" key={m.key}>
-            <b>{chosenRow?.[m.key]}</b>
-            <span>{m.label}</span>
-          </div>
-        ))}
-        {detail.rejected > 0 && (
-          <div className="kpi">
-            <b>{detail.rejected}</b>
-            <span>Stron odrzuconych (portale, deweloperzy, inna branża)</span>
-          </div>
-        )}
-      </div>
-      {METRICS.every((m) => (chosenRow?.[m.key] ?? 0) === 0) && <p className="note">Tego dnia automat nic nie zapisał.</p>}
-
-      {detail.cities.length > 0 && (
+      <h3 id="dzien">
+        {dayLabel(chosen)} ({chosen})
+      </h3>
+      {chosenRuns.length === 0 && METRICS.every((m) => (chosenRow?.[m.key] ?? 0) === 0) ? (
+        <p className="note">Tego dnia automat nic nie zapisał.</p>
+      ) : (
         <>
-          <h3>Gdzie szukał</h3>
-          <p>
-            {detail.cities.map((c, i) => (
-              <span key={c.city}>
-                {i > 0 && ", "}
-                <b>{c.city}</b> ({c.found} stron, w tym {c.agencies} biur)
-              </span>
+          <div className="kpis compact">
+            {METRICS.filter((m) => (chosenRow?.[m.key] ?? 0) > 0).map((m) => (
+              <div className="kpi" key={m.key}>
+                <b>{chosenRow?.[m.key]}</b>
+                <span>{m.label}</span>
+              </div>
             ))}
-          </p>
+          </div>
+          {detail.cities.length > 0 && (
+            <p>
+              <b>Gdzie szukano: </b>
+              {detail.cities.map((c, i) => (
+                <span key={c.city}>
+                  {i > 0 && ", "}
+                  {c.city} ({c.found} stron, {c.agencies} biur)
+                </span>
+              ))}
+            </p>
+          )}
+          <Timeline slots={chosenPlan} showFuture={false} />
+          {detail.published.length > 0 && (
+            <>
+              <h3>Firmy dodane tego dnia ({detail.published.length})</h3>
+              <ul className="plain-list">
+                {detail.published.map((f) => (
+                  <li key={f.listingId}>
+                    <Link href={`/admin/firms/${f.listingId}`}>{f.name}</Link> <span className="note">{f.city}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </>
       )}
 
-      {detail.published.length > 0 && (
-        <>
-          <h3>Firmy dodane do katalogu ({detail.published.length})</h3>
-          <ul className="plain-list">
-            {detail.published.map((f) => (
-              <li key={f.listingId}>
-                <Link href={`/admin/firms/${f.listingId}`}>{f.name}</Link> <span className="note">{f.city}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      <h3>Przebiegi automatu tego dnia</h3>
-      <ActivityFeed runs={dayRuns as unknown as RunRow[]} />
-
-      <h2>Co dokładnie robi automat</h2>
-      <div className="steps">
-        {STEPS.map((st) => (
-          <div className="step" key={st.n}>
-            <span className="step-n">{st.n}</span>
-            <div>
-              <b>{st.title}</b>
-              <p>{st.text}</p>
+      <details className="explain">
+        <summary>Jak działa automat i jakich narzędzi używa</summary>
+        <div className="steps">
+          {STEPS.map((st) => (
+            <div className="step" key={st.n}>
+              <span className="step-n">{st.n}</span>
+              <div>
+                <b>{st.title}</b>
+                <p>{st.text}</p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <h2>Droga nowej firmy do katalogu</h2>
-      <p className="note">
-        Przykład dla miasta wyszukanego w sesji o 8:41 (godziny dzisiejsze, czas polski). Cała droga trwa około 5 godzin,
-        oferty i kontakt dochodzą następnego dnia rano.
-      </p>
-      <ol className="pipeline">
-        <li>
-          <b>8:41-9:30</b>
-          <span>sesja Claude wyszukuje biura w mieście</span>
-        </li>
-        <li>
-          <b>{warsawTime(9, 17)}</b>
-          <span>automat sprawdza strony, KRS i VAT, zbiera dane do opisu</span>
-        </li>
-        <li>
-          <b>10:41-11:30</b>
-          <span>następna sesja Claude pisze opisy</span>
-        </li>
-        <li>
-          <b>{warsawTime(12, 17)}</b>
-          <span>firma pojawia się w katalogu</span>
-        </li>
-        <li>
-          <b>jutro {warsawTime(5, 7)}</b>
-          <span>oferty, telefon, e-mail, logo, zdjęcia</span>
-        </li>
-      </ol>
-
-      <h2>Plan dnia (czas polski)</h2>
-      <div className="day-plan">
-        {DAY.map((d) => (
-          <div key={d.title} className="day-item">
-            <span className="day-time">{d.time()}</span>
-            <div>
-              <b>{d.title}</b>
-              <p>{d.text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <h2>Miasta</h2>
-      <div className="kpis compact">
-        <div className="kpi">
-          <b>{s.nextCities[0] ?? "-"}</b>
-          <span>następne miasto</span>
+          ))}
         </div>
-        <div className="kpi">
-          <b>{s.lastSearched ? s.lastSearched.name : "-"}</b>
-          <span>ostatnio przeszukane{s.lastSearched ? ` (${when(s.lastSearched.at).split(",")[0]})` : ""}</span>
-        </div>
-        <div className="kpi">
-          <b>{s.citiesQueued}</b>
-          <span>miast w kolejce, około {CITIES_PER_DAY} dziennie</span>
-        </div>
-        <div className="kpi">
-          <b>{daysLeft > 0 ? finish.toLocaleDateString("pl-PL", { day: "numeric", month: "long" }) : "-"}</b>
-          <span>szacowany koniec listy przy obecnym tempie</span>
-        </div>
-      </div>
-      {s.nextCities.length > 1 && (
         <p className="note">
-          Kolejne w kolejce: {s.nextCities.join(", ")}. Kolejność zmienisz w zakładce Miasta.
+          Sesje Claude działają w chmurze Anthropic jako zaplanowane zadanie (szukanie stron w Google i pisanie opisów).
+          Automat GitHub to nasz program w Pythonie na serwerach GitHub Actions: pobiera strony (httpx, z poszanowaniem
+          robots.txt), czyta je (BeautifulSoup), sprawdza firmy w wykazie VAT Ministerstwa Finansów i w KRS, oceny bierze
+          z Google Places. Dane są w bazie Postgres (Neon), strona i panel na Vercel. Nic nie musi być włączone na Twoim
+          komputerze.
         </p>
-      )}
-
-
+      </details>
     </>
   );
 }

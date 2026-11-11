@@ -76,6 +76,9 @@ const STAGES: Record<string, { title: string; icon: string }> = {
   import: { title: "Zapisywanie nowych opisów", icon: "✍️" },
   publish: { title: "Dodawanie firm do katalogu", icon: "🚀" },
   offers: { title: "Pobieranie ofert ze stron biur", icon: "🏠" },
+  contacts: { title: "Kontakty, logo i zdjęcia ze stron biur", icon: "📇" },
+  google_reviews: { title: "Oceny z Map Google", icon: "⭐" },
+  claude_session: { title: "Sesja Claude: opisy i szukanie biur", icon: "🤖" },
 };
 
 const COUNT_LABELS: Record<string, string> = {
@@ -100,7 +103,7 @@ const COUNT_LABELS: Record<string, string> = {
   offers_updated: "zaktualizowanych ofert",
   offers_deactivated: "zniknęło",
 };
-const HIDDEN_COUNTS = new Set(["mf_requests", "krs_requests", "cost", "tokens"]);
+const HIDDEN_COUNTS = new Set(["mf_requests", "krs_requests", "cost", "tokens", "file", "city_list"]);
 
 export function describeRun(run: RunRow): { title: string; icon: string; detail: string } {
   const stage = STAGES[run.stage] ?? { title: run.stage, icon: "⚙️" };

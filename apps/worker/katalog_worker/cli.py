@@ -14,7 +14,25 @@ from .queries import build_queries
 from .verticals import load_vertical
 
 
+_LAST: dict = {}
+
+# Polecenia, których każde uruchomienie trafia do pipeline_runs (widać je w panelu: co działa teraz i co było).
+# discover, probe i verify zapisują przebiegi same.
+LOGGED = {
+    "import": "import",
+    "publish-ready": "publish",
+    "crawl-deep": "crawl_deep",
+    "bundle": "bundle",
+    "offers": "offers",
+    "contacts": "contacts",
+    "google-reviews": "google_reviews",
+}
+
+
 def _print(data) -> None:
+    if isinstance(data, dict):
+        _LAST.clear()
+        _LAST.update(data)
     print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
 
 
@@ -183,8 +201,12 @@ def cmd_import(args) -> int:
     from .pipeline import stage_import
 
     with connect() as conn:
+        from .pipeline import import_sessions
+
         ctx, _ = _context(args, conn)
-        _print(stage_import(ctx))
+        result = stage_import(ctx)
+        result["claude_sessions"] = import_sessions(ctx)
+        _print(result)
     return 0
 
 
@@ -278,8 +300,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _numeric(data: dict) -> dict:
+    return {k: v for k, v in data.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+
+
+def _run_logged(args) -> int:
+    """Zapisuje start polecenia od razu (widać go w panelu jako trwające), a po końcu wynik albo błąd."""
+    from .repo import Repo
+
+    try:
+        log_conn = connect()
+        repo = Repo(log_conn)
+        run_id = repo.start_run(LOGGED[args.cmd], None)
+        log_conn.commit()
+    except Exception:  # noqa: BLE001 - brak bazy nie może zatrzymać właściwej pracy
+        return args.func(args)
+    _LAST.clear()
+    try:
+        code = args.func(args)
+    except Exception as exc:
+        repo.finish_run(run_id, "failed", _numeric(_LAST), errors=[{"message": str(exc)[:500]}])
+        log_conn.commit()
+        log_conn.close()
+        raise
+    repo.finish_run(run_id, "ok" if code == 0 else "failed", _numeric(_LAST))
+    log_conn.commit()
+    log_conn.close()
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.cmd in LOGGED and not getattr(args, "dry_run", False):
+        return _run_logged(args)
     return args.func(args)
 
 
