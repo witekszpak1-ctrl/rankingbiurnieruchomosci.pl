@@ -20,6 +20,7 @@ export type Slot = {
   kind: SlotKind;
   at: Date;
   title: string;
+  system: string;
   what: string;
   state: SlotState;
   runs: Run[];
@@ -91,18 +92,21 @@ export function buildDayPlan(day: string, runs: Run[], now = new Date()): Slot[]
       kind: "claude" as const,
       at: warsawAt(day, h, 41),
       title: "Sesja Claude",
+      system: "Claude (chmura Anthropic, zaplanowane zadanie)",
       what: "pisze własne opisy firm, które czekają (do 150 naraz)",
     })),
     ...utcSlotsOnWarsawDay(day, PIPELINE_UTC_HOURS, 17).map((at) => ({
       kind: "pipeline" as const,
       at,
       title: "Automat GitHub",
+      system: "GitHub Actions + Serper + rejestry KRS i VAT",
       what: "zapisuje opisy i publikuje firmy, szuka biur w Google (Serper) w 15 kolejnych miastach, otwiera znalezione strony, sprawdza KRS i VAT, zbiera dane do opisów, pobiera kontakty nowych firm",
     })),
     ...utcSlotsOnWarsawDay(day, [OFFERS_UTC.h], OFFERS_UTC.m).map((at) => ({
       kind: "offers" as const,
       at,
       title: "Automat GitHub: dane firm",
+      system: "GitHub Actions + Google Places",
       what: "pobiera oferty z cenami, telefony, e-maile, social media, logo i zdjęcia, oceny z Map Google",
     })),
   ]

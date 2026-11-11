@@ -333,3 +333,6 @@
 /* Prompt opisów */
 .adm .prompt-form { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
 .adm .prompt-form textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; line-height: 1.5; padding: 12px 14px; border: 1px solid var(--a-line); border-radius: 10px; background: var(--a-bg); color: var(--a-fg); resize: vertical; }
+.adm .up-title { margin: 16px 0 4px; font-size: 1rem; }
+.adm table.report.upcoming td.wrap { white-space: normal; min-width: 280px; font-size: 0.86rem; color: var(--a-muted); }
+.adm table.report.upcoming td { vertical-align: top; }

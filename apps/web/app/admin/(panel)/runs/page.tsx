@@ -5,6 +5,7 @@ import {
   buildDayPlan,
   hhmm,
   runDuration,
+  warsawDay,
   slotSummary,
   STATE_LABEL,
   type Run,
@@ -161,9 +162,11 @@ export default async function RunsPage({ searchParams }: Props) {
   ]);
   const todayPlan = buildDayPlan(today, todayRuns as Run[], now);
   const chosenPlan = buildDayPlan(chosen, chosenRuns as Run[], now);
-  const tomorrowFirst = buildDayPlan(tomorrow, [], now)[0];
+  const tomorrowPlan = buildDayPlan(tomorrow, [], now);
+  const upcoming = [...todayPlan, ...tomorrowPlan].filter(
+    (x) => x.at.getTime() > now.getTime() && x.at.getTime() <= now.getTime() + 24 * 3600 * 1000,
+  );
   const live = todayPlan.filter((x) => x.state === "running" || x.state === "plan_running");
-  const next = todayPlan.find((x) => x.state === "planned") ?? tomorrowFirst;
   const todayRow = pair.find((r) => r.day === today);
   const yesterdayRow = pair.find((r) => r.day === yesterday);
   const chosenRow = chosenTotals[0];
@@ -193,12 +196,41 @@ export default async function RunsPage({ searchParams }: Props) {
             ))}
           </ul>
         )}
-        {next && (
-          <p className="now-next">
-            Następne: <b>{next.title}</b> o {hhmm(next.at)}
-            {next.at.getTime() > now.getTime() ? ` (${inMinutes(next.at, now)})` : ""}
-            {next === tomorrowFirst ? ", jutro" : ""}: {next.what}.
-          </p>
+        {upcoming.length > 0 && (
+          <>
+            <h3 className="up-title">Najbliższe 24 godziny</h3>
+            <div className="table-wrap">
+              <table className="report upcoming">
+                <thead>
+                  <tr>
+                    <th>Kiedy</th>
+                    <th>Co</th>
+                    <th>Jaki system</th>
+                    <th>Co zrobi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {upcoming.map((x, i) => (
+                    <tr key={`${x.kind}-${x.at.toISOString()}`} className={i === 0 ? "sel" : ""}>
+                      <td>
+                        <b>{hhmm(x.at)}</b>
+                        <span className="note">
+                          {" "}
+                          {warsawDay(x.at) === tomorrow ? "jutro" : "dziś"}
+                          {i === 0 ? `, ${inMinutes(x.at, now)}` : ""}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${x.kind === "claude" ? "warn" : "ok"}`}>{x.title}</span>
+                      </td>
+                      <td className="note">{x.system}</td>
+                      <td className="wrap">{x.what}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
         <div className="now-stats">
           <span>
