@@ -185,3 +185,25 @@ def test_quote_matching_tolerates_long_dashes_and_decomposed_letters():
     assert _range_starts("od 2 do 3% brutto") == [2.0]
     assert _range_starts("2,5–3,5%") == [2.5]
     assert price_kind("zarządzanie najmem - znalezienie najemcy") == "rent_brokerage"
+
+
+def test_classifier_rejects_appraisers_developers_and_software_but_keeps_agencies():
+    from conftest import fixture_text
+
+    from katalog_worker.classify import classify_page
+    from katalog_worker.extract import extract_page
+
+    kw = ("nieruchomości", "biuro nieruchomości", "mieszkania")
+    def page(body):
+        return extract_page(f"<html><head><title>Firma</title></head><body>{body}<p>ul. Długa 1, 00-001 Warszawa, tel. 600 100 200</p></body></html>", "https://firma.pl/")
+
+    appraiser = page("<h1>Wycena nieruchomości</h1><p>Rzeczoznawca majątkowy sporządza operat szacunkowy mieszkania. Uprawnienia zawodowe nr 1234. Nieruchomości.</p>")
+    assert classify_page(appraiser, kw).label == "irrelevant"
+    developer = page("<h1>Mieszkania</h1><p>Nasze inwestycje. Harmonogram budowy i prospekt informacyjny. Nieruchomości od dewelopera.</p>")
+    assert classify_page(developer, kw).label == "irrelevant"
+    software = page("<p>CRM dla biur nieruchomości. Wypróbuj za darmo. Biuro nieruchomości w jednym programie.</p>")
+    assert classify_page(software, kw).label == "irrelevant"
+    agency = page("<h1>Biuro nieruchomości</h1><p>Pośrednictwo w sprzedaży i wynajmie. Współpracujemy z rzeczoznawcą majątkowym przy wycenie (operat szacunkowy). Prowizja 2%. Licencja zawodowa.</p>")
+    assert classify_page(agency, kw).label != "irrelevant"
+    official = extract_page(fixture_text("agency_official.html"), "https://przyklad-nieruchomosci.pl/")
+    assert classify_page(official, kw).label == "official"

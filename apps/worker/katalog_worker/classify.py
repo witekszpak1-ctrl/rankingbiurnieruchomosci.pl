@@ -58,6 +58,17 @@ _PARKED_PHRASES = (
     "domena jest na sprzedaż", "this domain is for sale", "domena zaparkowana", "kup tę domenę",
     "domain parking", "buy this domain",
 )
+# Strony z branży, ale nie biura pośrednictwa: rzeczoznawcy, deweloperzy, oprogramowanie dla biur.
+# Liczymy tylko mocne znaczniki, bo biura też wspominają o wycenie czy współpracy z deweloperami.
+_APPRAISER_PHRASES = ("rzeczoznawca majątkowy", "rzeczoznawcy majątkowi", "rzeczoznawcę majątkowego", "operat szacunkowy",
+                      "operaty szacunkowe", "operatu szacunkowego", "uprawnienia zawodowe nr", "biegły sądowy")
+_DEVELOPER_PHRASES = ("prospekt informacyjny", "harmonogram budowy", "postęp prac budowlanych", "dziennik budowy",
+                      "nasze inwestycje", "zrealizowane inwestycje", "generalny wykonawca", "pozwolenie na budowę uzyskane",
+                      "termin oddania inwestycji", "rzuty mieszkań")
+_SOFTWARE_PHRASES = ("crm dla biur nieruchomości", "oprogramowanie dla biur", "program dla biur nieruchomości",
+                     "wypróbuj za darmo", "darmowy okres próbny", "cennik abonamentów")
+_BROKER_PHRASES = ("pośrednictw", "pośrednik", "biuro nieruchomości", "biura nieruchomości", "agencja nieruchomości",
+                   "agencji nieruchomości", "umowa pośrednictwa", "umowę pośrednictwa", "prowizj", "licencj")
 _ARTICLE_TYPES = {"NewsArticle", "Article", "BlogPosting"}
 _URL_DIRECTORY_HINTS = re.compile(r"/(firmy|katalog|ranking|rankingi|porownywarka)(/|$)", re.I)
 
@@ -140,6 +151,14 @@ def classify_page(
     keyword_hits = sum(lowered.count(k.lower()) for k in vertical_keywords)
     if keyword_hits == 0:
         return Classification("irrelevant", 0.8, reasons + ["brak słów kluczowych branży"])
+
+    # 4b. branża się zgadza, ale to nie biuro pośrednictwa (najczęstsze pomyłki wyszukiwania)
+    broker = len(_count(lowered, _BROKER_PHRASES))
+    for label, phrases in (("rzeczoznawca", _APPRAISER_PHRASES), ("deweloper", _DEVELOPER_PHRASES),
+                           ("oprogramowanie", _SOFTWARE_PHRASES)):
+        hits = _count(lowered, phrases)
+        if len(hits) >= 2 and broker < 3:
+            return Classification("irrelevant", 0.8, reasons + [f"{label}, nie biuro pośrednictwa: {', '.join(hits[:3])}"])
 
     # 5. sygnały oficjalnej strony jednej firmy
     official = 0
