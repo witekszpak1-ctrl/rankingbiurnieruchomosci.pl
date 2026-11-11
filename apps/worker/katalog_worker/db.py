@@ -18,22 +18,45 @@ class MigrationError(RuntimeError):
 
 
 _URL_IN_TEXT = re.compile(r"postgres(?:ql)?://[^\s\"']+")
+_URL_WITHOUT_SCHEME = re.compile(r"[^\s\"'@/:]+:[^\s\"'@/]+@[^\s\"'/]+/[^\s\"']+")
 
 
 def clean_dsn(raw: str) -> str:
     """Wyciąga adres postgresql://... z tekstu wklejonego do sekretu (z etykietą, cudzysłowami albo białymi znakami).
 
-    Tekst bez takiego adresu (np. klasyczny napis host=... dbname=...) zwracamy bez zmian, tylko obcięty z brzegów.
+    Adres bez schematu (użytkownik:hasło@host/baza) uzupełniamy o postgresql://. Tekst bez adresu (np. klasyczny napis
+    host=... dbname=...) zwracamy bez zmian, tylko obcięty z brzegów.
     """
     found = _URL_IN_TEXT.search(raw)
-    return found.group(0) if found else raw.strip()
+    if found:
+        return found.group(0)
+    bare = _URL_WITHOUT_SCHEME.search(raw)
+    if bare:
+        return "postgresql://" + bare.group(0)
+    return raw.strip()
+
+
+def describe_dsn_problem(raw: str) -> str:
+    """Opis kształtu błędnego DATABASE_URL bez ujawniania jego treści (logi mogą być czytane przez innych)."""
+    yes = lambda cond: "tak" if cond else "nie"  # noqa: E731
+    return (
+        f"DATABASE_URL ma niepoprawny format ({len(raw)} znaków; zawiera postgresql://: {yes('postgres' in raw and '://' in raw)}; "
+        f"zawiera @: {yes('@' in raw)}; zawiera =: {yes('=' in raw)}; zawiera odstępy: {yes(any(c.isspace() for c in raw.strip()))}; "
+        f"wiele linii: {yes(len(raw.strip().splitlines()) > 1)}). "
+        "Oczekiwany format to jedna linia: postgresql://użytkownik:hasło@host/baza?sslmode=require, bez etykiety."
+    )
 
 
 def connect(url: str | None = None) -> psycopg.Connection:
     dsn = url or os.environ.get("DATABASE_URL")
     if not dsn:
         raise RuntimeError("Brak DATABASE_URL (ustaw zmienną środowiskową lub podaj url).")
-    return psycopg.connect(clean_dsn(dsn), row_factory=dict_row)
+    try:
+        return psycopg.connect(clean_dsn(dsn), row_factory=dict_row)
+    except psycopg.ProgrammingError as exc:
+        if "connection info string" in str(exc):
+            raise RuntimeError(describe_dsn_problem(dsn)) from None
+        raise
 
 
 def default_migrations_dir() -> Path:

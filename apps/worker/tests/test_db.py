@@ -143,3 +143,26 @@ def test_migrate_needs_no_create_privilege_when_nothing_is_pending(db_url):
         owner.close()
         admin.execute(f'drop role if exists "{role}"')
         admin.close()
+
+
+def test_clean_dsn_adds_missing_scheme():
+    from katalog_worker.db import clean_dsn
+
+    assert clean_dsn("katalog_app:tajne123@ep-x.example.tech/katalog?sslmode=require") == (
+        "postgresql://katalog_app:tajne123@ep-x.example.tech/katalog?sslmode=require"
+    )
+    assert clean_dsn("DATABASE_URL: katalog_app:tajne123@host/db") == "postgresql://katalog_app:tajne123@host/db"
+
+
+def test_connect_reports_bad_dsn_shape_without_leaking_it(monkeypatch):
+    import pytest as _p
+
+    from katalog_worker.db import connect
+
+    secret = "Wartosc tajne-haslo-12345 bez adresu"
+    monkeypatch.setenv("DATABASE_URL", secret)
+    with _p.raises(RuntimeError) as info:
+        connect()
+    message = str(info.value)
+    assert "niepoprawny format" in message and "zawiera postgresql://: nie" in message
+    assert "tajne-haslo-12345" not in message and secret not in message
