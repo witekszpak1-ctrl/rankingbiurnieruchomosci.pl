@@ -54,8 +54,15 @@ Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza gałęzi
 - **pipeline** codziennie o 03:17 UTC: import wyników, publikacja wpisów spełniających bramkę, nowi kandydaci z plików,
   probe, verify, crawl-deep, paczki.
 - **import** co 3 godziny: wyniki z gałęzi `queue-data` do bazy i publikacja (`katalog publish-ready`).
-- **Codzienna sesja Claude Code** (zaplanowane zadanie na koncie claude.ai): pisze opisy dla nowych paczek i zbiera kandydatów
-  z kolejnego miasta z `packages/verticals/nieruchomosci/cities.txt`, według `packages/verticals/nieruchomosci/prompts/daily.md`.
+- **Codzienna sesja Claude Code** o 05:41 czasu polskiego (zaplanowane zadanie na koncie claude.ai, które budzi jedną stałą
+  sesję z podpiętym tym repozytorium): pisze opisy dla nowych paczek i zbiera kandydatów z kolejnego miasta
+  z `packages/verticals/nieruchomosci/cities.txt`, według `packages/verticals/nieruchomosci/prompts/daily.md`.
+  Paczkę, która nie dotyczy biura nieruchomości, oznacza plikiem `queue/results/skipped/describe/<id>.json`,
+  a import zamyka wtedy to zadanie.
+- **Vercel** wdraża stronę sam po każdym pushu na `main`, który zmienia `apps/web` (projekt jest połączony z repozytorium,
+  katalog główny `apps/web`). Inne gałęzie, w tym `queue-data`, i commity bez zmian w `apps/web` są pomijane.
+- Kolejność w ciągu doby (UTC): 03:17 pipeline buduje paczki, 04:41 sesja Claude Code pisze opisy, import co 3 godziny
+  (od 00:37) zapisuje je w bazie i publikuje wpisy.
 - Automatyczna publikacja działa, gdy w tabeli `settings` jest `auto_publish = true` (migracja 0003). Bramka: domena
   zweryfikowana NIP-em, zwalidowany opis, minimum faktów. Każda publikacja ma wpis w audycie (aktor `pipeline`), wpis można
   wycofać w panelu. Miasto wpisu: miasto z wyszukiwania, jeśli strona firmy je wymienia (zamiast wsi z adresu w rejestrze).
@@ -78,11 +85,12 @@ tego samego repozytorium (bez wspólnej historii z `main`, tylko katalog `queue/
 2. Sesja Claude Code: `bash scripts/queue_sync.sh pull`, opis każdej paczki z `queue/pending/` według
    `packages/verticals/nieruchomosci/prompts/`, wynik do `queue/results/<typ>/<id>.json`, sprawdzenie
    `katalog validate --bundle B --result R`, potem `bash scripts/queue_sync.sh push-results`.
-3. Workflow **import** (ręcznie): pobiera kolejkę z `queue-data`, `katalog import` waliduje wyniki i zapisuje je w bazie.
+3. Workflow **import** (co 3 godziny albo ręcznie): pobiera kolejkę z `queue-data`, `katalog import` waliduje wyniki,
+   zapisuje je w bazie i publikuje wpisy spełniające bramkę.
 
 Wymagane w ustawieniach repozytorium: sekret `DATABASE_URL`. Zmienna `CRAWLER_USER_AGENT` jest nieobowiązkowa (domyślnie
 `KatalogBot/0.1 (+https://rankingbiurnieruchomosci.pl/bot)`, a strona `/bot` prowadzi do formularza kontaktowego). Klucze `SERPER_API_KEY` lub `BRAVE_API_KEY` są potrzebne tylko dla źródeł `serper` i `brave`. Skrypt kolejki przetestowano lokalnie na
-tymczasowym zdalnym repozytorium. Same workflowy nie były uruchamiane w Actions.
+tymczasowym zdalnym repozytorium. Workflow pipeline przeszedł w Actions na produkcyjnej bazie (15 paczek, 14 opisów).
 
 ## Zasady
 
@@ -107,13 +115,16 @@ logowanie do panelu na produkcji (hasło sprawdzone względem hasha, ta sama śc
   zapytania do bazy działają. Zespół ma plan Pro (widać w panelu Vercel), więc użycie komercyjne z reklamami i leadami jest dozwolone.
 - Baza: Neon, projekt `witek-dm-agent-db`, osobna baza `katalog` z rolą `katalog_app` (tylko odczyt i zapis w tej bazie).
   To rozwiązanie zastępcze, bo konto Neon jest zarządzane przez Vercel i nie da się tworzyć nowych projektów przez API.
-  Zastosowane migracje `0001_init` (23 tabele) i `0002_requests` (zgłoszenia ze strony dla firm). Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
+  Zastosowane migracje `0001_init` (23 tabele) i `0002_requests` (zgłoszenia ze strony dla firm), `0003_auto_publish` stosuje workflow. Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
   do własnego projektu: `pg_dump` i `katalog migrate` na nowej bazie, potem zmiana `DATABASE_URL`.
 - Zmienne środowiska produkcyjnego ustawione w Vercel: `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`,
   `ADMIN_SESSION_SECRET`, `SITE_URL`. Brakuje `NEXT_PUBLIC_CONTACT_EMAIL` (strona `/bot` pokazuje wtedy
   User-Agent bez adresu, a `/dla-firm` ma formularz zgłoszeń i nie wymaga adresu).
 - Baza produkcyjna jest pusta (bez danych deweloperskich). Domena `rankingbiurnieruchomosci.pl` (z `www`) jest dodana do projektu, ale nie jest jeszcze kupiona ani skierowana w DNS.
-- Wdrożenia z sesji Claude Code idą z gita przez API Vercela (`create_deployment` z `gitSource` na repozytorium GitHub,
-  `rootDirectory` = `apps/web`, zapisany w projekcie). Przed wdrożeniem trzeba wypchnąć zmiany na `main` i zastosować
-  nowe migracje na bazie produkcyjnej (rola aplikacji nie może tworzyć tabel, migracje idą z roli właściciela bazy).
-  Projekt Vercel nie jest jeszcze połączony z repozytorium na stałe, więc sam `git push` niczego nie wdraża.
+- Projekt Vercel jest połączony z repozytorium: push na `main` ze zmianą w `apps/web` wdraża produkcję (ustawienia projektu:
+  katalog główny `apps/web`, krok pomijania buildów dla innych gałęzi i commitów bez zmian w `apps/web`). Migracje z DDL
+  trzeba zastosować na bazie produkcyjnej przed wdrożeniem (rola aplikacji nie może tworzyć tabel, takie migracje idą
+  z roli właściciela bazy). Migracje bez DDL stosuje sam workflow (`katalog migrate`).
+- Adres produkcyjny do czasu podpięcia domeny: `https://rankingbiurnieruchomoscpl-witek1.vercel.app`. Ma włączoną ochronę
+  Vercel (widzą go tylko zalogowani członkowie zespołu `witek1`). Domena własna będzie publiczna, bo ochrona obejmuje
+  wszystko poza domenami własnymi.
