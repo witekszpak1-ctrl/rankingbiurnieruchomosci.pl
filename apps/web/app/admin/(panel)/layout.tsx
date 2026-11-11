@@ -5,6 +5,7 @@ import "../admin.css";
 import { logoutAction } from "../actions";
 import { AdminNavLink } from "@/components/AdminNav";
 import { requireAdmin } from "@/lib/admin-auth";
+import { countNewClaims } from "@/lib/claims";
 import { countNewLeads } from "@/lib/leads";
 import { countNewRequests } from "@/lib/requests";
 
@@ -13,7 +14,11 @@ export const dynamic = "force-dynamic";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
-  const [newRequests, newLeads] = await Promise.all([countNewRequests().catch(() => 0), countNewLeads()]);
+  const [newRequests, newLeads, newClaims] = await Promise.all([
+    countNewRequests().catch(() => 0),
+    countNewLeads(),
+    countNewClaims(),
+  ]);
   return (
     <div className="adm">
       <div className="admin-shell">
@@ -28,6 +33,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <AdminNavLink href="/admin/offers" label="Oferty" icon="offers" />
           <AdminNavLink href="/admin/cities" label="Miasta" icon="cities" />
           <AdminNavLink href="/admin/leads" label="Zapytania klientów" icon="leads" count={newLeads} />
+          <AdminNavLink href="/admin/claims" label="Zgłoszenia właścicieli" icon="claims" count={newClaims} />
           <AdminNavLink href="/admin/requests" label="Wiadomości od firm" icon="inbox" count={newRequests} />
           <div className="side-group">System</div>
           <AdminNavLink href="/admin/runs" label="Automat" icon="runs" />

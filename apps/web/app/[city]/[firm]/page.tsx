@@ -336,6 +336,16 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 {formatDate(listing.updatedAt)}. Widzisz błąd? <Link href="/dla-firm">Zgłoś korektę</Link>.
               </p>
             </section>
+
+            <section className="owner-band">
+              <div>
+                <b>To Twoja firma?</b>
+                <span>Uzupełnij profil, popraw dane albo poproś o usunięcie wpisu.</span>
+              </div>
+              <Link className="btn-outline" href={`/wlasciciel/${listing.listingId}`}>
+                Jestem właścicielem tej firmy
+              </Link>
+            </section>
           </div>
 
           <aside className="profile-aside">

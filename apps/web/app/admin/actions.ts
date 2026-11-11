@@ -231,3 +231,22 @@ export async function leadAction(formData: FormData) {
   revalidatePath(path);
   back(path, "ok", action === "done" ? "Oznaczono jako załatwione." : "Przywrócono do nowych.");
 }
+
+/** Zgłoszenie właściciela: załatwione, odrzucone albo z powrotem nowe. */
+export async function claimAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const action = String(formData.get("action") ?? "");
+  const path = "/admin/claims";
+  if (!UUID_RE.test(id) || !["done", "rejected", "new"].includes(action)) back(path, "error", "Nieprawidłowe zgłoszenie.");
+  await withTransaction(async (client) => {
+    await client.query(
+      `update owner_claims set status = $2, handled_by = case when $2 = 'new' then null else $3 end,
+         handled_at = case when $2 = 'new' then null else now() end where id = $1`,
+      [id, action, admin],
+    );
+    await writeAudit(client, { actor: admin, action: `claim.${action}`, entityType: "owner_claim", entityId: id });
+  });
+  revalidatePath(path);
+  back(path, "ok", "Zapisano.");
+}
