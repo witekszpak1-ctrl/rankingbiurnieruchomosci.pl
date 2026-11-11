@@ -123,10 +123,13 @@ export default async function NationalRankingPage() {
       </p>
 
       <h2>Rankingi biur nieruchomości w miastach</h2>
-      <ul className="plain">
+      <ul className="city-grid">
         {cities.map(([slug, name]) => (
           <li key={slug}>
-            <Link href={`/${slug}`}>Biura nieruchomości {inCity(name)}</Link>
+            <Link href={`/${slug}`} title={`Biura nieruchomości ${inCity(name)}`}>
+              <b>{name}</b>
+              <span>{nBiur(all.filter((l) => l.citySlug === slug).length)}</span>
+            </Link>
           </li>
         ))}
       </ul>

@@ -59,6 +59,14 @@ Na samym początku sesji zapamiętaj czas startu (`date -u +%Y-%m-%dT%H:%M:%SZ`)
 `domains` to liczba różnych domen w pliku kandydatów miasta. Gdy coś się nie udało, `"status": "failed"` i opis
 w `errors` (lista obiektów `{"message": "..."}`). Potem `bash scripts/queue_sync.sh push-results`.
 
+## 4. Uruchomienie automatu GitHub
+
+Harmonogram GitHub Actions w tym repozytorium się nie uruchamia, więc to sesja go zastępuje. Na koniec, po wysłaniu
+wyników, uruchom narzędziem GitHub (actions_run_trigger, method run_workflow, ref main) workflow `pipeline.yml`:
+zapisze opisy, opublikuje firmy, przeszuka kolejne miasta przez Serper i przygotuje nowe paczki. W sesji, która startuje
+między 6:00 a 7:59 czasu polskiego, uruchom też `offers.yml` (oferty, kontakty, opinie Google). Nie uruchamiaj, jeśli
+ten sam workflow jest już w kolejce lub trwa (sprawdź actions_list, list_workflow_runs, status queued/in_progress).
+
 ## Zasady
 
 - Nie zmieniaj kodu ani gałęzi `main`. Piszesz tylko do gałęzi `queue-data` przez `scripts/queue_sync.sh`.

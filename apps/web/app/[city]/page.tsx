@@ -214,10 +214,13 @@ export default async function CityPage({ params }: Props) {
       {otherCities.length > 0 && (
         <>
           <h2>Biura nieruchomości w innych miastach</h2>
-          <ul className="plain">
+          <ul className="city-grid">
             {otherCities.map((c) => (
               <li key={c.slug}>
-                <Link href={`/${c.slug}`}>Biura nieruchomości {inCity(c.name)}</Link> ({nBiur(c.listings)})
+                <Link href={`/${c.slug}`} title={`Biura nieruchomości ${inCity(c.name)}`}>
+                  <b>{c.name}</b>
+                  <span>{nBiur(c.listings)}</span>
+                </Link>
               </li>
             ))}
           </ul>
