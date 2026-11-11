@@ -401,6 +401,52 @@ class Repo:
             (actor, action, entity_type, entity_id, Jsonb(before), Jsonb(after)),
         )
 
+    # ------------------------------------------------------------------ oferty
+
+    def domains_for_offers(self, limit: int) -> list[dict]:
+        """Zweryfikowane domeny marek z opublikowanym wpisem, najdawniej sprawdzane pierwsze."""
+        return self.conn.execute(
+            """select d.id, d.host, d.canonical_url, d.brand_id, d.offers_url, d.offers_checked_at from domains d
+               where d.verification_status = 'verified' and d.brand_id is not null
+                 and exists (select 1 from listings l where l.brand_id = d.brand_id and l.status = 'published')
+               order by d.offers_checked_at nulls first, d.host limit %s""",
+            (limit,),
+        ).fetchall()
+
+    def save_offers(self, domain_id: str, brand_id: str, offers: list) -> dict:
+        """Zapisuje oferty z udanego odczytu. Oferty tej domeny spoza odczytu przestają być aktywne."""
+        from .urls import canonical_url
+
+        counts = {"new": 0, "updated": 0, "deactivated": 0}
+        keys: list[str] = []
+        for offer in offers:
+            key = canonical_url(offer.url)
+            if key in keys:
+                continue
+            keys.append(key)
+            row = self.conn.execute(
+                """insert into offers (brand_id, domain_id, url, url_key, title, position)
+                   values (%s, %s, %s, %s, %s, %s)
+                   on conflict (domain_id, url_key) do update
+                     set url = excluded.url, title = excluded.title, position = excluded.position,
+                         brand_id = excluded.brand_id, is_active = true, last_seen_at = now()
+                   returning (xmax = 0) as inserted""",
+                (brand_id, domain_id, offer.url, key, offer.title, offer.position),
+            ).fetchone()
+            counts["new" if row["inserted"] else "updated"] += 1
+        counts["deactivated"] = self.conn.execute(
+            "update offers set is_active = false where domain_id = %s and is_active and not (url_key = any(%s))",
+            (domain_id, keys),
+        ).rowcount
+        return counts
+
+    def mark_offers_checked(self, domain_id: str, offers_url: str | None) -> None:
+        """Zapamiętuje stronę z ofertami (gdy się udało) i czas sprawdzenia."""
+        self.conn.execute(
+            "update domains set offers_url = coalesce(%s, offers_url), offers_checked_at = now() where id = %s",
+            (offers_url, domain_id),
+        )
+
     # ------------------------------------------------------------------ kolejka
 
     def enqueue(self, type_: str, bundle_path: str, bundle_sha256: str, *, brand_id: str | None = None,

@@ -22,6 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+function newest(dates: Date[]): Date {
+  return new Date(Math.max(...dates.map((d) => new Date(d).getTime())));
+}
+
 export default async function FirmPage({ params }: Props) {
   const { city, firm } = await params;
   const listing = await getPublishedListing(city, firm);
@@ -91,6 +95,36 @@ export default async function FirmPage({ params }: Props) {
               <li key={service}>{service}</li>
             ))}
           </ul>
+        </>
+      )}
+
+      {listing.offers.length > 0 && (
+        <>
+          <h2>Aktualne oferty</h2>
+          <ul className="offers">
+            {listing.offers.map((offer) => (
+              <li key={offer.url}>
+                <a href={offer.url} rel="noopener nofollow" target="_blank">
+                  {offer.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="note">
+            Najnowsze oferty ze strony firmy
+            {listing.offersSourceUrl && (
+              <>
+                {" "}
+                (
+                <a href={listing.offersSourceUrl} rel="noopener nofollow" target="_blank">
+                  wszystkie oferty biura
+                </a>
+                )
+              </>
+            )}
+            , sprawdzone {formatDate(newest(listing.offers.map((o) => o.lastSeenAt)))}. Cenę i dostępność potwierdź na
+            stronie biura.
+          </p>
         </>
       )}
 

@@ -47,6 +47,14 @@ SERVICES = [
     "wycena nieruchomości", "obsługa prawna transakcji",
 ]
 
+OFFERS = [
+    "Mieszkanie 3-pokojowe z balkonem, Krzyki",
+    "Kawalerka po remoncie, Nadodrze",
+    "Dom wolnostojący z ogrodem, Kiełczów",
+    "Działka budowlana 1200 m2, Smolec",
+    "Lokal usługowy na wynajem, Rynek",
+]
+
 # (nazwa, miasto, slug_miasta, rok startu, liczba usług, prowizja % lub None, tryb VAT, wynik weryfikacji, status wpisu, opis)
 FIRMS = [
     ("Alfa Nieruchomości", "Wrocław", "wroclaw", 2008, 5, 2.0, "net", 96, "published",
@@ -133,6 +141,14 @@ def main() -> None:
                 "insert into price_items (id, brand_id, service, unit, amount_min, tax_mode, price_status, quote, source_url) values "
                 f"('{uid('price', key)}', '{brand}', 'pośrednictwo w sprzedaży', 'percent', {percent}, '{tax}', 'public', {q(quote)}, 'https://{host}/cennik') on conflict (id) do nothing;"
             )
+        if index == 1:  # oferty tylko dla pierwszej firmy, żeby było widać obie wersje profilu
+            w(f"update domains set offers_url = 'https://{host}/oferty', offers_checked_at = now() where id = '{dom}';")
+            for o_index, title in enumerate(OFFERS):
+                url = f"https://{host}/oferta/{slugify(title)}-{1000 + o_index}"
+                w(
+                    "insert into offers (id, brand_id, domain_id, url, url_key, title, position) values "
+                    f"('{uid('offer', key, str(o_index))}', '{brand}', '{dom}', {q(url)}, {q(url)}, {q(title)}, {o_index}) on conflict (id) do nothing;"
+                )
         if status != "needs_review":
             d_state = "published" if status == "published" else "validated"
             w(

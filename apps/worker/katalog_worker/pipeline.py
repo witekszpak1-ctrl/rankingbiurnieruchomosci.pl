@@ -24,6 +24,7 @@ from .classify import DEFAULT_BLOCKLIST, Classification, classify_page
 from .discovery import discover
 from .extract import PageExtraction, extract_page, merge_extractions
 from .fetch import FetchResult, PoliteFetcher
+from .offers import scan_offers
 from .queries import build_queries
 from .registry import KrsClient, MfVatClient, RegistryEntity, RegistryError
 from .repo import Repo, slugify
@@ -502,6 +503,36 @@ def stage_import(ctx: Context) -> dict:
                 _apply_classify(ctx, item, result)
             repo.finish_queue_item(item["id"], "done", str(result_path), report.to_dict())
             counts["done"] += 1
+        repo.conn.commit()
+    return dict(counts)
+
+
+# ----------------------------------------------------------------------------- oferty
+
+
+def stage_offers(ctx: Context, fetcher: PoliteFetcher, limit: int = 200, dry_run: bool = False) -> dict:
+    """Najnowsze oferty (tytuł i link) ze stron opublikowanych biur. Raport każdej domeny idzie na stderr.
+
+    Gdy odczyt się nie uda, poprzednie oferty zostają (strona ukrywa te niewidziane od 14 dni)."""
+    repo = ctx.repo
+    counts: Counter = Counter()
+    for row in repo.domains_for_offers(limit):
+        home = row["canonical_url"] or f"https://{row['host']}/"
+        scan = scan_offers(fetcher, home, known_index=row["offers_url"])
+        report = {
+            "host": row["host"], "source": scan.source_url, "method": scan.method, "offers": len(scan.offers),
+            "tried": scan.tried, "errors": scan.errors[:3], "sample": [[o.title, o.url] for o in scan.offers[:3]],
+        }
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        counts["domains"] += 1
+        counts["with_offers" if scan.offers else "without_offers"] += 1
+        if dry_run:
+            continue
+        if scan.offers:
+            for key, value in repo.save_offers(str(row["id"]), str(row["brand_id"]), scan.offers).items():
+                if value:
+                    counts[f"offers_{key}"] += value
+        repo.mark_offers_checked(str(row["id"]), scan.source_url)
         repo.conn.commit()
     return dict(counts)
 

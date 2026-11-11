@@ -37,6 +37,7 @@ Każdy etap to osobne polecenie (`katalog --help`). Kolejność:
 | `katalog crawl-deep` | S5 | kolejne podstrony zweryfikowanych domen |
 | `katalog bundle` | S6 | paczki dla Claude Code w `queue/pending/` |
 | `katalog import` | S7 | walidacja wyników z `queue/results/` i zapis w bazie |
+| `katalog offers [--dry-run]` | | najnowsze oferty (tytuł i link, najwyżej 20) ze stron opublikowanych biur |
 | `katalog status` | | liczby rekordów według statusów |
 | `katalog validate --bundle B --result R` | | walidacja jednego wyniku (kod wyjścia 0 = OK) |
 | `katalog ab-search --csv entities.csv` | | test A/B dostawców wyszukiwania |
@@ -59,6 +60,12 @@ Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza gałęzi
   z `packages/verticals/nieruchomosci/cities.txt`, według `packages/verticals/nieruchomosci/prompts/daily.md`.
   Paczkę, która nie dotyczy biura nieruchomości, oznacza plikiem `queue/results/skipped/describe/<id>.json`,
   a import zamyka wtedy to zadanie.
+- **offers** codziennie o 05:07 UTC: najnowsze oferty nieruchomości ze stron opublikowanych biur (tytuł i link do oferty
+  na stronie firmy, najwyżej 20 na biuro, w kolejności ze strony). Crawler znajduje podstronę z ofertami (np. `/oferty`),
+  zapamiętuje ją i potem pobiera tylko ją. Oferty bierze z JSON-LD albo z powtarzalnych linków o wspólnym wzorcu adresu,
+  których tytuły lub adresy wyglądają na nieruchomości. Nie zapisuje opisów, cen ani zdjęć, a ofert z kontaktem w tytule
+  pomija. Gdy odczyt się nie uda, zostają poprzednie oferty, a strona ukrywa te niewidziane od 14 dni. Strony, które
+  ładują oferty skryptem (bez HTML), na razie nie dają ofert.
 - **Vercel** wdraża stronę sam po każdym pushu na `main`, który zmienia `apps/web` (projekt jest połączony z repozytorium,
   katalog główny `apps/web`). Inne gałęzie, w tym `queue-data`, i commity bez zmian w `apps/web` są pomijane.
 - Kolejność w ciągu doby (UTC): 03:17 pipeline buduje paczki, 04:41 sesja Claude Code pisze opisy, import co 3 godziny
@@ -115,7 +122,7 @@ logowanie do panelu na produkcji (hasło sprawdzone względem hasha, ta sama śc
   zapytania do bazy działają. Zespół ma plan Pro (widać w panelu Vercel), więc użycie komercyjne z reklamami i leadami jest dozwolone.
 - Baza: Neon, projekt `witek-dm-agent-db`, osobna baza `katalog` z rolą `katalog_app` (tylko odczyt i zapis w tej bazie).
   To rozwiązanie zastępcze, bo konto Neon jest zarządzane przez Vercel i nie da się tworzyć nowych projektów przez API.
-  Zastosowane migracje `0001_init` (23 tabele) i `0002_requests` (zgłoszenia ze strony dla firm), `0003_auto_publish` stosuje workflow. Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
+  Zastosowane migracje `0001_init` (23 tabele) i `0002_requests` (zgłoszenia ze strony dla firm), `0003_auto_publish` stosuje workflow, `0004_offers` (oferty) zastosowana z roli właściciela. Obliczenia są współdzielone z innymi bazami tego projektu. Przeniesienie
   do własnego projektu: `pg_dump` i `katalog migrate` na nowej bazie, potem zmiana `DATABASE_URL`.
 - Zmienne środowiska produkcyjnego ustawione w Vercel: `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`,
   `ADMIN_SESSION_SECRET`, `SITE_URL`. Brakuje `NEXT_PUBLIC_CONTACT_EMAIL` (strona `/bot` pokazuje wtedy

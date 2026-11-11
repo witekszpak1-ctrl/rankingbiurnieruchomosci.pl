@@ -572,3 +572,49 @@ def test_publish_ready_respects_switch(flow):
     stage_import(flow["ctx"])
     assert stage_publish_ready(flow["ctx"]) == {"auto_publish": "wyłączone"}
     assert conn.execute("select status from listings").fetchone()["status"] == "verified"
+
+
+# ------------------------------------------------------------------ oferty
+
+
+def offers_page(ids) -> str:
+    cards = "".join(
+        f'<div class="o"><h3><a href="/oferta/mieszkanie-{i}-pokoje-{1000 + i}">Mieszkanie {i} pokoje, Wrocław</a></h3></div>'
+        for i in ids
+    )
+    return f"<html><body><main>{cards}</main></body></html>"
+
+
+def test_offers_saved_refreshed_and_kept_when_read_fails(flow, capsys):
+    from katalog_worker.pipeline import stage_offers
+
+    ctx = flow["ctx"]
+    conn = ctx.repo.conn
+    fetcher = make_fetcher()
+    assert stage_offers(ctx, fetcher) == {}  # brak opublikowanych wpisów
+    conn.execute("update listings set status = 'published'")
+    conn.execute("update domains set offers_url = %s where verification_status = 'verified'", (AGENCY + "oferty",))
+    conn.commit()
+
+    fetcher.pages[AGENCY + "oferty"] = offers_page([1, 2, 3, 4])
+    assert stage_offers(ctx, fetcher, dry_run=True) == {"domains": 1, "with_offers": 1}
+    assert conn.execute("select count(*)::int as n from offers").fetchone()["n"] == 0  # dry-run nic nie zapisuje
+    assert '"offers": 4' in capsys.readouterr().err
+
+    assert stage_offers(ctx, fetcher) == {"domains": 1, "with_offers": 1, "offers_new": 4}
+    rows = conn.execute("select title, url, position, is_active from offers order by position").fetchall()
+    assert [r["title"] for r in rows] == [f"Mieszkanie {i} pokoje, Wrocław" for i in (1, 2, 3, 4)]
+    assert rows[0]["url"] == AGENCY + "oferta/mieszkanie-1-pokoje-1001"
+    checked = conn.execute("select offers_url, offers_checked_at from domains where offers_url is not null").fetchone()
+    assert checked["offers_url"] == AGENCY + "oferty" and checked["offers_checked_at"]
+
+    fetcher.pages[AGENCY + "oferty"] = offers_page([3, 4, 5])
+    counts = stage_offers(ctx, fetcher)
+    assert counts == {"domains": 1, "with_offers": 1, "offers_new": 1, "offers_updated": 2, "offers_deactivated": 2}
+    active = conn.execute("select title, position from offers where is_active order by position").fetchall()
+    assert [r["title"] for r in active] == [f"Mieszkanie {i} pokoje, Wrocław" for i in (3, 4, 5)]
+
+    del fetcher.pages[AGENCY + "oferty"]  # strona z ofertami nie działa: poprzednie oferty zostają
+    assert stage_offers(ctx, fetcher) == {"domains": 1, "without_offers": 1}
+    assert conn.execute("select count(*)::int as n from offers where is_active").fetchone()["n"] == 3
+    assert conn.execute("select offers_url from domains where offers_url is not null").fetchone()["offers_url"] == AGENCY + "oferty"

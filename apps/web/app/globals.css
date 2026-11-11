@@ -107,3 +107,8 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4
   .admin-nav .who { margin: 0 0 0 auto; }
   .admin-main { padding: 16px; }
 }
+.offers { list-style: none; padding: 0; margin: 12px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.offers li { padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.offers li:last-child { border-bottom: 0; }
+.offers a { text-decoration: none; }
+.offers a:hover { text-decoration: underline; }

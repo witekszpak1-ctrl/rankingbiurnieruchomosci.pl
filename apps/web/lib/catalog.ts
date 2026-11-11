@@ -30,12 +30,20 @@ export type PriceRow = {
   observedAt: Date;
 };
 
+export type OfferRow = { title: string; url: string; lastSeenAt: Date };
+
+/** Oferty niewidziane na stronie firmy dłużej niż tyle dni nie są pokazywane (strona ofert mogła przestać działać). */
+export const OFFERS_MAX_AGE_DAYS = 14;
+export const OFFERS_LIMIT = 20;
+
 export type ListingDetail = ListingCard & {
   cityName: string;
   citySlug: string;
   legalForm: string | null;
   services: string[];
   prices: PriceRow[];
+  offers: OfferRow[];
+  offersSourceUrl: string | null;
   updatedAt: Date;
 };
 
@@ -88,7 +96,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
   );
   const card = cards[0];
   if (!card) return null;
-  const [prices, services, descriptionDates] = await Promise.all([
+  const [prices, services, descriptionDates, offers, offerSources] = await Promise.all([
     query<PriceRow>(
       `select service, unit, amount_min::float8 as "amountMin", amount_max::float8 as "amountMax",
               tax_mode as "taxMode", quote, source_url as "sourceUrl", observed_at as "observedAt"
@@ -104,13 +112,31 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
        order by version desc limit 1`,
       [card.brandId],
     ),
+    query<OfferRow>(
+      `select title, url, last_seen_at as "lastSeenAt" from offers
+       where brand_id = $1 and is_active and last_seen_at > now() - make_interval(days => $2)
+       order by position, first_seen_at desc limit $3`,
+      [card.brandId, OFFERS_MAX_AGE_DAYS, OFFERS_LIMIT],
+    ),
+    query<{ url: string }>(
+      `select offers_url as url from domains where brand_id = $1 and verification_status = 'verified'
+       and offers_url is not null order by offers_checked_at desc nulls last limit 1`,
+      [card.brandId],
+    ),
   ]);
   const dates = [card.publishedAt, descriptionDates[0]?.createdAt, ...prices.map((p) => p.observedAt)]
     .filter((d): d is Date => d instanceof Date)
     .map((d) => d.getTime());
   const { brandId: _brandId, ...rest } = card;
   void _brandId;
-  return { ...rest, services: services.map((s) => s.name), prices, updatedAt: new Date(Math.max(0, ...dates)) };
+  return {
+    ...rest,
+    services: services.map((s) => s.name),
+    prices,
+    offers,
+    offersSourceUrl: offerSources[0]?.url ?? null,
+    updatedAt: new Date(Math.max(0, ...dates)),
+  };
 }
 
 export type CommissionStats = { n: number; median: number | null; observedAt: Date | null };
