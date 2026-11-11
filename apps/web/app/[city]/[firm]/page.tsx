@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { FirmImage } from "@/components/FirmImage";
 import { LeadForm } from "@/components/LeadForm";
 import { ShowPhone } from "@/components/ShowPhone";
+import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
 import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
@@ -70,6 +71,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
     verificationScore: listing.verificationScore,
     servicesCount: listing.servicesCount,
     offersCount: listing.offersCount,
+    googleRating: listing.googleRating,
+    googleCount: listing.googleCount,
   });
   const years = yearsSince(listing.startDate);
   const path = `/${listing.citySlug}/${listing.slug}`;
@@ -98,6 +101,13 @@ export default async function FirmPage({ params, searchParams }: Props) {
               <span>{listing.name}</span>
             </nav>
             <h1 className="profile-name">{listing.name}</h1>
+            {listing.googleRating && listing.googleCount ? (
+              <div className="profile-rating">
+                <Stars value={listing.googleRating} />
+                <b>{listing.googleRating.toFixed(1)}</b>
+                <a href="#opinie">({listing.googleCount} opinii w Google)</a>
+              </div>
+            ) : null}
             <div className="profile-score">
               <span className="score-pill">{score}/100</span>
               <span>wynik w rankingu biur w mieście {listing.cityName}</span>
@@ -127,6 +137,46 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 <h2>O biurze</h2>
                 <p className="profile-about">{listing.description}</p>
                 <p className="note">Opis przygotowaliśmy na podstawie strony biura i rejestrów publicznych.</p>
+              </section>
+            )}
+
+            {listing.google && listing.google.reviews.length > 0 && (
+              <section className="profile-section" id="opinie">
+                <div className="reviews-head">
+                  <h2>Opinie klientów</h2>
+                  {listing.googleRating && (
+                    <span className="reviews-summary">
+                      <Stars value={listing.googleRating} size={16} /> {listing.googleRating.toFixed(1)} · {listing.googleCount}{" "}
+                      opinii
+                    </span>
+                  )}
+                </div>
+                <ul className="reviews">
+                  {listing.google.reviews.map((r, i) => (
+                    <li key={`${r.author}-${i}`}>
+                      <span className="review-avatar" aria-hidden="true">
+                        {r.author.slice(0, 1).toUpperCase()}
+                      </span>
+                      <div>
+                        <div className="review-meta">
+                          <b>{r.author}</b>
+                          {r.relative_time && <span>{r.relative_time}</span>}
+                          <span className="review-source">Google</span>
+                        </div>
+                        <Stars value={r.rating} size={16} />
+                        <p>{r.text}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className="note">
+                  Opinie pochodzą z Google i są wyświetlane bez zmian.{" "}
+                  {listing.google.mapsUrl && (
+                    <a href={listing.google.mapsUrl} target="_blank" rel="noopener nofollow">
+                      Zobacz wszystkie opinie w Google Maps
+                    </a>
+                  )}
+                </p>
               </section>
             )}
 

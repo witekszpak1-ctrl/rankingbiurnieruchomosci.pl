@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
 import { JsonLd, Logo, PublicShell } from "@/components/SiteChrome";
+import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
 import { rankListings, type RankingInput } from "@/lib/ranking";
@@ -16,6 +17,8 @@ const toInput = (l: TopListing): RankingInput => ({
   verificationScore: l.verificationScore,
   servicesCount: l.servicesCount,
   offersCount: l.offersCount,
+  googleRating: l.googleRating,
+  googleCount: l.googleCount,
 });
 
 const STEPS = [
@@ -221,6 +224,11 @@ export default async function HomePage({ searchParams }: Props) {
                     </div>
                     <h3>{f.name}</h3>
                     <p className="agency-city">{f.cityName}</p>
+                    {f.googleRating && f.googleCount ? (
+                      <div className="agency-rating">
+                        <Stars value={f.googleRating} size={14} /> {f.googleRating.toFixed(1)} ({f.googleCount})
+                      </div>
+                    ) : null}
                     <div className="agency-tags">
                       {f.offersCount > 0 && <span className="tag">{f.offersCount} ofert</span>}
                       {f.hasPublicPrices && <span className="tag ok">jawny cennik</span>}

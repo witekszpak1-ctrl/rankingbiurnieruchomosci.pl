@@ -143,6 +143,15 @@ def cmd_cities(args) -> int:
     return 0
 
 
+def cmd_google_reviews(args) -> int:
+    from .pipeline import stage_google_reviews
+
+    with connect() as conn:
+        ctx, _ = _context(args, conn)
+        _print(stage_google_reviews(ctx, args.limit))
+    return 0
+
+
 def cmd_requeue_lost(args) -> int:
     from .pipeline import stage_requeue_lost
 
@@ -243,6 +252,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("cities", cmd_cities, "dopisz miasta z listy branży do bazy i zapisz kolejkę wyszukiwania")
     p.add_argument("--file", default="packages/verticals/nieruchomosci/cities.txt")
     p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
+    p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Google (Places API, wymaga GOOGLE_PLACES_API_KEY)")
+    p.add_argument("--limit", type=int, default=100)
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
     p.add_argument("--limit", type=int, default=300)
     p = add("publish-ready", cmd_publish_ready, "opublikuj wpisy spełniające bramkę (gdy auto_publish = true)")

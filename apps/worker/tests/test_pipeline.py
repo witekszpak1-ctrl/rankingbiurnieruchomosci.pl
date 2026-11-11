@@ -653,3 +653,28 @@ def test_pick_image_prefers_og_then_logo_then_icon_and_skips_svg():
     icon = '<html><head><link rel="apple-touch-icon" href="/apple.png"></head></html>'
     assert pick_image(icon, base) == ("https://przyklad.pl/apple.png", "icon")
     assert pick_image('<html><head><meta property="og:image" content="http://x.pl/a.jpg"></head></html>', base) is None
+
+
+def test_google_place_is_matched_by_website_domain_or_name_and_reviews_are_parsed():
+    import httpx
+
+    from katalog_worker.google_places import fetch_place
+
+    def handler(request):
+        assert request.headers["X-Goog-Api-Key"] == "test"
+        return httpx.Response(200, json={"places": [
+            {"id": "other", "displayName": {"text": "Inna firma"}, "websiteUri": "https://inna.pl/"},
+            {"id": "ours", "displayName": {"text": "Przykład Nieruchomości"}, "websiteUri": "https://www.przyklad.pl/kontakt",
+             "rating": 4.7, "userRatingCount": 31, "googleMapsUri": "https://maps.google.com/?cid=1",
+             "reviews": [{"rating": 5, "text": {"text": "Bardzo pomocni."},
+                          "authorAttribution": {"displayName": "Anna K."}, "relativePublishTimeDescription": "miesiąc temu"}]},
+        ]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    result = fetch_place("Przykład Nieruchomości", "Wrocław", "https://przyklad.pl/", lambda n: False, client, "test")
+    assert (result.place_id, result.rating, result.rating_count) == ("ours", 4.7, 31)
+    assert result.reviews[0]["author"] == "Anna K." and result.reviews[0]["rating"] == 5
+
+    empty = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"places": [
+        {"id": "x", "displayName": {"text": "Zupełnie inna"}, "websiteUri": "https://inna.pl/"}]})))
+    assert fetch_place("Przykład", "Wrocław", "https://przyklad.pl/", lambda n: False, empty, "test").status == "not_found"

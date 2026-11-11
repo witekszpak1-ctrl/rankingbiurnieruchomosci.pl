@@ -48,6 +48,17 @@ describe("scoreListing", () => {
     expect(some).toBeLessThan(many);
   });
 
+  it("opinie Google liczą się tylko gdy są, ocena i liczba opinii podnoszą wynik", () => {
+    const base = { startDate: "2010-01-01", hasPublicPrices: true, verificationScore: 90, servicesCount: 4, offersCount: 10 };
+    const none = scoreListing(base, NOW);
+    expect(none.breakdown.find((b) => b.key === "opinie_google")).toBeUndefined();
+    const few = scoreListing({ ...base, googleRating: 4.8, googleCount: 5 }, NOW).score;
+    const many = scoreListing({ ...base, googleRating: 4.8, googleCount: 60 }, NOW).score;
+    const bad = scoreListing({ ...base, googleRating: 2.1, googleCount: 60 }, NOW).score;
+    expect(few).toBeLessThan(many);
+    expect(bad).toBeLessThan(many);
+  });
+
   it("nieprawidłowa data nie psuje wyniku", () => {
     const { breakdown } = scoreListing(
       { startDate: "nie-data", hasPublicPrices: true, verificationScore: 50, servicesCount: 1 },
@@ -57,7 +68,7 @@ describe("scoreListing", () => {
   });
 
   it("wagi parametrów zgadzają się z opisem metodologii", () => {
-    expect(PARAMETERS.map((p) => p.weight)).toEqual([10, 15, 10, 10, 15]);
+    expect(PARAMETERS.map((p) => p.weight)).toEqual([10, 15, 10, 10, 10, 15]);
   });
 });
 

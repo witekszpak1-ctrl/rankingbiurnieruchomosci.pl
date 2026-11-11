@@ -42,3 +42,8 @@ jobs:
       - name: Kontakty ze stron biur (telefon, e-mail firmowy, social media)
         if: ${{ !inputs.dry_run }}
         run: katalog contacts --limit 300
+      - name: Opinie z Google (Places API, gdy jest klucz)
+        if: ${{ !inputs.dry_run }}
+        env:
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: katalog google-reviews --limit 100

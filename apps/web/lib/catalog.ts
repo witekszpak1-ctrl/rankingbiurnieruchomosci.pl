@@ -19,8 +19,18 @@ export type ListingCard = {
   offersCount: number;
   imageUrl: string | null;
   imageKind: string | null;
+  googleRating: number | null;
+  googleCount: number | null;
   description: string | null;
   publishedAt: Date | null;
+};
+
+export type GoogleReview = {
+  author: string;
+  author_url?: string | null;
+  rating: number;
+  text: string;
+  relative_time?: string | null;
 };
 
 export type PriceRow = {
@@ -58,11 +68,14 @@ export type ListingDetail = ListingCard & {
   phone: string | null;
   address: string | null;
   socials: { network: string; url: string }[];
+  google: { mapsUrl: string | null; reviews: GoogleReview[] } | null;
   updatedAt: Date;
 };
 
 const CARD_SQL = `
   select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl", b.image_kind as "imageKind",
+    (select g.rating::float8 from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleRating",
+    (select g.rating_count from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleCount",
     le.start_date as "startDate", d.verification_score as "verificationScore",
     (select count(*)::int from facts f where f.brand_id = b.id and f.type = 'service' and f.is_current) as "servicesCount",
     exists (select 1 from price_items p where p.brand_id = b.id and p.is_current) as "hasPublicPrices",
@@ -112,7 +125,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
   );
   const card = cards[0];
   if (!card) return null;
-  const [prices, services, descriptionDates, offers, offerSources, phones, addresses, socials] = await Promise.all([
+  const [prices, services, descriptionDates, offers, offerSources, phones, addresses, socials, google] = await Promise.all([
     query<PriceRow>(
       `select service, unit, amount_min::float8 as "amountMin", amount_max::float8 as "amountMax",
               tax_mode as "taxMode", quote, source_url as "sourceUrl", observed_at as "observedAt"
@@ -153,6 +166,10 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
       `select network, url from social_links where brand_id = $1 order by network`,
       [card.brandId],
     ),
+    query<{ mapsUrl: string | null; reviews: GoogleReview[] }>(
+      `select maps_url as "mapsUrl", reviews from google_places where brand_id = $1 and status = 'ok'`,
+      [card.brandId],
+    ).catch(() => []),
   ]);
   const dates = [card.publishedAt, descriptionDates[0]?.createdAt, ...prices.map((p) => p.observedAt)]
     .filter((d): d is Date => d instanceof Date)
@@ -167,6 +184,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
     offersSourceUrl: offerSources[0]?.url ?? null,
     phone: phones[0]?.value ?? null,
     socials,
+    google: google[0] ?? null,
     address: addresses[0] ? addressText(addresses[0].value) : null,
     updatedAt: new Date(Math.max(0, ...dates)),
   };

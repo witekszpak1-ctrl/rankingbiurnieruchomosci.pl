@@ -498,6 +498,38 @@ class Repo:
                 (brand_id, network, url, source),
             )
 
+    def brands_for_google_reviews(self, limit: int, max_age_days: int) -> list[dict]:
+        return self.conn.execute(
+            """select b.id as brand_id, b.name, c.name as city, d.canonical_url as website from listings l
+               join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
+               left join lateral (select canonical_url from domains where brand_id = b.id
+                                  order by verification_score desc nulls last limit 1) d on true
+               left join google_places g on g.brand_id = b.id
+               where l.status = 'published'
+                 and (g.fetched_at is null or g.fetched_at < now() - make_interval(days => %s))
+               order by g.fetched_at nulls first limit %s""",
+            (max_age_days, limit),
+        ).fetchall()
+
+    def save_google_place(self, brand_id: str, result) -> None:
+        """Zapisuje wynik. Przy błędzie API poprzednie dane zostają, zmienia się tylko status i data."""
+        if result.status == "error":
+            self.conn.execute(
+                """insert into google_places (brand_id, status) values (%s, 'error')
+                   on conflict (brand_id) do update set status = 'error', fetched_at = now()""",
+                (brand_id,),
+            )
+            return
+        self.conn.execute(
+            """insert into google_places (brand_id, place_id, rating, rating_count, maps_url, reviews, status)
+               values (%s, %s, %s, %s, %s, %s, %s)
+               on conflict (brand_id) do update set place_id = excluded.place_id, rating = excluded.rating,
+                 rating_count = excluded.rating_count, maps_url = excluded.maps_url, reviews = excluded.reviews,
+                 status = excluded.status, fetched_at = now()""",
+            (brand_id, result.place_id, result.rating, result.rating_count, result.maps_url,
+             Jsonb(result.reviews), result.status),
+        )
+
     def save_brand_image(self, brand_id: str, image: tuple[str, str] | None) -> None:
         """Zapamiętuje obrazek firmy. Gdy odczyt nic nie dał, poprzedni obrazek zostaje."""
         if image:

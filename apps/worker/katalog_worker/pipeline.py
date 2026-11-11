@@ -719,6 +719,31 @@ def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> di
     return dict(counts)
 
 
+# ----------------------------------------------------------------------------- opinie Google
+
+
+def stage_google_reviews(ctx: Context, limit: int = 100, max_age_days: int = 7) -> dict:
+    """Ocena i opinie z Google dla firm w katalogu (najdawniej odświeżane pierwsze). Bez klucza API nic nie robi."""
+    import os
+
+    from .google_places import fetch_place
+
+    if not os.environ.get("GOOGLE_PLACES_API_KEY"):
+        return {"skipped": "brak GOOGLE_PLACES_API_KEY"}
+    repo = ctx.repo
+    counts: Counter = Counter()
+    for row in repo.brands_for_google_reviews(limit, max_age_days):
+        result = fetch_place(
+            row["name"], row["city"], row["website"],
+            lambda found: name_similarity(row["name"], found) >= 0.6,
+        )
+        repo.save_google_place(str(row["brand_id"]), result)
+        counts[result.status] += 1
+        counts["reviews"] += len(result.reviews)
+        repo.conn.commit()
+    return dict(counts)
+
+
 # ----------------------------------------------------------------------------- publikacja
 
 
