@@ -323,3 +323,11 @@ def test_prices_from_cards_and_from_offer_urls():
     )
     offers, _ = extract_offers(f"<html><body><ul>{rent}</ul></body></html>", "https://biuro.pl/oferty")
     assert [(o.price_amount, o.price_period) for o in offers] == [(3000.0, "month"), (2700.0, "month"), (2000.0, "month")]
+
+
+def test_rent_word_in_card_title_marks_price_as_monthly():
+    from bs4 import BeautifulSoup
+    from katalog_worker.offers import price_from_card
+
+    card = BeautifulSoup('<div><h3>Wrocław Lokal użytkowy - Wynajem</h3><b class="cena">2 900 zł</b></div>', "lxml").div
+    assert price_from_card(card, "https://biuro.pl/oferta/FW020053") == (2900.0, "PLN", "month")

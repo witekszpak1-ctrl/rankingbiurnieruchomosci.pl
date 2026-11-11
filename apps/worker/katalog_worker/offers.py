@@ -149,12 +149,13 @@ def price_from_card(card: Tag | None, url: str) -> tuple[float, str, str | None]
     """Cena z karty oferty (najpierw element oznaczony jako cena), a gdy jej brak, z adresu oferty (np. -358680zl/)."""
     rent = bool(_RENT_HINT.search(url))
     if card is not None:
+        whole = " ".join(card.get_text(" ").split())
+        rent = rent or bool(_RENT_HINT.search(whole[:2000]))
         candidates = [" ".join(e.get_text(" ").split()) for e in card.find_all(class_=_PRICE_CLASS)]
-        candidates.append(" ".join(card.get_text(" ").split()))
+        candidates.append(whole)
         for text in candidates:
             if text and len(text) <= 2000:
-                rent_here = rent or bool(_RENT_HINT.search(text))
-                found = parse_price(text, rent_here)
+                found = parse_price(text, rent)
                 if found:
                     return found
     match = _SLUG_PRICE_RE.search(urlsplit(url).path)
