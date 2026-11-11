@@ -95,8 +95,9 @@ jobs:
         env:
           INPUT_LIMIT: ${{ inputs.limit || '200' }}
         run: |
-          katalog probe --limit "$INPUT_LIMIT"
-          katalog verify --limit "$INPUT_LIMIT"
+          # Otwieranie stron i rejestry są szybkie (kilka sekund na stronę), więc biorą 2 razy więcej niż reszta.
+          katalog probe --limit "$((INPUT_LIMIT * 2))"
+          katalog verify --limit "$((INPUT_LIMIT * 2))"
           katalog crawl-deep --limit "$INPUT_LIMIT"
           katalog bundle --limit "$INPUT_LIMIT"
           katalog status

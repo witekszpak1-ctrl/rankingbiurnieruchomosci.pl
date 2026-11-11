@@ -34,7 +34,8 @@ const PIPELINE_UTC_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
 const OFFERS_UTC = { h: 5, m: 7 };
 
 const CLAUDE_STAGES = new Set(["claude_session"]);
-const OFFERS_STAGES = new Set(["offers", "contacts", "google_reviews"]);
+// Kroki tylko z workflow "dane firm" (contacts działa też w każdym przebiegu pipeline).
+const OFFERS_STAGES = new Set(["offers", "google_reviews"]);
 
 const MIN = 60 * 1000;
 
@@ -113,14 +114,60 @@ export function buildDayPlan(day: string, runs: Run[], now = new Date()): Slot[]
     .sort((a, b) => a.at.getTime() - b.at.getTime())
     .map((s) => ({ ...s, state: "planned" as SlotState, runs: [] as Run[] }));
 
-  // Każdy przebieg trafia do ostatniej pozycji planu tego samego rodzaju, która zaczęła się najpóźniej
-  // 10 minut po nim (GitHub często startuje z opóźnieniem, sesja Claude czasem chwilę wcześniej).
-  for (const run of runs) {
-    const kind = kindOf(run.stage);
-    const candidates = slots.filter((s) => s.kind === kind && s.at.getTime() <= run.startedAt.getTime() + 10 * MIN);
+  // Sesja Claude: raport trafia do ostatniej sesji z planu, która zaczęła się najpóźniej 10 minut po nim.
+  for (const run of runs.filter((r) => kindOf(r.stage) === "claude")) {
+    const candidates = slots.filter((s) => s.kind === "claude" && s.at.getTime() <= run.startedAt.getTime() + 10 * MIN);
     const slot = candidates[candidates.length - 1];
     if (slot) slot.runs.push(run);
   }
+
+  // GitHub: kroki jednego przebiegu idą jeden po drugim, więc łączymy je w grupy (przerwa najwyżej 30 minut).
+  // Grupa trafia do najbliższej wcześniejszej pozycji planu bez wykonania (GitHub potrafi ruszyć z opóźnieniem,
+  // także gdy czeka na poprzedni przebieg). Grupa bez pasującej pozycji to przebieg uruchomiony ręcznie.
+  const extra: Slot[] = [];
+  {
+    // Workflowy GitHub nie nakładają się (wspólna grupa concurrency), więc grupujemy wszystkie kroki razem.
+    const list = runs.filter((r) => kindOf(r.stage) !== "claude").sort((x, y) => x.startedAt.getTime() - y.startedAt.getTime());
+    const groups: Run[][] = [];
+    for (const run of list) {
+      const last = groups[groups.length - 1]?.at(-1);
+      const lastEnd = last ? (last.finishedAt ?? last.startedAt).getTime() : 0;
+      // import i offers to pierwsze kroki workflowów: zaczynają nowy przebieg, nawet gdy ruszył zaraz po poprzednim
+      const firstStep = run.stage === "import" || run.stage === "offers";
+      if (!last || firstStep || run.startedAt.getTime() - lastEnd > 30 * MIN) groups.push([run]);
+      else groups[groups.length - 1].push(run);
+    }
+    for (const group of groups) {
+      const kind: SlotKind = group.some((r) => OFFERS_STAGES.has(r.stage)) ? "offers" : "pipeline";
+      const start = group[0].startedAt.getTime();
+      const free = slots.filter(
+        (s) => s.kind === kind && s.runs.length === 0 && s.at.getTime() <= start + 10 * MIN && start - s.at.getTime() < 150 * MIN,
+      );
+      const slot = free[free.length - 1];
+      if (slot) {
+        slot.runs.push(...group);
+        continue;
+      }
+      const onlyImport = group.every((r) => r.stage === "import" || r.stage === "publish");
+      const previous = slots.filter((s) => s.kind === kind && s.at.getTime() <= start).at(-1);
+      if (onlyImport && previous) {
+        // osobny workflow import.yml (zapis opisów i publikacja co 3 godziny): doliczamy do poprzedniego przebiegu
+        previous.runs.push(...group);
+        continue;
+      }
+      extra.push({
+        kind,
+        at: new Date(start),
+        title: kind === "offers" ? "Automat GitHub: dane firm (uruchomiony ręcznie)" : "Automat GitHub (uruchomiony ręcznie)",
+        system: kind === "offers" ? "GitHub Actions + Google Places" : "GitHub Actions + Serper + rejestry KRS i VAT",
+        what: "przebieg spoza harmonogramu",
+        state: "planned",
+        runs: group,
+      });
+    }
+  }
+  slots.push(...extra);
+  slots.sort((x, y) => x.at.getTime() - y.at.getTime());
 
   for (const s of slots) {
     const t = now.getTime() - s.at.getTime();

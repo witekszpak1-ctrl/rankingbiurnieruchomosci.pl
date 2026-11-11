@@ -10,6 +10,7 @@ Uwaga prawna: to scraping Google przez dostawcę. Zobacz sekcję o ryzykach w do
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Callable
 
@@ -19,6 +20,8 @@ from .base import SearchError, SearchResult
 
 BASE_URL = "https://google.serper.dev/search"
 RETRY_STATUSES = {429, 500, 502, 503, 504}
+# "biuro nieruchomości Gdynia (strona 2)" = to samo zapytanie, kolejna strona wyników Google
+PAGE_SUFFIX = re.compile(r"\s*\(strona (\d+)\)\s*$")
 
 
 class SerperSearch:
@@ -44,7 +47,13 @@ class SerperSearch:
     def search(
         self, query: str, *, country: str = "pl", lang: str = "pl", count: int = 10
     ) -> list[SearchResult]:
+        page = 1
+        if match := PAGE_SUFFIX.search(query):
+            page = int(match.group(1))
+            query = query[: match.start()]
         body = {"q": query, "gl": country.lower(), "hl": lang.lower(), "num": min(max(count, 1), 10)}
+        if page > 1:
+            body["page"] = page
         headers = {"X-API-KEY": self._api_key, "Content-Type": "application/json"}
         response = None
         for attempt in range(self._max_retries + 1):

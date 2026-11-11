@@ -19,6 +19,7 @@ _LAST: dict = {}
 # Polecenia, których każde uruchomienie trafia do pipeline_runs (widać je w panelu: co działa teraz i co było).
 # discover, probe i verify zapisują przebiegi same.
 LOGGED = {
+    "discover-queue": "search",
     "import": "import",
     "publish-ready": "publish",
     "crawl-deep": "crawl_deep",

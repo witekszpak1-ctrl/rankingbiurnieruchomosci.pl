@@ -336,3 +336,7 @@
 .adm .up-title { margin: 16px 0 4px; font-size: 1rem; }
 .adm table.report.upcoming td.wrap { white-space: normal; min-width: 280px; font-size: 0.86rem; color: var(--a-muted); }
 .adm table.report.upcoming td { vertical-align: top; }
+.adm .funnel { list-style: none; padding: 0; margin: 8px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.adm .funnel li { background: var(--a-bg); border: 1px solid var(--a-line); border-radius: 10px; padding: 10px 12px; position: relative; }
+.adm .funnel b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.adm .funnel span { font-size: 0.8rem; color: var(--a-muted); line-height: 1.3; display: block; }

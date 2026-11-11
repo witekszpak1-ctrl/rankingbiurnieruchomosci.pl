@@ -110,14 +110,15 @@ def test_discover_queue_searches_next_cities_and_marks_them(db, tmp_path):
     provider = _Provider()
     result = stage_discover_queue(ctx, provider, 2, {"Kraków": ["Podgórze", "Nowa Huta"]})
     assert result["cities"] == 2
-    assert any("Kraków Podgórze" in q for q in provider.queries)
-    assert sum("Tarnów" in q for q in provider.queries) == 7
+    assert "biuro nieruchomości Kraków Podgórze" in provider.queries
+    assert "biuro nieruchomości Kraków (strona 5)" in provider.queries
+    assert sum("Tarnów" in q for q in provider.queries) == 6
     searched = {r["name"] for r in db.execute("select name from cities where last_searched_at is not null")}
     assert searched == {"Kraków", "Tarnów"}
     # drugi przebieg bierze kolejne miasto
     provider2 = _Provider()
     stage_discover_queue(ctx, provider2, 2, {})
-    assert {q.split()[-1] for q in provider2.queries} == {"Sącz"}
+    assert all("Nowy Sącz" in q for q in provider2.queries) and len(provider2.queries) == 6
 
 
 def test_discover_queue_stops_on_search_error(db, tmp_path):
@@ -141,3 +142,21 @@ def test_prompts_export_writes_panel_prompt(db, db_url, monkeypatch, tmp_path):
     db.commit()
     assert cli.main(["prompts", "--export", str(out)]) == 0
     assert out.read_text(encoding="utf-8") == "Pisz krótko.\n"
+
+
+def test_serper_page_suffix_becomes_page_param():
+    import httpx
+
+    from katalog_worker.search.serper import SerperSearch
+
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"organic": [{"link": "https://a.pl/", "title": "A"}]})
+
+    s = SerperSearch("k", client=httpx.Client(transport=httpx.MockTransport(handler)))
+    s.search("biuro nieruchomości Gdynia (strona 3)")
+    s.search("biuro nieruchomości Gdynia")
+    assert seen[0]["q"] == "biuro nieruchomości Gdynia" and seen[0]["page"] == 3
+    assert "page" not in seen[1]

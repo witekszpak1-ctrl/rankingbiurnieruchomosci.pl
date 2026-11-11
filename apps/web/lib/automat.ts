@@ -11,10 +11,11 @@ export type AutomatStatus = {
   publishedLast7: number;
   published: number;
   preparing: number;
+  funnel: { toCheck: number; agencies: number; confirmed: number; unconfirmed: number; rejected: number };
 };
 
 export async function getAutomatStatus(): Promise<AutomatStatus> {
-  const [cities, next, last, other] = await Promise.all([
+  const [cities, next, last, other, funnel] = await Promise.all([
     query<{ total: number; searched: number; queued: number }>(
       `select count(*)::int as total, count(last_searched_at)::int as searched,
               count(*) filter (where search_enabled and last_searched_at is null)::int as queued from cities`,
@@ -34,6 +35,14 @@ export async function getAutomatStatus(): Promise<AutomatStatus> {
               (select count(*)::int from listings where status = 'published') as published,
               (select count(*)::int from listings where status in ('candidate', 'needs_review', 'verified')) as preparing`,
     ),
+    query<{ toCheck: number; agencies: number; confirmed: number; unconfirmed: number; rejected: number }>(
+      `select count(*) filter (where verification_status = 'candidate')::int as "toCheck",
+              count(*) filter (where classification = 'official')::int as agencies,
+              count(*) filter (where verification_status in ('verified', 'probable'))::int as confirmed,
+              count(*) filter (where verification_status = 'needs_review')::int as unconfirmed,
+              count(*) filter (where verification_status = 'rejected')::int as rejected
+       from domains`,
+    ).catch(() => []),
   ]);
   const c = cities[0] ?? { total: 0, searched: 0, queued: 0 };
   const o = other[0];
@@ -48,6 +57,7 @@ export async function getAutomatStatus(): Promise<AutomatStatus> {
     publishedLast7: o?.pub7 ?? 0,
     published: o?.published ?? 0,
     preparing: o?.preparing ?? 0,
+    funnel: funnel[0] ?? { toCheck: 0, agencies: 0, confirmed: 0, unconfirmed: 0, rejected: 0 },
   };
 }
 

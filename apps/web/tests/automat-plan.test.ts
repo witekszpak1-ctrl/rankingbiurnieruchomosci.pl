@@ -33,4 +33,24 @@ describe("plan dnia automatu", () => {
     expect(at("07:17", "pipeline").state).toBe("missed");
     expect(at("13:17", "pipeline").state).toBe("planned");
   });
+
+  it("przebieg uruchomiony ręcznie pokazuje osobno, kroki jednego przebiegu razem", () => {
+    const now = warsawAt(day, 12, 30);
+    const r = (id: string, stage: string, h: number, m: number, h2: number, m2: number) => ({
+      id, stage, status: "ok", counts: {}, startedAt: warsawAt(day, h, m), finishedAt: warsawAt(day, h2, m2),
+    });
+    const runs = [
+      r("a", "import", 10, 25, 10, 26), r("b", "probe", 10, 27, 10, 40), r("c", "verify", 10, 41, 10, 45),
+      r("d", "offers", 11, 40, 11, 44), r("e", "contacts", 11, 44, 12, 0),
+      r("f", "import", 12, 1, 12, 1), r("g", "discover", 12, 2, 12, 20),
+    ];
+    const plan = buildDayPlan(day, runs, now);
+    const scheduled = plan.find((s) => hhmm(s.at) === "10:17" && s.kind === "pipeline")!;
+    expect(scheduled.runs.map((x) => x.id)).toEqual(["a", "b", "c"]);
+    const manual = plan.filter((s) => s.title.includes("ręcznie"));
+    expect(manual.map((s) => [s.kind, s.runs.map((x) => x.id).join("")])).toEqual([
+      ["offers", "de"],
+      ["pipeline", "fg"],
+    ]);
+  });
 });

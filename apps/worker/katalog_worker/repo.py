@@ -92,13 +92,14 @@ class Repo:
 
     def start_run(self, stage: str, vertical_id: str | None) -> str:
         row = self.conn.execute(
-            "insert into pipeline_runs (stage, vertical_id) values (%s, %s) returning id", (stage, vertical_id)
+            "insert into pipeline_runs (stage, vertical_id, started_at) values (%s, %s, clock_timestamp()) returning id",
+            (stage, vertical_id),
         ).fetchone()
         return str(row["id"])
 
     def finish_run(self, run_id: str, status: str, counts: dict, cost_usd: float = 0.0, errors: list | None = None) -> None:
         self.conn.execute(
-            """update pipeline_runs set status = %s, counts = %s, cost_usd = %s, errors = %s, finished_at = now()
+            """update pipeline_runs set status = %s, counts = %s, cost_usd = %s, errors = %s, finished_at = clock_timestamp()
                where id = %s""",
             (status, Jsonb(counts), cost_usd, Jsonb(errors or []), run_id),
         )

@@ -58,7 +58,8 @@ const STEPS = [
 
 const STAGE_NAME: Record<string, string> = {
   claude_session: "Sesja Claude",
-  discover: "Dopisanie znalezionych stron",
+  search: "Szukanie biur (Serper)",
+  discover: "Szukanie w mieście",
   probe: "Otwieranie stron",
   verify: "Sprawdzanie w KRS i VAT",
   crawl_deep: "Pobieranie podstron",
@@ -232,6 +233,33 @@ export default async function RunsPage({ searchParams }: Props) {
             </div>
           </>
         )}
+        <h3 className="up-title">Znalezione strony i firmy (wszystkie miasta)</h3>
+        <ol className="funnel">
+          <li>
+            <b>{s.funnel.toCheck}</b>
+            <span>stron czeka na sprawdzenie (automat otwiera je co 3 godziny, do 400 naraz)</span>
+          </li>
+          <li>
+            <b>{s.funnel.agencies}</b>
+            <span>to strony biur nieruchomości</span>
+          </li>
+          <li>
+            <b>{s.funnel.confirmed}</b>
+            <span>firm potwierdzonych w KRS lub VAT</span>
+          </li>
+          <li>
+            <b>{s.bundlesWaiting}</b>
+            <span>czeka na opis Claude</span>
+          </li>
+          <li>
+            <b>{s.published}</b>
+            <span>firm w katalogu na stronie</span>
+          </li>
+        </ol>
+        <p className="note">
+          Do tego {s.funnel.unconfirmed} stron biur bez potwierdzenia w rejestrze (brak NIP na stronie) i {s.funnel.rejected}{" "}
+          odrzuconych (portale, deweloperzy, inna branża).
+        </p>
         <div className="now-stats">
           <span>
             <b>{s.published}</b> firm w katalogu

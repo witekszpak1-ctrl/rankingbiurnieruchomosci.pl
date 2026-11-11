@@ -136,24 +136,27 @@ def stage_discover(
 
 # ----------------------------------------------------------------------------- szukanie przez API (kolejka miast)
 
-DEEP_EXTRA = [
-    "pośrednik nieruchomości {city}", "biuro nieruchomości {city} rynek pierwotny", "biuro nieruchomości {city} domy działki",
-    "nieruchomości komercyjne {city} agencja", "zarządzanie najmem {city}", "wycena nieruchomości {city} biuro",
-    "biuro nieruchomości {city} licencja", "biuro nieruchomości okolice {city}",
-]
+def _pages(query: str, pages: int) -> list[str]:
+    return [query] + [f"{query} (strona {n})" for n in range(2, pages + 1)]
 
 
-def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[str]], basic: int = 7) -> list[str]:
-    """Zwykłe miasto: 7 zapytań z szablonów branży. Dokładne: wszystkie szablony, zapytania tematyczne i po 2 na dzielnicę."""
+def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[str]]) -> list[str]:
+    """Zapytania tak, jak szuka klient: "biuro nieruchomości", "agencja nieruchomości", "pośrednik nieruchomości",
+    z kolejnymi stronami wyników Google zamiast fraz typu "sprzedaż domów", które zwracają deweloperów i portale.
+    Zwykłe miasto: 6 zapytań. Duże: więcej stron wyników i po jednym zapytaniu na dzielnicę."""
     if not deep:
-        return build_queries(ctx.vertical.search, city, limit=basic)
-    queries = build_queries(ctx.vertical.search, city)
-    queries += [q.format(city=city) for q in DEEP_EXTRA]
+        return _pages(f"biuro nieruchomości {city}", 3) + _pages(f"agencja nieruchomości {city}", 2) + [
+            f"pośrednik nieruchomości {city}"
+        ]
+    queries = (
+        _pages(f"biuro nieruchomości {city}", 5)
+        + _pages(f"agencja nieruchomości {city}", 4)
+        + _pages(f"pośrednik nieruchomości {city}", 2)
+        + _pages(f"biura nieruchomości {city}", 2)
+    )
     for district in districts.get(city, []):
         queries.append(f"biuro nieruchomości {city} {district}")
-        queries.append(f"agencja nieruchomości {district} {city} sprzedaż wynajem")
-    seen: set[str] = set()
-    return [q for q in queries if not (q.casefold() in seen or seen.add(q.casefold()))]
+    return queries
 
 
 def cities_to_search(ctx: Context, limit: int) -> list[dict]:

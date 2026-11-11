@@ -69,6 +69,7 @@ export function when(value: Date | string | null | undefined): string {
 
 const STAGES: Record<string, { title: string; icon: string }> = {
   discover: { title: "Szukanie nowych biur w internecie", icon: "🔎" },
+  search: { title: "Szukanie biur przez Serper (kolejne miasta)", icon: "🔎" },
   probe: { title: "Sprawdzanie znalezionych stron", icon: "🌐" },
   verify: { title: "Potwierdzanie firm w rejestrach (KRS, VAT)", icon: "✅" },
   crawl_deep: { title: "Zbieranie informacji ze stron firm", icon: "📄" },
