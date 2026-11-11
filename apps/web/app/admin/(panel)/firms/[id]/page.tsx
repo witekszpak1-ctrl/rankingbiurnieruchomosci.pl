@@ -122,17 +122,19 @@ export default async function FirmDetailPage({ params, searchParams }: Props) {
       {firm.description ? (
         <>
           <p>
-            <StatusBadge status={firm.description.status} /> wersja {firm.description.version}, autor:{" "}
-            {firm.description.author}
+            <StatusBadge status={firm.description.status} />{" "}
+            <span className="note">
+              wersja {firm.description.version}, napisany automatycznie na podstawie strony firmy i rejestrów
+            </span>
           </p>
           <div className="answer">{firm.description.body}</div>
           <details>
-            <summary>Raport walidatora</summary>
+            <summary>Szczegóły techniczne sprawdzenia opisu</summary>
             <pre className="mono">{JSON.stringify(firm.description.report, null, 2)}</pre>
           </details>
         </>
       ) : (
-        <p className="note">Brak opisu. Czeka na przetworzenie przez Claude Code.</p>
+        <p className="note">Opis jest w przygotowaniu. Pojawi się automatycznie w ciągu doby.</p>
       )}
 
       <h2>Ceny ({firm.prices.length})</h2>
