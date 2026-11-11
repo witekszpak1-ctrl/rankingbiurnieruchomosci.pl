@@ -1,6 +1,6 @@
 # Import wyników Claude Code do bazy (etap S7). Czyta paczki i wyniki z gałęzi queue-data,
 # waliduje wyniki w kodzie (cytaty w źródle, fakty, nakładanie się n-gramów, ceny) i zapisuje je w bazie.
-# Co 3 godziny: wyniki wysłane przez sesję Claude Code trafiają do bazy, a wpisy spełniające bramkę są publikowane.
+# Co godzinę: wyniki wysłane przez sesję Claude Code trafiają do bazy, a wpisy spełniające bramkę są publikowane.
 name: import
 
 on:
