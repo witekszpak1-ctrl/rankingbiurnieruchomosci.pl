@@ -22,7 +22,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 110
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
@@ -34,16 +34,21 @@ jobs:
       - run: pip install -e apps/worker
       - name: Migracje
         run: katalog migrate
+      # Opinie Google najpierw: szybkie (jedno zapytanie na firmę), a nie mogą czekać na długie kroki crawlera.
+      - name: Opinie z Google (Places API, gdy jest klucz)
+        if: ${{ !inputs.dry_run }}
+        env:
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: katalog google-reviews --limit 100
       - name: Oferty ze stron biur
+        timeout-minutes: 45
+        continue-on-error: true
         env:
           INPUT_LIMIT: ${{ inputs.limit || '300' }}
           INPUT_DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: katalog offers --limit "$INPUT_LIMIT" $INPUT_DRY_RUN
       - name: Kontakty ze stron biur (telefon, e-mail firmowy, social media)
         if: ${{ !inputs.dry_run }}
+        timeout-minutes: 45
+        continue-on-error: true
         run: katalog contacts --limit 300
-      - name: Opinie z Google (Places API, gdy jest klucz)
-        if: ${{ !inputs.dry_run }}
-        env:
-          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
-        run: katalog google-reviews --limit 100
