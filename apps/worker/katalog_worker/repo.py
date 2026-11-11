@@ -530,6 +530,13 @@ class Repo:
              Jsonb(result.reviews), result.status),
         )
 
+    def save_brand_logo_cover(self, brand_id: str, images: dict) -> None:
+        """Logo i zdjęcie firmy. Brak w nowym odczycie nie kasuje poprzedniej wartości."""
+        self.conn.execute(
+            "update brands set logo_url = coalesce(%s, logo_url), cover_url = coalesce(%s, cover_url) where id = %s",
+            (images.get("logo"), images.get("cover"), brand_id),
+        )
+
     def save_brand_image(self, brand_id: str, image: tuple[str, str] | None) -> None:
         """Zapamiętuje obrazek firmy. Gdy odczyt nic nie dał, poprzedni obrazek zostaje."""
         if image:

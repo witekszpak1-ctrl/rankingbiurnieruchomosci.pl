@@ -19,6 +19,8 @@ export type ListingCard = {
   offersCount: number;
   imageUrl: string | null;
   imageKind: string | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
   googleRating: number | null;
   googleCount: number | null;
   description: string | null;
@@ -74,6 +76,8 @@ export type ListingDetail = ListingCard & {
 
 const CARD_SQL = `
   select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl", b.image_kind as "imageKind",
+    coalesce(b.logo_url, case when b.image_kind <> 'og' then b.image_url end, b.image_url) as "logoUrl",
+    b.cover_url as "coverUrl",
     (select g.rating::float8 from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleRating",
     (select g.rating_count from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleCount",
     le.start_date as "startDate", d.verification_score as "verificationScore",

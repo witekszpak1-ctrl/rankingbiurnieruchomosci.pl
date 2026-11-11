@@ -689,6 +689,113 @@ def pick_image(html: str, page_url: str) -> tuple[str, str] | None:
     return None
 
 
+_LOGO_HINT = re.compile(r"(?i)logo|brand|znak")
+_ICON_HINT = re.compile(r"(?i)icon|favicon|sprite|avatar|flag|flaga|loader|spinner|pixel|placeholder|blank|arrow|strzal")
+_HERO_HINT = re.compile(r"(?i)hero|slider|slide|banner|baner|carousel|swiper|header-bg|top-bg|main-photo|cover|jumbotron")
+_PHOTO_EXT = re.compile(r"(?i)\.(jpe?g|webp|avif)(?:$|\?)")
+
+
+def pick_images(html: str, page_url: str) -> dict:
+    """Logo (do kółka) i zdjęcie (do banera) ze strony głównej biura.
+
+    Logo: JSON-LD logo, obrazek z "logo" w adresie/klasie/alt, og:image wyglądający na logo, duża ikona strony.
+    Zdjęcie: og:image o poziomych proporcjach albo bez cech logo, potem duży obrazek z sekcji hero/slidera
+    albo z tła w stylu, potem pierwsze duże zdjęcie JPG/WEBP z treści strony."""
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "lxml")
+
+    def ok(url) -> str | None:
+        if not url or not isinstance(url, str):
+            return None
+        url = url.strip().split(" ")[0]
+        absolute = urljoin(page_url, url)
+        if not absolute.startswith("https://") or _IMG_EXT_BAD.search(absolute) or len(absolute) > 1000:
+            return None
+        return absolute
+
+    def meta(*names: str) -> str | None:
+        for name in names:
+            tag = soup.find("meta", attrs={"property": name}) or soup.find("meta", attrs={"name": name})
+            if tag and tag.get("content"):
+                return str(tag["content"])
+        return None
+
+    logo: str | None = None
+    cover: str | None = None
+
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+        except (ValueError, TypeError):
+            continue
+        for node in data if isinstance(data, list) else [data]:
+            for item in [node, *((node.get("@graph") or []) if isinstance(node, dict) else [])]:
+                if isinstance(item, dict) and not logo:
+                    value = item.get("logo")
+                    if isinstance(value, dict):
+                        value = value.get("url")
+                    logo = ok(value if isinstance(value, str) else None)
+
+    og = ok(meta("og:image:secure_url", "og:image", "twitter:image"))
+    if og:
+        try:
+            width = int(meta("og:image:width") or 0)
+            height = int(meta("og:image:height") or 0)
+        except ValueError:
+            width = height = 0
+        looks_logo = bool(_LOGO_HINT.search(og)) or (width and height and width / max(height, 1) < 1.25)
+        if looks_logo:
+            logo = logo or og
+        else:
+            cover = og
+
+    images = soup.find_all("img")
+    if not logo:
+        for img in images:
+            hint = " ".join([str(img.get("src", "")), " ".join(img.get("class") or []), str(img.get("alt", "")),
+                             " ".join(p.get("class", [""])[0] if p.get("class") else "" for p in img.parents if p.name)])
+            if _LOGO_HINT.search(hint[:600]):
+                logo = ok(img.get("src") or img.get("data-src"))
+                if logo:
+                    break
+    if not cover:
+        for node in soup.select("[style*='background']"):
+            if _HERO_HINT.search(" ".join(node.get("class") or []) + " " + str(node.get("id", ""))):
+                match = re.search(r"url\(['\"]?([^'\")]+)", str(node.get("style", "")))
+                if match and (url := ok(match.group(1))) and not _LOGO_HINT.search(url):
+                    cover = url
+                    break
+    if not cover:
+        def candidates(in_hero: bool):
+            for img in images:
+                src = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
+                if not src or _LOGO_HINT.search(str(src)) or _ICON_HINT.search(str(src)):
+                    continue
+                try:
+                    width = int(str(img.get("width", "0")).rstrip("px") or 0)
+                except ValueError:
+                    width = 0
+                if 0 < width < 400:
+                    continue
+                parents = " ".join(" ".join(p.get("class") or []) for p in img.parents if p.name)[:800]
+                if in_hero and not _HERO_HINT.search(parents):
+                    continue
+                if not in_hero and not _PHOTO_EXT.search(str(src)):
+                    continue
+                if url := ok(src):
+                    yield url
+        cover = next(candidates(True), None) or next(candidates(False), None)
+
+    if not logo:
+        for rel in ("apple-touch-icon", "apple-touch-icon-precomposed", "icon"):
+            tag = soup.find("link", rel=lambda v: v and rel in (v if isinstance(v, list) else [v]))
+            if tag and (url := ok(tag.get("href"))) and not url.endswith(".ico"):
+                logo = url
+                break
+    return {"logo": logo, "cover": cover}
+
+
 def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> dict:
     """Telefon, e-mail firmowy i profile społecznościowe ze strony głównej i podstrony Kontakt zweryfikowanych biur."""
     repo = ctx.repo
@@ -708,11 +815,15 @@ def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300) -> di
         repo.save_contacts(str(row["brand_id"]), found)
         image = pick_image(home.text, home.final_url)
         repo.save_brand_image(str(row["brand_id"]), image)
+        images = pick_images(home.text, home.final_url)
+        repo.save_brand_logo_cover(str(row["brand_id"]), images)
         counts["with_image"] += bool(image)
+        counts["with_logo"] += bool(images["logo"])
+        counts["with_cover"] += bool(images["cover"])
         counts["domains"] += 1
         for key in ("phones", "emails", "socials"):
             counts[f"with_{key}"] += bool(found[key])
-        print(json.dumps({"host": row["host"], "image": image, **{k: [list(x) for x in v] for k, v in found.items()}},
+        print(json.dumps({"host": row["host"], "image": image, **images, **{k: [list(x) for x in v] for k, v in found.items()}},
                          ensure_ascii=False),
               file=sys.stderr)
         repo.conn.commit()

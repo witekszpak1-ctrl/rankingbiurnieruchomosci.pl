@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${listing.name} - biuro nieruchomości ${listing.cityName}`,
     description: listing.description ?? `Biuro nieruchomości ${listing.name} z miasta ${listing.cityName}.`,
     alternates: { canonical: `/${city}/${firm}` },
-    openGraph: listing.imageUrl ? { images: [listing.imageUrl] } : undefined,
+    openGraph: listing.coverUrl || listing.logoUrl ? { images: [(listing.coverUrl ?? listing.logoUrl) as string] } : undefined,
   };
 }
 
@@ -81,9 +81,9 @@ export default async function FirmPage({ params, searchParams }: Props) {
     <PublicShell wide>
       <div className="wrap profile">
         <div className="profile-cover">
-          {listing.imageUrl && listing.imageKind === "og" ? (
+          {listing.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={listing.imageUrl} alt="" referrerPolicy="no-referrer" />
+            <img src={listing.coverUrl} alt="" referrerPolicy="no-referrer" />
           ) : (
             <span className="cover-pattern" aria-hidden="true" />
           )}
@@ -91,7 +91,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
         <div className="profile-grid">
           <div className="profile-main">
             <div className="profile-avatar">
-              <FirmImage src={listing.imageUrl} kind={listing.imageKind} name={listing.name} size="lg" />
+              <FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="lg" />
             </div>
             <nav className="crumbs" aria-label="Okruszki">
               <Link href="/">Strona główna</Link>
@@ -345,7 +345,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
               path={path}
               sent={sp.sent === "1"}
               error={typeof sp.error === "string" ? sp.error : null}
-              imageSlot={<FirmImage src={listing.imageUrl} kind={listing.imageKind} name={listing.name} size="sm" />}
+              imageSlot={<FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="sm" />}
             />
           </aside>
         </div>
@@ -357,7 +357,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
           "@type": "RealEstateAgent",
           name: listing.name,
           url: listing.websiteUrl ?? absoluteUrl(path),
-          image: listing.imageUrl ?? undefined,
+          image: listing.coverUrl ?? listing.logoUrl ?? undefined,
+          logo: listing.logoUrl ?? undefined,
           telephone: listing.phone ?? undefined,
           description: listing.description ?? undefined,
           address: {

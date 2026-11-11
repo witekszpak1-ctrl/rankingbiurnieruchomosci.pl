@@ -92,7 +92,7 @@ export default async function FirmDetailPage({ params, searchParams }: Props) {
       </p>
       <div className="page-head">
         <div className="firm-head">
-          <FirmImage src={firm.imageUrl} name={firm.brandName} size="md" />
+          <FirmImage src={firm.imageUrl} kind="logo" name={firm.brandName} size="md" />
           <div>
           <h1>{firm.brandName}</h1>
           <p className="page-sub">

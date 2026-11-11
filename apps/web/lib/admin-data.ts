@@ -147,7 +147,7 @@ export async function getSetting(key: string, fallback: number): Promise<number>
 export async function getFirm(listingId: string): Promise<FirmDetail | null> {
   const listings = await query<FirmDetail["listing"] & { brandName: string; imageUrl: string | null; cityName: string; citySlug: string; entityId: string }>(
     `select l.id, l.status, l.slug, l.noindex, l.published_at as "publishedAt", l.brand_id as "brandId",
-            b.name as "brandName", b.image_url as "imageUrl", c.name as "cityName", c.slug as "citySlug", b.legal_entity_id as "entityId"
+            b.name as "brandName", coalesce(b.logo_url, b.image_url) as "imageUrl", c.name as "cityName", c.slug as "citySlug", b.legal_entity_id as "entityId"
      from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id where l.id = $1`,
     [listingId],
   );

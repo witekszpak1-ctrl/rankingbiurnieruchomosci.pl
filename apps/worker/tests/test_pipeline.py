@@ -678,3 +678,24 @@ def test_google_place_is_matched_by_website_domain_or_name_and_reviews_are_parse
     empty = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"places": [
         {"id": "x", "displayName": {"text": "Zupełnie inna"}, "websiteUri": "https://inna.pl/"}]})))
     assert fetch_place("Przykład", "Wrocław", "https://przyklad.pl/", lambda n: False, empty, "test").status == "not_found"
+
+
+def test_pick_images_separates_logo_from_cover_photo():
+    from katalog_worker.pipeline import pick_images
+
+    base = "https://przyklad.pl/"
+    html = """<html><head>
+      <meta property="og:image" content="/wp-content/uploads/logo-przyklad.png">
+    </head><body>
+      <header class="site-header"><a class="navbar-brand"><img src="/img/logo.png" alt="Przykład"></a></header>
+      <section class="hero-slider"><img src="/uploads/salon-z-oknem.jpg" alt=""></section>
+      <img src="/uploads/ikona-telefon.png" width="24">
+    </body></html>"""
+    assert pick_images(html, base) == {
+        "logo": "https://przyklad.pl/wp-content/uploads/logo-przyklad.png",
+        "cover": "https://przyklad.pl/uploads/salon-z-oknem.jpg",
+    }
+    photo_og = '<html><head><meta property="og:image" content="/share/biuro.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"></head></html>'
+    assert pick_images(photo_og, base)["cover"] == "https://przyklad.pl/share/biuro.jpg"
+    square_og = '<html><head><meta property="og:image" content="/share/x.png"><meta property="og:image:width" content="500"><meta property="og:image:height" content="500"></head></html>'
+    assert pick_images(square_og, base) == {"logo": "https://przyklad.pl/share/x.png", "cover": None}
