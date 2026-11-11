@@ -6,8 +6,11 @@ i zbiera kandydatów z kolejnego miasta. Nic nie wymaga klikania przez człowiek
 
 ## Przygotowanie
 
+Repozytorium `witekszpak1-ctrl/rankingbiurnieruchomosci.pl` jest sklonowane w katalogu roboczym sesji
+(sprawdź `git remote -v`). W jego katalogu głównym:
+
 ```bash
-cd /home/user/rankingbiurnieruchomosci.pl   # klon repozytorium witekszpak1-ctrl/rankingbiurnieruchomosci.pl
+git checkout main && git pull origin main      # najnowszy kod i instrukcje
 cd apps/worker && python3 -m venv .venv && . .venv/bin/activate && pip install -q -e . && cd ../..
 bash scripts/queue_sync.sh pull
 ```
