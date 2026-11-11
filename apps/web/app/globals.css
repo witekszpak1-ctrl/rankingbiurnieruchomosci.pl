@@ -112,12 +112,18 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4
 .offers li:last-child { border-bottom: 0; }
 .offers a { text-decoration: none; }
 .offers a:hover { text-decoration: underline; }
-.offer-grid { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.offer-card { display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; transition: border-color 0.15s, box-shadow 0.15s; }
-.offer-card:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06); }
-.offer-title { font-weight: 600; line-height: 1.35; flex: 1; }
-.offer-price { font-size: 1.15rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.offer-grid { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; }
+.offer-card { display: flex; align-items: center; gap: 10px 18px; padding: 12px 16px; border-bottom: 1px solid var(--line); transition: background 0.15s; }
+.offer-card:last-child { border-bottom: 0; }
+.offer-card:hover { background: var(--accent-soft); }
+.offer-title { font-weight: 600; line-height: 1.35; flex: 1; min-width: 0; }
+.offer-price { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 120px; }
 .offer-price.none { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
-.offer-go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-top: 2px; padding: 9px 14px; border-radius: 10px; background: var(--accent); color: var(--bg); font-weight: 600; font-size: 0.92rem; text-decoration: none; }
+.offer-go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 10px; background: var(--accent); color: var(--bg); font-weight: 600; font-size: 0.9rem; text-decoration: none; white-space: nowrap; flex: none; }
 .offer-go:hover { filter: brightness(1.12); }
 .offer-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 640px) {
+  .offer-card { flex-wrap: wrap; }
+  .offer-title { flex-basis: 100%; }
+  .offer-price { text-align: left; min-width: 0; flex: 1; }
+}
