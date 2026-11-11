@@ -15,8 +15,10 @@ on:
   schedule:
     - cron: "7 5 * * *"
 
+# Własna grupa: w grupie katalog-db czekający przebieg jest anulowany, gdy w kolejce stanie następny (pipeline co 3 godziny),
+# więc oferty i opinie Google nigdy by się nie wykonały. Zapisy ofert, kontaktów i opinii nie kolidują z pipeline.
 concurrency:
-  group: katalog-db
+  group: katalog-offers
   cancel-in-progress: false
 
 jobs:
