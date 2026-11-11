@@ -264,3 +264,16 @@
 .adm .firm-img.logo img { object-fit: contain; padding: 8%; }
 .adm .firm-img .firm-img-front { object-fit: contain; z-index: 1; background: transparent; }
 .adm .firm-img .firm-img-backdrop { object-fit: cover; filter: blur(14px); transform: scale(1.2); opacity: 0.5; }
+
+/* automat */
+.adm .pipeline { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: step; }
+.adm .pipeline li { position: relative; background: var(--a-panel); border: 1px solid var(--a-line); border-radius: var(--a-r); padding: 14px 14px 14px 46px; counter-increment: step; }
+.adm .pipeline li::before { content: counter(step); position: absolute; left: 12px; top: 14px; width: 24px; height: 24px; border-radius: 50%; background: var(--a-fg); color: var(--a-panel); font-size: 0.8rem; font-weight: 700; display: grid; place-items: center; }
+.adm .pipeline b { display: block; font-size: 0.9rem; }
+.adm .pipeline span { font-size: 0.85rem; color: var(--a-muted); }
+.adm .day-plan { display: grid; gap: 10px; }
+.adm .day-item { display: flex; gap: 16px; align-items: flex-start; background: var(--a-panel); border: 1px solid var(--a-line); border-radius: var(--a-r); padding: 14px 16px; }
+.adm .day-time { flex: none; min-width: 110px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.adm .day-item p { margin: 2px 0 0; color: var(--a-muted); font-size: 0.9rem; }
+.adm .kpis.compact .kpi b { font-size: 1.35rem; }
+@media (max-width: 860px) { .adm .pipeline { grid-template-columns: 1fr; } .adm .day-item { flex-direction: column; gap: 4px; } }
