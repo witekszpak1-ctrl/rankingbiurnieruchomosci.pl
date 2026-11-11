@@ -12,14 +12,24 @@ const ERRORS: Record<string, string> = {
   server: "Nie udało się wysłać zapytania. Spróbuj ponownie za chwilę.",
 };
 
-type Props = { listingId: string; firmName: string; path: string; sent: boolean; error: string | null };
+type Props = {
+  listingId: string;
+  firmName: string;
+  path: string;
+  sent: boolean;
+  error: string | null;
+  imageSlot?: React.ReactNode;
+};
 
-export function LeadForm({ listingId, firmName, path, sent, error }: Props) {
+export function LeadForm({ listingId, firmName, path, sent, error, imageSlot }: Props) {
   return (
     <section id="zapytanie" className="lead">
       <div className="lead-head">
-        <h2>Zapytaj {firmName}</h2>
-        <p>Szukasz mieszkania, chcesz sprzedać albo wynająć? Napisz, a przekażemy Twoje zapytanie do biura.</p>
+        {imageSlot}
+        <div>
+          <span className="lead-kicker">Napisz do biura</span>
+          <h2>{firmName}</h2>
+        </div>
       </div>
       {sent ? (
         <div className="alert ok">Dziękujemy, zapytanie zostało wysłane. Biuro skontaktuje się z Tobą.</div>
@@ -66,8 +76,11 @@ export function LeadForm({ listingId, firmName, path, sent, error }: Props) {
             biura {firmName} w celu odpowiedzi na zapytanie.
           </label>
           <button className="lead-submit" type="submit">
-            Wyślij zapytanie
+            Zapytaj bezpłatnie
           </button>
+          <p className="lead-note full">
+            Twoje dane trafią tylko do tego biura i posłużą wyłącznie do odpowiedzi na zapytanie.
+          </p>
         </form>
       )}
     </section>

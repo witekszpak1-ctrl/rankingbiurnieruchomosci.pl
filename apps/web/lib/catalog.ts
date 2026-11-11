@@ -18,6 +18,7 @@ export type ListingCard = {
   hasPublicPrices: boolean;
   offersCount: number;
   imageUrl: string | null;
+  imageKind: string | null;
   description: string | null;
   publishedAt: Date | null;
 };
@@ -56,11 +57,12 @@ export type ListingDetail = ListingCard & {
   offersSourceUrl: string | null;
   phone: string | null;
   address: string | null;
+  socials: { network: string; url: string }[];
   updatedAt: Date;
 };
 
 const CARD_SQL = `
-  select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl",
+  select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl", b.image_kind as "imageKind",
     le.start_date as "startDate", d.verification_score as "verificationScore",
     (select count(*)::int from facts f where f.brand_id = b.id and f.type = 'service' and f.is_current) as "servicesCount",
     exists (select 1 from price_items p where p.brand_id = b.id and p.is_current) as "hasPublicPrices",
@@ -110,7 +112,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
   );
   const card = cards[0];
   if (!card) return null;
-  const [prices, services, descriptionDates, offers, offerSources, phones, addresses] = await Promise.all([
+  const [prices, services, descriptionDates, offers, offerSources, phones, addresses, socials] = await Promise.all([
     query<PriceRow>(
       `select service, unit, amount_min::float8 as "amountMin", amount_max::float8 as "amountMax",
               tax_mode as "taxMode", quote, source_url as "sourceUrl", observed_at as "observedAt"
@@ -147,6 +149,10 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
        order by (type = 'address') desc, observed_at desc limit 1`,
       [card.brandId],
     ),
+    query<{ network: string; url: string }>(
+      `select network, url from social_links where brand_id = $1 order by network`,
+      [card.brandId],
+    ),
   ]);
   const dates = [card.publishedAt, descriptionDates[0]?.createdAt, ...prices.map((p) => p.observedAt)]
     .filter((d): d is Date => d instanceof Date)
@@ -160,6 +166,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
     offers,
     offersSourceUrl: offerSources[0]?.url ?? null,
     phone: phones[0]?.value ?? null,
+    socials,
     address: addresses[0] ? addressText(addresses[0].value) : null,
     updatedAt: new Date(Math.max(0, ...dates)),
   };

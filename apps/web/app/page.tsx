@@ -142,7 +142,7 @@ export default async function HomePage({ searchParams }: Props) {
                 {top.slice(0, 3).map((f) => (
                   <Link key={f.listingId} href={`/${f.citySlug}/${f.slug}#zapytanie`} className="mock-agent">
                     <div className="mock-agent-head">
-                      <FirmImage src={f.imageUrl} name={f.name} size="sm" />
+                      <FirmImage src={f.imageUrl} kind={f.imageKind} name={f.name} size="sm" />
                       <div>
                         <b>{f.name}</b>
                         <span>
@@ -211,7 +211,7 @@ export default async function HomePage({ searchParams }: Props) {
             <div className="agency-grid">
               {top.map((f) => (
                 <Link key={f.listingId} href={`/${f.citySlug}/${f.slug}`} className="agency-card">
-                  <FirmImage src={f.imageUrl} name={f.name} size="lg" />
+                  <FirmImage src={f.imageUrl} kind={f.imageKind} name={f.name} size="lg" />
                   <div className="agency-body">
                     <div className="agency-top">
                       <span className="pos">#{f.position}</span>

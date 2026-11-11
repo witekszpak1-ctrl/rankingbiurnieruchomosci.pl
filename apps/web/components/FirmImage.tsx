@@ -3,7 +3,17 @@
 import { useState } from "react";
 
 /** Obrazek firmy ze strony (podgląd strony albo logo). Gdy go nie ma albo się nie wczyta, pokazujemy inicjały. */
-export function FirmImage({ src, name, size = "md" }: { src: string | null; name: string; size?: "sm" | "md" | "lg" }) {
+export function FirmImage({
+  src,
+  name,
+  size = "md",
+  kind = null,
+}: {
+  src: string | null;
+  name: string;
+  size?: "sm" | "md" | "lg";
+  kind?: string | null;
+}) {
   const [failed, setFailed] = useState(false);
   const initials = name
     .replace(/["„”]/g, "")
@@ -13,11 +23,24 @@ export function FirmImage({ src, name, size = "md" }: { src: string | null; name
     .map((w) => w[0]?.toUpperCase())
     .join("");
   return (
-    <span className={`firm-img ${size}`} aria-hidden="true">
+    <span className={`firm-img ${size}${kind && kind !== "og" ? " logo" : ""}`} aria-hidden="true">
       <span className="firm-img-fallback">{initials || "?"}</span>
+      {src && !failed && kind === "og" && (
+        // Rozmyta kopia wypełnia tło, a obrazek na wierzchu jest widoczny w całości (bez ucinania logo i napisów).
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="firm-img-backdrop" src={src} alt="" loading="lazy" referrerPolicy="no-referrer" decoding="async" />
+      )}
       {src && !failed && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" decoding="async" onError={() => setFailed(true)} />
+        <img
+          className="firm-img-front"
+          src={src}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       )}
     </span>
   );

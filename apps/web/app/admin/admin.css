@@ -261,3 +261,6 @@
 .adm .firm-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #fff; }
 .adm .firm-img.md { width: 120px; height: 80px; border-radius: 10px; }
 .adm .firm-img.sm { width: 52px; height: 36px; border-radius: 8px; font-size: 0.8rem; }
+.adm .firm-img.logo img { object-fit: contain; padding: 8%; }
+.adm .firm-img .firm-img-front { object-fit: contain; z-index: 1; background: transparent; }
+.adm .firm-img .firm-img-backdrop { object-fit: cover; filter: blur(14px); transform: scale(1.2); opacity: 0.5; }

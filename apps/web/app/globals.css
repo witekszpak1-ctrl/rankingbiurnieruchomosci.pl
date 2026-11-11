@@ -291,3 +291,106 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4
   .search button { width: 100%; }
   .cta-dark { padding: 40px 20px 28px; border-radius: 20px; }
 }
+
+/* profil firmy */
+.profile { padding-top: 20px; padding-bottom: 20px; }
+.profile-cover { position: relative; height: 240px; border-radius: 22px; overflow: hidden; background: linear-gradient(120deg, #dfe7fb, #f3efe6); }
+.profile-cover img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05); }
+.cover-pattern { position: absolute; inset: 0; background-image: radial-gradient(circle at 20% 30%, rgba(31, 91, 216, 0.18) 0 120px, transparent 121px), radial-gradient(circle at 80% 70%, rgba(62, 158, 95, 0.16) 0 150px, transparent 151px); }
+.profile-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 40px; align-items: start; }
+.profile-main { min-width: 0; }
+.profile-avatar { margin-top: -86px; position: relative; width: 168px; height: 168px; border-radius: 50%; border: 6px solid var(--bg); box-shadow: var(--shadow); overflow: hidden; background: #fff; }
+.profile-avatar .firm-img.lg { width: 100%; height: 100%; aspect-ratio: auto; max-height: none; border-radius: 50%; border: 0; font-size: 2.6rem; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 18px 0 8px; color: var(--muted); font-size: 0.92rem; }
+.crumbs a { color: var(--fg); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.profile-name { font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 6px 0 8px; letter-spacing: -0.03em; font-weight: 800; }
+.profile-score { display: flex; align-items: center; gap: 10px; color: var(--muted); flex-wrap: wrap; }
+.score-pill { background: var(--accent); color: #fff; font-weight: 800; border-radius: 8px; padding: 3px 10px; }
+.chips { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips li { background: #f0f1f4; border-radius: 10px; padding: 7px 12px; font-size: 0.92rem; font-weight: 550; }
+.chips li.ok { background: #e9f6ee; color: #1f7a45; }
+.chips a { color: var(--fg); text-decoration: none; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.btn-blue { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #fff; border: 0; font: inherit; font-weight: 650; font-size: 1.02rem; padding: 12px 22px; border-radius: 10px; cursor: pointer; text-decoration: none; }
+.btn-blue svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.btn-blue:hover { filter: brightness(1.08); }
+.btn-outline { display: inline-flex; align-items: center; background: #fff; color: var(--fg); border: 1px solid var(--line); font-weight: 650; padding: 12px 20px; border-radius: 10px; text-decoration: none; }
+.btn-outline:hover { border-color: var(--fg); }
+.profile-section { margin-top: 44px; }
+.profile-section h2 { margin: 0 0 14px; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.profile-about { font-size: 1.08rem; line-height: 1.75; margin: 0 0 6px; }
+.service-chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.service-chips li { background: #f0f1f4; border-radius: 10px; padding: 9px 14px; font-weight: 550; }
+.service-chips li::first-letter { text-transform: uppercase; }
+.offer-rows { list-style: none; padding: 0; margin: 0; border: 1px solid var(--line); border-radius: 18px; background: #fff; overflow: hidden; }
+.offer-rows li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; gap: 16px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.offer-rows li:last-child { border-bottom: 0; }
+.offer-rows li:hover { background: #fafbfd; }
+.offer-thumb { width: 64px; height: 52px; border-radius: 10px; background: linear-gradient(135deg, #e3eafb, #f2efe7); display: grid; place-items: center; }
+.offer-thumb svg { width: 26px; height: 26px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
+.offer-info { min-width: 0; }
+.offer-info b { display: block; font-weight: 650; line-height: 1.35; }
+.offer-info span { color: var(--muted); font-size: 0.86rem; }
+.offer-rows .offer-price { text-align: right; min-width: 0; }
+.price-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.price-box { background: #f0f3fa; border-radius: 14px; padding: 16px 18px; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.price-box span { color: var(--muted); }
+.price-box span::first-letter { text-transform: uppercase; }
+.price-box b { white-space: nowrap; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.info-grid > div { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.info-grid span { display: block; color: var(--muted); font-size: 0.85rem; }
+.info-grid b { font-weight: 600; }
+.info-grid a { color: var(--fg); }
+.mini-head { margin: 22px 0 10px; font-size: 1rem; }
+.social-row { list-style: none; padding: 0; margin: 0; display: flex; gap: 10px; }
+.social-row a { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #f0f1f4; color: var(--fg); }
+.social-row a:hover { background: #e3e6ee; }
+.social-row svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.score-rows { display: grid; gap: 10px; }
+.score-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr 52px; gap: 14px; align-items: center; }
+.score-row b { text-align: right; }
+.score-track { height: 8px; background: #eceef3; border-radius: 4px; overflow: hidden; }
+.score-track span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.profile-aside { position: sticky; top: 88px; margin-top: -120px; }
+.profile-aside .lead { margin: 0; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 22px; box-shadow: 0 20px 50px rgba(16, 23, 51, 0.1); }
+.lead-head { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+.lead-head .firm-img.sm { width: 56px; height: 56px; border-radius: 50%; }
+.lead-kicker { display: block; color: var(--muted); font-size: 0.88rem; }
+.lead-head h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.01em; }
+.profile-aside .lead-form { grid-template-columns: 1fr 1fr; }
+.lead-field label { font-size: 0.85rem; color: var(--muted); }
+.lead-field input, .lead-field select, .lead-field textarea { border: 1px solid #dcdfe6; background: #fff; font: inherit; }
+.lead-submit { width: 100%; justify-self: stretch; padding: 14px 20px; font-size: 1.05rem; background: var(--green); }
+.lead-note { margin: 0; color: var(--muted); font-size: 0.8rem; }
+.lead-note.full { grid-column: 1 / -1; }
+@media (max-width: 960px) {
+  .profile-grid { grid-template-columns: 1fr; }
+  .profile-aside { position: static; margin-top: 10px; }
+}
+@media (max-width: 640px) {
+  .profile-cover { height: 150px; border-radius: 16px; }
+  .profile-avatar { width: 120px; height: 120px; margin-top: -60px; }
+  .offer-rows li { grid-template-columns: 52px minmax(0, 1fr); }
+  .offer-rows .offer-price { grid-column: 2; text-align: left; }
+  .offer-rows .offer-go { grid-column: 1 / -1; }
+  .offer-thumb { width: 52px; height: 44px; }
+  .score-row { grid-template-columns: 1fr 44px; }
+  .score-row .score-track { grid-column: 1 / -1; grid-row: 2; }
+}
+/* logo i ikony: całe, na białym tle, bez przycinania */
+.firm-img.logo { background: #fff; }
+.firm-img.logo img { object-fit: contain; padding: 10%; background: #fff; }
+.firm-img.sm.logo img { padding: 6%; }
+.agency-card .firm-img.lg.logo img { padding: 8% 14%; }
+.firm-img .firm-img-front { object-fit: contain; background: transparent; z-index: 1; }
+.firm-img .firm-img-backdrop { object-fit: cover; filter: blur(18px) saturate(1.1); transform: scale(1.2); opacity: 0.55; z-index: 0; }
+.firm-img.logo .firm-img-front { background: #fff; }
+@media (max-width: 640px) {
+  .header-inner { height: 60px; gap: 10px; }
+  .brand { font-size: 0.98rem; white-space: nowrap; }
+  .brand span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .header-cta { white-space: nowrap; }
+  .header-cta::after { content: none; }
+}

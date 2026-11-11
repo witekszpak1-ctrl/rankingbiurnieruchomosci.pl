@@ -96,7 +96,7 @@ export default async function CityPage({ params }: Props) {
                 {ranked && <td className="num">{row.position}</td>}
                 <td>
                   <Link href={`/${city.slug}/${row.slug}`} className="firm-cell">
-                    <FirmImage src={row.imageUrl} name={row.name} size="sm" />
+                    <FirmImage src={row.imageUrl} kind={row.imageKind} name={row.name} size="sm" />
                     <span>{row.name}</span>
                   </Link>
                 </td>
