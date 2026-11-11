@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 
 import { PublicShell } from "@/components/SiteChrome";
+import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL, SITE_URL } from "@/lib/format";
 
-export const metadata: Metadata = {
-  title: "Informacje o robocie",
-  description: "Jak działa robot zbierający dane o biurach nieruchomości i jak go wykluczyć.",
-  alternates: { canonical: "/bot" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "KatalogBot: robot katalogu biur nieruchomości",
+  description:
+    "Jak działa robot zbierający dane o biurach nieruchomości: jakie strony odwiedza, jak przestrzega robots.txt i jak wykluczyć swoją stronę.",
+  path: "/bot",
+});
 
 export default function BotPage() {
   return (

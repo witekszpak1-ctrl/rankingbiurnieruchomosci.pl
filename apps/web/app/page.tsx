@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
@@ -5,10 +6,17 @@ import { JsonLd, Logo, PublicShell } from "@/components/SiteChrome";
 import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
+import { homeMeta } from "@/lib/meta-texts";
+import { pageMetadata } from "@/lib/seo";
 import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const stats = await homeStats().catch(() => ({ firms: 0, cities: 0, offers: 0, withPrices: 0 }));
+  return pageMetadata({ ...homeMeta(new Date().getFullYear(), stats.firms, stats.cities), path: "/" });
+}
 
 type Props = { searchParams?: Promise<Record<string, string | string[] | undefined>> };
 
@@ -370,6 +378,17 @@ export default async function HomePage({ searchParams }: Props) {
             target: `${absoluteUrl("/szukaj")}?miasto={miasto}`,
             "query-input": "required name=miasto",
           },
+        }}
+      />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: SITE_NAME,
+          url: absoluteUrl("/"),
+          logo: absoluteUrl("/opengraph-image"),
+          description:
+            "Niezależny katalog i ranking biur nieruchomości w Polsce oparty na danych z rejestrów publicznych i stron biur.",
         }}
       />
       <JsonLd

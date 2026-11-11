@@ -2,15 +2,16 @@ import type { MetadataRoute } from "next";
 
 import { absoluteUrl } from "@/lib/format";
 
+// Wszystkie publiczne strony, CSS, JS i obrazki są dostępne dla robotów. Blokujemy tylko panel i techniczny
+// adres wyszukiwarki miast (/szukaj tylko przekierowuje na stronę miasta). Strony, których nie chcemy w indeksie
+// (np. formularz właściciela), mają meta robots noindex, a nie Disallow, żeby robot mógł ten noindex zobaczyć.
 // Boty wyszukiwania asystentów AI jawnie dopuszczamy (chcemy być cytowani). Boty treningowe (GPTBot, ClaudeBot)
 // podlegają regule ogólnej: to osobna decyzja biznesowa, którą można zmienić tutaj.
 export default function robots(): MetadataRoute.Robots {
-  const searchBots = ["OAI-SearchBot", "Claude-SearchBot", "PerplexityBot", "ChatGPT-User", "Claude-User"];
+  const disallow = ["/admin", "/admin/", "/szukaj"];
+  const named = ["Googlebot", "Bingbot", "OAI-SearchBot", "ChatGPT-User", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User"];
   return {
-    rules: [
-      { userAgent: "*", allow: "/", disallow: ["/admin", "/admin/"] },
-      ...searchBots.map((userAgent) => ({ userAgent, allow: "/", disallow: ["/admin", "/admin/"] })),
-    ],
+    rules: [{ userAgent: "*", allow: "/", disallow }, ...named.map((userAgent) => ({ userAgent, allow: "/", disallow }))],
     sitemap: absoluteUrl("/sitemap.xml"),
   };
 }

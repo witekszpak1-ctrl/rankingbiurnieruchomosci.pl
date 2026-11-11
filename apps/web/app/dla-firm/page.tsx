@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PublicShell } from "@/components/SiteChrome";
+import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/format";
 import { KIND_LABEL, REQUEST_KINDS } from "@/lib/requests";
 
 import { submitRequestAction } from "./actions";
 
-export const metadata: Metadata = {
-  title: "Dla firm: korekta i usunięcie wpisu",
-  description: "Jak zgłosić błąd w danych biura nieruchomości lub poprosić o usunięcie wpisu z katalogu.",
-  alternates: { canonical: "/dla-firm" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Dla biur nieruchomości: korekta danych i pozycja w rankingu",
+  description:
+    "Jakie dane o biurze publikujemy, od czego zależy pozycja w rankingu i jak zgłosić korektę albo usunięcie wpisu. Płatność nie wpływa na wynik.",
+  path: "/dla-firm",
+});
 
 const ERROR_TEXT: Record<string, string> = {
   kind: "Wybierz rodzaj zgłoszenia.",

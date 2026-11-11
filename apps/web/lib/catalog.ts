@@ -227,21 +227,27 @@ export async function cityCommissionStats(citySlug: string): Promise<CommissionS
 
 export type SitemapEntry = { citySlug: string; firmSlug: string | null; lastModified: Date | null; cityListings: number };
 
+/**
+ * Adresy do mapy strony. lastmod to data istotnej zmiany treści (publikacja, nowy opis, zmiana cennika),
+ * a nie data wygenerowania mapy; codzienne odświeżanie ofert nie zmienia lastmod.
+ */
 export async function listPublishedPaths(): Promise<SitemapEntry[]> {
-  const cities = await query<{ citySlug: string; lastModified: Date | null; cityListings: number }>(
-    `select c.slug as "citySlug", max(l.published_at) as "lastModified", count(*)::int as "cityListings"
-     from cities c join listings l on l.city_id = c.id and l.status = 'published' and not l.noindex
-     group by c.id`,
-  );
   const firms = await query<{ citySlug: string; firmSlug: string; lastModified: Date | null }>(
-    `select c.slug as "citySlug", l.slug as "firmSlug", l.published_at as "lastModified"
+    `select c.slug as "citySlug", l.slug as "firmSlug",
+            greatest(l.published_at,
+                     (select max(x.created_at) from descriptions x where x.brand_id = l.brand_id and x.status in ('validated', 'published')),
+                     (select max(p.observed_at) from price_items p where p.brand_id = l.brand_id and p.is_current)) as "lastModified"
      from listings l join cities c on c.id = l.city_id
      where l.status = 'published' and not l.noindex and l.slug is not null`,
   );
-  return [
-    ...cities.map((c) => ({ ...c, firmSlug: null })),
-    ...firms.map((f) => ({ ...f, cityListings: 0 })),
-  ];
+  const cities = new Map<string, { citySlug: string; lastModified: Date | null; cityListings: number }>();
+  for (const f of firms) {
+    const c = cities.get(f.citySlug) ?? { citySlug: f.citySlug, lastModified: null, cityListings: 0 };
+    c.cityListings += 1;
+    if (f.lastModified && (!c.lastModified || f.lastModified > c.lastModified)) c.lastModified = f.lastModified;
+    cities.set(f.citySlug, c);
+  }
+  return [...[...cities.values()].map((c) => ({ ...c, firmSlug: null })), ...firms.map((f) => ({ ...f, cityListings: 0 }))];
 }
 
 export type TopListing = ListingCard & { cityName: string; citySlug: string };

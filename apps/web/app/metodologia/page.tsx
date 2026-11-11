@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PublicShell } from "@/components/SiteChrome";
+import { pageMetadata } from "@/lib/seo";
 import { CITY_RANKING_MIN, PARAMETERS, PRICE_STAT_MIN } from "@/lib/ranking";
 
-export const metadata: Metadata = {
-  title: "Metodologia rankingu",
-  description: "Jak zbieramy dane o biurach nieruchomości, jak je weryfikujemy i jak liczymy wynik w rankingu.",
-  alternates: { canonical: "/metodologia" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Metodologia rankingu biur nieruchomości | Jak oceniamy",
+  description:
+    "Jak powstaje ranking biur nieruchomości: źródła danych (KRS, wykaz VAT, strony biur), parametry i wagi, potwierdzenie w rejestrze i zasady liczenia prowizji.",
+  path: "/metodologia",
+});
 
 export default function MethodologyPage() {
   const total = PARAMETERS.reduce((sum, p) => sum + p.weight, 0);

@@ -7,7 +7,10 @@ import { PublicShell } from "@/components/SiteChrome";
 import { CLAIM_WANTS, WANT_LABEL, getClaimTarget } from "@/lib/claims";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Jestem właścicielem firmy", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: { absolute: "Jestem właścicielem firmy | Ranking biur nieruchomości" },
+  robots: { index: false, follow: false },
+};
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ERRORS: Record<string, string> = {

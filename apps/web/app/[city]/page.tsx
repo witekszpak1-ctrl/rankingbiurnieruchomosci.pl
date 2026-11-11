@@ -6,8 +6,10 @@ import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { cityCommissionStats, getCity, listCityListings, type ListingCard } from "@/lib/catalog";
-import { absoluteUrl, formatDate, formatYear } from "@/lib/format";
+import { SITE_NAME, absoluteUrl, formatDate, formatYear } from "@/lib/format";
 import { nBiur, plural } from "@/lib/plural";
+import { cityMeta } from "@/lib/meta-texts";
+import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -41,13 +43,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await load(slug);
   if (!data) return { title: "Nie znaleziono", robots: { index: false } };
   const year = new Date().getFullYear();
-  const ranking = data.ranked ? ` - ranking ${year}` : "";
-  return {
-    title: `Biura nieruchomości ${data.city.name}${ranking}`,
-    description: `Biura nieruchomości z miasta ${data.city.name}: ${nBiur(data.listings.length)}, jawne ceny prowizji i metodologia rankingu.`,
-    alternates: { canonical: `/${slug}` },
-    robots: data.ranked ? undefined : { index: false, follow: true },
-  };
+  const withPrices = data.listings.filter((l) => l.hasPublicPrices).length;
+  const meta = cityMeta(data.city.name, year, data.listings.length, Boolean(data.ranked), withPrices);
+  // Miasto poniżej progu rankingu to krótka lista: widoczna dla ludzi, ale bez indeksowania (cienka treść).
+  return pageMetadata({ ...meta, path: `/${data.city.slug}`, noindex: !data.ranked });
 }
 
 export default async function CityPage({ params }: Props) {
@@ -131,17 +130,28 @@ export default async function CityPage({ params }: Props) {
       <JsonLd
         data={{
           "@context": "https://schema.org",
-          "@type": "ItemList",
+          "@type": "CollectionPage",
+          "@id": `${absoluteUrl(`/${city.slug}`)}#strona`,
+          url: absoluteUrl(`/${city.slug}`),
           name: `Biura nieruchomości ${city.name}`,
-          numberOfItems: listings.length,
-          itemListElement: rows.map((row) => ({
-            "@type": "ListItem",
-            position: row.position,
-            name: row.name,
-            url: absoluteUrl(`/${city.slug}/${row.slug}`),
-          })),
+          inLanguage: "pl-PL",
+          dateModified: updatedAt.toISOString(),
+          isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },
+          mainEntity: {
+            "@type": "ItemList",
+            name: ranked ? `Ranking biur nieruchomości ${city.name}` : `Biura nieruchomości ${city.name}`,
+            itemListOrder: ranked ? "https://schema.org/ItemListOrderDescending" : "https://schema.org/ItemListOrderAscending",
+            numberOfItems: listings.length,
+            itemListElement: rows.map((row) => ({
+              "@type": "ListItem",
+              position: row.position,
+              name: row.name,
+              url: absoluteUrl(`/${city.slug}/${row.slug}`),
+            })),
+          },
         }}
       />
+      <JsonLd data={breadcrumbLd([{ name: "Strona główna", path: "/" }, { name: `Biura nieruchomości ${city.name}`, path: `/${city.slug}` }])} />
     </PublicShell>
   );
 }

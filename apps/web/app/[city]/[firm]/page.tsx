@@ -8,9 +8,11 @@ import { ShowPhone } from "@/components/ShowPhone";
 import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing } from "@/lib/catalog";
-import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
+import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
 import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel } from "@/lib/plural";
 import { isPlausible, priceBasis } from "@/lib/prices";
+import { firmMeta } from "@/lib/meta-texts";
+import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 import { scoreListing } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -24,11 +26,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city, firm } = await params;
   const listing = await getPublishedListing(city, firm);
   if (!listing) return { title: "Nie znaleziono", robots: { index: false } };
+  const { score } = scoreListing(rankingInput(listing));
+  const meta = firmMeta({
+    name: listing.name,
+    cityName: listing.cityName,
+    score,
+    hasGoogle: Boolean(listing.googleRating && listing.googleCount),
+    hasPrices: listing.prices.some(isPlausible),
+    offers: listing.offersCount,
+  });
+  return pageMetadata({
+    ...meta,
+    path: `/${listing.citySlug}/${listing.slug}`,
+    image: listing.coverUrl ?? listing.logoUrl,
+    type: "profile",
+  });
+}
+
+function rankingInput(listing: NonNullable<Awaited<ReturnType<typeof getPublishedListing>>>) {
   return {
-    title: `${listing.name} - biuro nieruchomości ${listing.cityName}`,
-    description: listing.description ?? `Biuro nieruchomości ${listing.name} z miasta ${listing.cityName}.`,
-    alternates: { canonical: `/${city}/${firm}` },
-    openGraph: listing.coverUrl || listing.logoUrl ? { images: [(listing.coverUrl ?? listing.logoUrl) as string] } : undefined,
+    startDate: listing.startDate,
+    hasPublicPrices: listing.hasPublicPrices,
+    verificationScore: listing.verificationScore,
+    registryConfirmed: listing.registryConfirmed,
+    servicesCount: listing.servicesCount,
+    offersCount: listing.offersCount,
+    googleRating: listing.googleRating,
+    googleCount: listing.googleCount,
   };
 }
 
@@ -64,16 +88,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
   const listing = await getPublishedListing(city, firm);
   if (!listing) notFound();
   const visiblePrices = listing.prices.filter(isPlausible);
-  const { breakdown, score } = scoreListing({
-    startDate: listing.startDate,
-    hasPublicPrices: listing.hasPublicPrices,
-    verificationScore: listing.verificationScore,
-    registryConfirmed: listing.registryConfirmed,
-    servicesCount: listing.servicesCount,
-    offersCount: listing.offersCount,
-    googleRating: listing.googleRating,
-    googleCount: listing.googleCount,
-  });
+  const { breakdown, score } = scoreListing(rankingInput(listing));
   const years = yearsSince(listing.startDate);
   const path = `/${listing.citySlug}/${listing.slug}`;
 
@@ -377,22 +392,45 @@ export default async function FirmPage({ params, searchParams }: Props) {
       <JsonLd
         data={{
           "@context": "https://schema.org",
-          "@type": "RealEstateAgent",
-          name: listing.name,
-          url: listing.websiteUrl ?? absoluteUrl(path),
-          image: listing.coverUrl ?? listing.logoUrl ?? undefined,
-          logo: listing.logoUrl ?? undefined,
-          telephone: listing.phone ?? undefined,
-          description: listing.description ?? undefined,
-          address: {
-            "@type": "PostalAddress",
-            streetAddress: listing.address ?? undefined,
-            addressLocality: listing.cityName,
-            addressCountry: "PL",
-          },
-          areaServed: listing.cityName,
-          sameAs: listing.socials.map((s) => s.url),
+          "@graph": [
+            {
+              "@type": "WebPage",
+              "@id": `${absoluteUrl(path)}#strona`,
+              url: absoluteUrl(path),
+              name: listing.name,
+              inLanguage: "pl-PL",
+              dateModified: new Date(listing.updatedAt).toISOString(),
+              about: { "@id": `${absoluteUrl(path)}#biuro` },
+              isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },
+            },
+            {
+              "@type": "RealEstateAgent",
+              "@id": `${absoluteUrl(path)}#biuro`,
+              name: listing.name,
+              url: listing.websiteUrl ?? absoluteUrl(path),
+              mainEntityOfPage: absoluteUrl(path),
+              image: listing.coverUrl ?? listing.logoUrl ?? undefined,
+              logo: listing.logoUrl ?? undefined,
+              telephone: listing.phone ?? undefined,
+              description: listing.description ?? undefined,
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: listing.address ?? undefined,
+                addressLocality: listing.cityName,
+                addressCountry: "PL",
+              },
+              areaServed: { "@type": "City", name: listing.cityName },
+              sameAs: [listing.websiteUrl, ...listing.socials.map((s) => s.url)].filter(Boolean),
+            },
+          ],
         }}
+      />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Strona główna", path: "/" },
+          { name: `Biura nieruchomości ${listing.cityName}`, path: `/${listing.citySlug}` },
+          { name: listing.name, path },
+        ])}
       />
     </PublicShell>
   );
