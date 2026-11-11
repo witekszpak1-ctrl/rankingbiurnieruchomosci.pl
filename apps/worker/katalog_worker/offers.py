@@ -268,6 +268,60 @@ def _card_title(anchor: Tag, url_key: str, page_url: str) -> str | None:
     return None
 
 
+_LOCATION_CLASS = re.compile(r"loc|address|adres|lokaliz|city|miasto|miejsc|region|district|dzielnic", re.I)
+_AREA_CLASS = re.compile(r"area|powierzchn|metraz|surface|size", re.I)
+_AREA_RE = re.compile(r"(?i)\b\d[\d\s.,]*\s*(?:m2|m²|ar|ary|ha)\b")
+
+
+def _card_node(anchor: Tag, url_key: str, page_url: str) -> Tag | None:
+    """Największy przodek linku (do 5 poziomów), który nie obejmuje innych ofert, czyli cała karta oferty."""
+    best: Tag | None = None
+    node: Tag | None = anchor
+    for _ in range(5):
+        node = node.parent if node is not None else None
+        if not isinstance(node, Tag) or node.name in ("body", "html"):
+            break
+        keys = set()
+        for other in node.find_all("a", href=True):
+            absolute = _absolute(str(other["href"]), page_url)
+            if absolute:
+                keys.add(canonical_url(absolute))
+        keys.discard(canonical_url(page_url))
+        if len({k for k in keys if not k.startswith(url_key)} - {url_key}) > 1:
+            break
+        best = node
+    return best
+
+
+def _enrich_title(title: str, card: Tag) -> str:
+    """Ogólny tytuł (np. "Działka na sprzedaż" przy wielu ofertach) uzupełniony o lokalizację i powierzchnię z karty.
+
+    Lokalizację bierzemy tylko z elementu oznaczonego jako adres lub lokalizacja, a nie z dowolnego tekstu karty,
+    żeby nie dopisać np. imienia i nazwiska agenta."""
+    folded = fold(title)
+    extra: list[str] = []
+    for pattern in (_LOCATION_CLASS, _AREA_CLASS):
+        for element in card.find_all(class_=pattern):
+            text = " ".join(element.get_text(" ").split()).strip(" ,;:|")
+            if not text or len(text) > 80 or fold(text) in folded or contains_contacts(text):
+                continue
+            if pattern is _LOCATION_CLASS and re.search(r"(?i)zł|pln|eur|€", text):
+                continue
+            if pattern is _AREA_CLASS and not _AREA_RE.search(text):
+                continue
+            extra.append(_AREA_RE.search(text).group(0).strip() if pattern is _AREA_CLASS else text)
+            break
+    if not any(_AREA_RE.search(e) for e in extra):
+        for piece in card.stripped_strings:
+            match = _AREA_RE.search(piece)
+            if match and len(piece) <= 30:
+                extra.append(match.group(0).strip())
+                break
+    if not extra:
+        return title
+    return clean_title(", ".join([title, *extra])) or title
+
+
 def _anchor_title(anchor: Tag) -> str | None:
     inner = _heading_text(anchor)
     if inner:
@@ -386,7 +440,14 @@ def offers_from_links(soup: BeautifulSoup, page_url: str) -> list[Offer]:
     for group in _link_groups(soup, page_url):
         if len(group["items"]) >= MIN_OFFERS and group["ratio"] >= 0.6:
             chosen = sorted(group["items"], key=lambda e: e["order"])[:MAX_OFFERS]
-            return [Offer(e["url"], _best_title(e["titles"]), i) for i, e in enumerate(chosen)]
+            titles = [_best_title(e["titles"]) for e in chosen]
+            repeated = {t for t in titles if titles.count(t) > 1}
+            for index, entry in enumerate(chosen):
+                if titles[index] in repeated:
+                    card = _card_node(entry["anchors"][0], canonical_url(entry["url"]), page_url)
+                    if card is not None:
+                        titles[index] = _enrich_title(titles[index], card)
+            return [Offer(e["url"], titles[i], i) for i, e in enumerate(chosen)]
     return []
 
 

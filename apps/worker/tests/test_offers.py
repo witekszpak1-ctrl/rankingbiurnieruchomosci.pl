@@ -266,3 +266,23 @@ def test_scan_picks_list_with_most_offers():
 
 def test_long_dashes_in_titles_become_short():
     assert clean_title("Mieszkanie 4P – Okazja") == "Mieszkanie 4P - Okazja"
+
+
+def test_repeated_generic_titles_get_location_and_area_but_not_agent_names():
+    cards = "".join(
+        f"""<div class="offer"><a href="/dzialki-na-sprzedaz-{m}m2-{slug}-{p}zl/{oid}"><img src="/a.jpg"></a>
+              <h3>Działka na sprzedaż</h3><div class="location">{loc}</div>
+              <ul><li>{m} m²</li><li>{p} zł</li></ul><p class="agent">Jan Kowalski</p></div>"""
+        for m, slug, p, oid, loc in (
+            (1281, "dlugoleka-pasikurowice", 358680, 7214001, "Długołęka, Pasikurowice"),
+            (2000, "walim-rzeczka", 240000, 7214002, "Walim, Rzeczka"),
+            (763, "wroclaw-psie-pole", 549000, 7214003, "Wrocław, Psie Pole"),
+        )
+    )
+    offers, _ = extract_offers(page(cards), "https://biuro.pl/oferty")
+    assert [o.title for o in offers] == [
+        "Działka na sprzedaż, Długołęka, Pasikurowice, 1281 m²",
+        "Działka na sprzedaż, Walim, Rzeczka, 2000 m²",
+        "Działka na sprzedaż, Wrocław, Psie Pole, 763 m²",
+    ]
+    assert all("Kowalski" not in o.title for o in offers)
