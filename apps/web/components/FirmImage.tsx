@@ -8,11 +8,14 @@ export function FirmImage({
   name,
   size = "md",
   kind = null,
+  alt,
 }: {
   src: string | null;
   name: string;
   size?: "sm" | "md" | "lg";
   kind?: string | null;
+  /** Opis obrazka, gdy jest treścią (np. logo na profilu). Bez niego obrazek jest ozdobny (obok jest nazwa firmy). */
+  alt?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const initials = name
@@ -23,7 +26,7 @@ export function FirmImage({
     .map((w) => w[0]?.toUpperCase())
     .join("");
   return (
-    <span className={`firm-img ${size}${kind && kind !== "og" ? " logo" : ""}`} aria-hidden="true">
+    <span className={`firm-img ${size}${kind && kind !== "og" ? " logo" : ""}`} aria-hidden={alt && src && !failed ? undefined : true}>
       <span className="firm-img-fallback">{initials || "?"}</span>
       {src && !failed && kind === "og" && (
         // Rozmyta kopia wypełnia tło, a obrazek na wierzchu jest widoczny w całości (bez ucinania logo i napisów).
@@ -35,7 +38,7 @@ export function FirmImage({
         <img
           className="firm-img-front"
           src={src}
-          alt=""
+          alt={alt ?? ""}
           loading="lazy"
           referrerPolicy="no-referrer"
           decoding="async"

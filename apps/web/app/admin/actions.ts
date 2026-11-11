@@ -196,6 +196,17 @@ export async function cityAction(formData: FormData) {
     back(path, "ok", inserted ? `Dodano miasto ${name}.` : `Miasto ${name} już było na liście, szukanie włączone.`);
   }
   if (!UUID_RE.test(id)) back(path, "error", "Nieprawidłowe miasto.");
+  if (action === "editorial") {
+    const text = String(formData.get("editorial") ?? "").replace(/\r\n/g, "\n").replace(/[\u2013\u2014]/g, "-").trim();
+    const editPath = `/admin/cities/${id}`;
+    if (text.length > 4000) back(editPath, "error", "Tekst może mieć najwyżej 4000 znaków.");
+    await withTransaction(async (client) => {
+      await client.query("update cities set editorial = $2 where id = $1", [id, text || null]);
+      await writeAudit(client, { actor: admin, action: "city.editorial", entityType: "city", entityId: id, after: { length: text.length } });
+    });
+    revalidatePath(editPath);
+    back(editPath, "ok", text ? "Zapisano treść. Pojawi się na stronie miasta w ciągu kilku minut." : "Usunięto treść redakcyjną.");
+  }
   if (!["enable", "disable", "next", "deep"].includes(action)) back(path, "error", "Nieznana akcja.");
   await withTransaction(async (client) => {
     if (action === "deep") {

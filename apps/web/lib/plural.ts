@@ -21,6 +21,8 @@ export const nMiast = (n: number) => count(n, "miasto", "miasta", "miast");
 export const nOfert = (n: number) => count(n, "oferta", "oferty", "ofert");
 export const nOpinii = (n: number) => count(n, "opinia", "opinie", "opinii");
 export const nLat = (n: number) => count(n, "rok", "lata", "lat");
+/** Dopełniacz po "na podstawie", "z": 1 biura, 4 biur, 5 biur. */
+export const nBiurGen = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "biura" : "biur"}`;
 export const nFirm = (n: number) => count(n, "firma", "firmy", "firm");
 
 /** Robot pobiera najwyżej tyle najnowszych ofert z jednej strony biura (apps/worker offers.MAX_OFFERS). */

@@ -7,6 +7,7 @@ import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
 import { homeMeta } from "@/lib/meta-texts";
+import { inCity } from "@/lib/cities";
 import { pageMetadata } from "@/lib/seo";
 import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
 import { rankListings, type RankingInput } from "@/lib/ranking";
@@ -292,7 +293,7 @@ export default async function HomePage({ searchParams }: Props) {
             <ul className="city-grid">
               {cities.map((c) => (
                 <li key={c.slug}>
-                  <Link href={`/${c.slug}`}>
+                  <Link href={`/${c.slug}`} title={`Biura nieruchomości ${inCity(c.name)}`}>
                     <b>{c.name}</b>
                     <span>{nBiur(c.listings)}</span>
                   </Link>

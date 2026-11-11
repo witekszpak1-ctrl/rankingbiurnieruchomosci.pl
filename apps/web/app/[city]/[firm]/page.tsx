@@ -7,13 +7,14 @@ import { LeadForm } from "@/components/LeadForm";
 import { ShowPhone } from "@/components/ShowPhone";
 import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { getPublishedListing } from "@/lib/catalog";
+import { getPublishedListing, listCityListings, type ListingCard } from "@/lib/catalog";
+import { inCity } from "@/lib/cities";
 import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
-import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel } from "@/lib/plural";
+import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel, plural } from "@/lib/plural";
 import { isPlausible, priceBasis } from "@/lib/prices";
 import { firmMeta } from "@/lib/meta-texts";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
-import { scoreListing } from "@/lib/ranking";
+import { CITY_RANKING_MIN, rankListings, scoreListing } from "@/lib/ranking";
 
 export const revalidate = 300;
 
@@ -43,7 +44,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-function rankingInput(listing: NonNullable<Awaited<ReturnType<typeof getPublishedListing>>>) {
+function rankingInput(
+  listing: Pick<ListingCard, "startDate" | "hasPublicPrices" | "verificationScore" | "registryConfirmed" | "servicesCount" | "offersCount" | "googleRating" | "googleCount">,
+) {
   return {
     startDate: listing.startDate,
     hasPublicPrices: listing.hasPublicPrices,
@@ -54,6 +57,17 @@ function rankingInput(listing: NonNullable<Awaited<ReturnType<typeof getPublishe
     googleRating: listing.googleRating,
     googleCount: listing.googleCount,
   };
+}
+
+/** 3-5 biur z tego samego miasta o najbliższym wyniku w rankingu (sąsiedzi na liście). */
+function similarFirms<T extends { listingId: string; position: number; name: string; slug: string | null; score: number }>(id: string, ranked: T[]): T[] {
+  const index = ranked.findIndex((r) => r.listingId === id);
+  if (index < 0) return ranked.slice(0, 4);
+  return ranked
+    .filter((r) => r.listingId !== id)
+    .sort((a, b) => Math.abs(a.position - ranked[index].position) - Math.abs(b.position - ranked[index].position))
+    .slice(0, 4)
+    .sort((a, b) => a.position - b.position);
 }
 
 function newest(dates: Date[]): Date {
@@ -89,6 +103,20 @@ export default async function FirmPage({ params, searchParams }: Props) {
   if (!listing) notFound();
   const visiblePrices = listing.prices.filter(isPlausible);
   const { breakdown, score } = scoreListing(rankingInput(listing));
+  const cityListings = await listCityListings(listing.citySlug).catch(() => []);
+  const cityRanked = cityListings.length >= CITY_RANKING_MIN ? rankListings(cityListings, rankingInput) : null;
+  const position = cityRanked?.find((r) => r.listingId === listing.listingId)?.position ?? null;
+  const similar = similarFirms(listing.listingId, cityRanked ?? cityListings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] })));
+  const where = inCity(listing.cityName);
+  const intro = [
+    `${listing.name} to biuro nieruchomości ${where}${listing.registryConfirmed ? ", potwierdzone w rejestrze publicznym" : ""}.`,
+    position && cityRanked
+      ? `W rankingu biur ${where} zajmuje ${position}. miejsce na ${cityRanked.length} z wynikiem ${score}/100.`
+      : `Wynik w rankingu: ${score}/100.`,
+    listing.servicesCount > 0 ? `Na swojej stronie wymienia ${listing.servicesCount} ${plural(listing.servicesCount, "usługę", "usługi", "usług")}${listing.hasPublicPrices ? " i publikuje ceny" : ""}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const years = yearsSince(listing.startDate);
   const path = `/${listing.citySlug}/${listing.slug}`;
 
@@ -98,7 +126,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
         <div className="profile-cover">
           {listing.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={listing.coverUrl} alt="" referrerPolicy="no-referrer" />
+            <img src={listing.coverUrl} alt={`Zdjęcie ze strony biura ${listing.name}`} referrerPolicy="no-referrer" />
           ) : (
             <span className="cover-pattern" aria-hidden="true" />
           )}
@@ -106,7 +134,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
         <div className="profile-grid">
           <div className="profile-main">
             <div className="profile-avatar">
-              <FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="lg" />
+              <FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="lg" alt={`Logo biura ${listing.name}`} />
             </div>
             <nav className="crumbs" aria-label="Okruszki">
               <Link href="/">Strona główna</Link>
@@ -116,6 +144,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
               <span>{listing.name}</span>
             </nav>
             <h1 className="profile-name">{listing.name}</h1>
+            <p className="profile-intro">{intro}</p>
             {listing.googleRating && listing.googleCount ? (
               <div className="profile-rating">
                 <Stars value={listing.googleRating} />
@@ -125,7 +154,10 @@ export default async function FirmPage({ params, searchParams }: Props) {
             ) : null}
             <div className="profile-score">
               <span className="score-pill">{score}/100</span>
-              <span>wynik w rankingu biur w mieście {listing.cityName}</span>
+              <span>
+                wynik w rankingu <Link href={`/${listing.citySlug}`}>biur nieruchomości {where}</Link>
+                {position && cityRanked ? ` (${position}. miejsce na ${cityRanked.length})` : ""}
+              </span>
             </div>
             <ul className="chips">
               {years && <li>{yearsLabel(years)}</li>}
@@ -360,10 +392,28 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 ))}
               </div>
               <p className="note">
-                Jak liczymy wynik: <Link href="/metodologia">metodologia</Link>. Dane aktualne na dzień{" "}
-                {formatDate(listing.updatedAt)}. Widzisz błąd? <Link href="/dla-firm">Zgłoś korektę</Link>.
+                Jak liczymy wynik: <Link href="/metodologia">metodologia rankingu</Link>. Źródła: strona biura
+                {listing.registryConfirmed ? " i rejestry publiczne (KRS, wykaz podatników VAT)" : ""}. Ostatnia
+                aktualizacja danych: {formatDate(listing.updatedAt)}. Widzisz błąd? <Link href="/dla-firm">Zgłoś korektę</Link>.
               </p>
             </section>
+
+            {similar.length > 0 && (
+              <section className="profile-section">
+                <h2>Podobne biura nieruchomości {where}</h2>
+                <ul className="plain">
+                  {similar.map((f) => (
+                    <li key={f.listingId}>
+                      <Link href={`/${listing.citySlug}/${f.slug}`}>{f.name}</Link>
+                      {cityRanked ? ` (${f.score}/100, ${f.position}. miejsce)` : ""}
+                    </li>
+                  ))}
+                </ul>
+                <p className="note">
+                  Pełne zestawienie: <Link href={`/${listing.citySlug}`}>ranking biur nieruchomości {where}</Link>.
+                </p>
+              </section>
+            )}
 
             <section className="owner-band">
               <div>

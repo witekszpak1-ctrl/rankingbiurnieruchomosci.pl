@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cityAction } from "../../actions";
 import { Flash, when } from "@/components/admin";
 import { listAdminCitiesWithProgress } from "@/lib/admin-cities";
@@ -90,7 +91,9 @@ export default async function CitiesPage({ searchParams }: Props) {
             {cities.map((c) => (
               <tr key={c.id}>
                 <td>
-                  <b>{c.name}</b>
+                  <Link href={`/admin/cities/${c.id}`}>
+                    <b>{c.name}</b>
+                  </Link>
                   {c.deepRequestedAt ? (
                     <span className="chip warn" style={{ marginLeft: 6 }}>
                       zlecone

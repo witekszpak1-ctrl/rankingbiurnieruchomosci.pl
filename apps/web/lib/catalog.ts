@@ -108,9 +108,9 @@ export async function listCities(): Promise<CityRow[]> {
   );
 }
 
-export async function getCity(slug: string): Promise<{ id: string; slug: string; name: string } | null> {
-  const rows = await query<{ id: string; slug: string; name: string }>(
-    "select id, slug, name from cities where slug = $1",
+export async function getCity(slug: string): Promise<{ id: string; slug: string; name: string; editorial: string | null } | null> {
+  const rows = await query<{ id: string; slug: string; name: string; editorial: string | null }>(
+    "select id, slug, name, editorial from cities where slug = $1",
     [slug],
   );
   return rows[0] ?? null;
@@ -302,4 +302,42 @@ export async function homeStats(): Promise<{ firms: number; cities: number; offe
               join listings l on l.brand_id = p.brand_id and l.status = 'published' where p.is_current) as "withPrices"`,
   );
   return rows[0] ?? { firms: 0, cities: 0, offers: 0, withPrices: 0 };
+}
+
+export type CityPriceExample = {
+  firmName: string;
+  firmSlug: string;
+  service: string;
+  unit: PriceRow["unit"];
+  amountMin: number | null;
+  amountMax: number | null;
+  taxMode: PriceRow["taxMode"];
+  observedAt: Date;
+};
+
+/** Jawne ceny usług opublikowanych biur w mieście (do sekcji o prowizjach). */
+export async function cityPriceExamples(citySlug: string): Promise<CityPriceExample[]> {
+  return query<CityPriceExample>(
+    `select b.name as "firmName", l.slug as "firmSlug", p.service, p.unit, p.amount_min::float8 as "amountMin",
+            p.amount_max::float8 as "amountMax", p.tax_mode as "taxMode", p.observed_at as "observedAt"
+     from price_items p
+     join brands b on b.id = p.brand_id
+     join listings l on l.brand_id = b.id and l.status = 'published'
+     join cities c on c.id = l.city_id
+     where c.slug = $1 and p.is_current
+     order by b.name, p.service`,
+    [citySlug],
+  );
+}
+
+/** Usługi deklarowane przez biura w mieście (fakty typu service), po jednej liście na biuro. */
+export async function cityServices(citySlug: string): Promise<{ brandId: string; service: string }[]> {
+  return query<{ brandId: string; service: string }>(
+    `select distinct f.brand_id as "brandId", f.value #>> '{}' as service
+     from facts f
+     join listings l on l.brand_id = f.brand_id and l.status = 'published'
+     join cities c on c.id = l.city_id
+     where c.slug = $1 and f.type = 'service' and f.is_current`,
+    [citySlug],
+  );
 }
