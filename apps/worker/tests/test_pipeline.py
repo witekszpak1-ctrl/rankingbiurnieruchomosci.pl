@@ -280,6 +280,17 @@ def test_import_waits_when_no_result(flow):
     assert stage_import(flow["ctx"]) == {"waiting": 1}
 
 
+def test_import_closes_item_skipped_by_model(flow):
+    path = flow["ctx"].queue_dir / "results" / "skipped" / "describe" / f"{flow['brand_id']}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"reason": "deweloper, nie biuro nieruchomości"}, ensure_ascii=False), encoding="utf-8")
+    assert stage_import(flow["ctx"]) == {"skipped": 1}
+    item = flow["ctx"].repo.conn.execute("select status, validator_report from queue_items").fetchone()
+    assert item["status"] == "rejected"
+    assert item["validator_report"]["errors"][0] == {"code": "skipped", "message": "deweloper, nie biuro nieruchomości"}
+    assert stage_import(flow["ctx"]) == {}  # zadanie zamknięte, nie wraca
+
+
 def test_import_valid_result_saves_description_facts_and_prices(flow):
     write_result(flow)
     assert stage_import(flow["ctx"]) == {"done": 1}

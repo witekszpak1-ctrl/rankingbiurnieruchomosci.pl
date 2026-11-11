@@ -464,6 +464,17 @@ def stage_import(ctx: Context) -> dict:
     for item in repo.pending_queue_items():
         firm_id = str(item["brand_id"] or item["domain_id"])
         result_path = ctx.queue_dir / "results" / item["type"] / f"{firm_id}.json"
+        skip_path = ctx.queue_dir / "results" / "skipped" / item["type"] / f"{firm_id}.json"
+        if not result_path.exists() and skip_path.exists():
+            # Claude Code uznał, że paczka nie dotyczy firmy z branży: zamykamy zadanie, żeby nie wracało.
+            try:
+                reason = str(json.loads(skip_path.read_text(encoding="utf-8")).get("reason", ""))[:300]
+            except (json.JSONDecodeError, AttributeError):
+                reason = ""
+            repo.finish_queue_item(item["id"], "rejected", str(skip_path), {"ok": False, "errors": [{"code": "skipped", "message": reason or "Pominięte przez Claude Code."}]})
+            counts["skipped"] += 1
+            repo.conn.commit()
+            continue
         if not result_path.exists():
             counts["waiting"] += 1
             continue

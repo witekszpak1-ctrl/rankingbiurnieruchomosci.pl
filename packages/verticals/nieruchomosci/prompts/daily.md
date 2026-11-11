@@ -18,13 +18,15 @@ bash scripts/queue_sync.sh pull
 ## 1. Opisy
 
 1. Paczki do zrobienia: pliki `queue/pending/describe/*.json`, dla których nie ma pliku o tej samej nazwie
-   w `queue/results/describe/`. Maksymalnie 60 na jedną sesję.
+   ani w `queue/results/describe/`, ani w `queue/results/skipped/describe/`. Maksymalnie 60 na jedną sesję.
 2. Rozdziel je na subagentów (narzędzie Agent), po 3 paczki na agenta, kilku równolegle. Każdy agent dostaje ścieżki
    swoich paczek i instrukcję: przeczytać `packages/verticals/nieruchomosci/prompts/describe.md`, zapisać wynik
    w `queue/results/describe/<firm_id>.json`, sprawdzić go poleceniem
    `cd apps/worker && . .venv/bin/activate && katalog validate --bundle <paczka> --result <wynik>` (kod 0 = poprawny),
-   poprawić najwyżej 3 razy, a paczkę, która nie dotyczy biura nieruchomości, pominąć bez pliku wyniku.
-3. Po zakończeniu agentów sprawdź sam każdy wynik walidatorem. Wyniki niepoprawne usuń.
+   poprawić najwyżej 3 razy. Paczkę, która nie dotyczy biura nieruchomości (deweloper, portal, firma z innej branży),
+   pominąć: zamiast wyniku zapisać `queue/results/skipped/describe/<firm_id>.json` z treścią
+   `{"reason": "krótki powód"}`. Import zamknie wtedy to zadanie i paczka nie wróci następnego dnia.
+3. Po zakończeniu agentów sprawdź sam każdy wynik walidatorem. Wyniki niepoprawne usuń (paczka wróci jutro).
 4. `bash scripts/queue_sync.sh push-results`
 
 ## 2. Kandydaci z kolejnego miasta
