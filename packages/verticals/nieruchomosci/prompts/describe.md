@@ -13,8 +13,16 @@ Przetwarzasz paczki z `queue/pending/describe/*.json` i zapisujesz wyniki w `que
 4. Opis składa się z twierdzeń (`claims`). Każde twierdzenie to jedno zdanie i wskazuje `fact_ids` z paczki, na których
    się opiera. Tekst opisu musi być dokładnie złączeniem twierdzeń (spacja między nimi).
 5. Nie wpisujesz e-maili, telefonów ani adresów stron w opisie. W paczce ich zresztą nie ma.
+7. Nie używasz długich myślników (U+2013, U+2014), tylko zwykły "-".
 6. `registry_start_date` to data wpisu do rejestru (KRS lub wykaz VAT), nie dowód początku działalności. Pisz
    "wpisane do rejestru w ... roku", nie "działa od ...".
+
+## Marka (`brand`)
+
+Nazwa, pod którą firma przedstawia się na swojej stronie (np. "Traczyk Nieruchomości"), a nie tytuł strony pod SEO
+("Dobre Biuro Nieruchomości Rynek Wtórny i Pierwotny") ani nazwa z rejestru, jeśli strona używa innej. `quote` to dosłowny
+cytat ze `source_text` pod podanym `source_url`, który zawiera tę nazwę (np. stopka, nagłówek, "O nas"). Bez formy prawnej,
+chyba że firma sama jej używa w nazwie. Jeśli nie da się ustalić nazwy z cytatem, pomiń pole `brand`.
 
 ## Usługi (`services`)
 
@@ -46,6 +54,7 @@ Tylko dla kandydatów z `price_candidates`, gdy fragment naprawdę opisuje cenę
       {"text": "Zdanie drugie.", "fact_ids": ["f2"]}
     ]
   },
+  "brand": {"name": "Przykład Nieruchomości", "quote": "Przykład Nieruchomości to biuro...", "source_url": "https://..."},
   "services": [
     {"name": "sprzedaż mieszkań", "quote": "dosłowny cytat", "source_url": "https://..."}
   ],

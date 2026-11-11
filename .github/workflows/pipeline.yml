@@ -5,7 +5,7 @@
 #   (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
 #   workflow import.yml,
 # - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
-# - harmonogram (schedule) jest celowo wyłączony do czasu pierwszego udanego ręcznego przebiegu.
+# - przy uruchomieniu z harmonogramu nie ma parametrów: źródło file, limit 50.
 name: pipeline
 
 on:
@@ -23,8 +23,9 @@ on:
       limit:
         description: "Limit domen na etap"
         default: "50"
-  # schedule:
-  #   - cron: "17 5 * * 1-5"
+  # Codziennie o 03:17 UTC: import wyników, publikacja, nowi kandydaci, probe, verify, crawl, paczki.
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: write # push paczek na gałąź queue-data
@@ -54,6 +55,10 @@ jobs:
         run: katalog migrate
       - name: Pobranie kolejki z gałęzi queue-data
         run: bash scripts/queue_sync.sh pull
+      - name: S7 import wyników Claude Code
+        run: katalog import
+      - name: Publikacja wpisów spełniających bramkę
+        run: katalog publish-ready
       - name: Odtworzenie zadań bez plików paczek
         run: katalog requeue-lost
       # Zrzuty stron przechodzą między przebiegami przez cache Actions (runner jest tymczasowy).
@@ -64,7 +69,7 @@ jobs:
           key: snapshots-${{ github.run_id }}
           restore-keys: snapshots-
       - name: S1 discover z plików kandydatów (bez klucza API)
-        if: ${{ inputs.provider == 'file' }}
+        if: ${{ (inputs.provider || 'file') == 'file' }}
         run: |
           shopt -s nullglob
           files=(queue/candidates/*.json)
@@ -75,14 +80,14 @@ jobs:
             katalog discover --provider file --file "$f"
           done
       - name: S1 discover przez API wyszukiwarki
-        if: ${{ inputs.provider != 'file' && inputs.city != '' }}
+        if: ${{ (inputs.provider || 'file') != 'file' && inputs.city != '' }}
         env:
           INPUT_CITY: ${{ inputs.city }}
           INPUT_PROVIDER: ${{ inputs.provider }}
         run: katalog discover --city "$INPUT_CITY" --provider "$INPUT_PROVIDER"
       - name: S3-S6
         env:
-          INPUT_LIMIT: ${{ inputs.limit }}
+          INPUT_LIMIT: ${{ inputs.limit || '50' }}
         run: |
           katalog probe --limit "$INPUT_LIMIT"
           katalog verify --limit "$INPUT_LIMIT"

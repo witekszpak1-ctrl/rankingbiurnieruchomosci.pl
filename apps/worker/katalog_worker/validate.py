@@ -51,11 +51,20 @@ class PriceOut(BaseModel):
     conditions: str | None = None
 
 
+class BrandOut(BaseModel):
+    """Nazwa marki tak, jak firma przedstawia się na swojej stronie (zamiast tytułu strony)."""
+
+    name: str
+    quote: str
+    source_url: str
+
+
 class DescribeResult(BaseModel):
     schema_version: Literal[1]
     firm_id: str
     bundle_sha256: str
     description: DescriptionOut
+    brand: BrandOut | None = None
     services: list[ServiceOut] = []
     prices: list[PriceOut] = []
 
@@ -192,6 +201,23 @@ def _check_description(bundle: dict, result: DescribeResult, max_overlap: float,
             report.error("unsupported_superlative", f"Superlatyw {word.strip()!r} bez poparcia w cytowanym fakcie.")
 
 
+def _check_brand(bundle: dict, result: DescribeResult, report: Report) -> None:
+    brand = result.brand
+    if brand is None:
+        return
+    name = brand.name.strip()
+    if not 2 <= len(name) <= 80:
+        report.error("brand_name_length", "Nazwa marki musi mieć od 2 do 80 znaków.")
+        return
+    text = _source_by_url(bundle).get(brand.source_url)
+    if text is None:
+        report.error("unknown_source", "Nazwa marki: nieznany adres źródła.")
+    elif not _quote_in(brand.quote, [text]):
+        report.error("quote_not_in_source", "Nazwa marki: cytat nie występuje w źródle.")
+    elif _norm(name) not in _norm(brand.quote):
+        report.error("brand_not_in_quote", "Nazwa marki musi występować w cytacie.")
+
+
 def _check_services(bundle: dict, result: DescribeResult, report: Report) -> None:
     sources = _source_by_url(bundle)
     for service in result.services:
@@ -274,6 +300,7 @@ def validate_result(bundle: dict, raw_result: dict, max_overlap: float = 0.2) ->
     _check_binding(bundle, result, report)
     if isinstance(result, DescribeResult):
         _check_description(bundle, result, max_overlap, report)
+        _check_brand(bundle, result, report)
         _check_services(bundle, result, report)
         _check_prices(bundle, result, report)
     else:

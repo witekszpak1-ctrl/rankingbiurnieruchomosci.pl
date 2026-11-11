@@ -118,6 +118,15 @@ def cmd_requeue_lost(args) -> int:
     return 0
 
 
+def cmd_publish_ready(args) -> int:
+    from .pipeline import stage_publish_ready
+
+    with connect() as conn:
+        ctx, _ = _context(args, conn)
+        _print(stage_publish_ready(ctx, args.limit))
+    return 0
+
+
 def cmd_bundle(args) -> int:
     from .pipeline import stage_bundle
 
@@ -194,6 +203,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=50)
     p = add("crawl-deep", cmd_crawl_deep, "S5: kolejne podstrony zweryfikowanych domen")
     p.add_argument("--limit", type=int, default=20)
+    p = add("publish-ready", cmd_publish_ready, "opublikuj wpisy spełniające bramkę (gdy auto_publish = true)")
+    p.add_argument("--limit", type=int, default=200)
     add(
         "requeue-lost", cmd_requeue_lost,
         "zadania bez pliku paczki oznacz jako failed (tylko po pobraniu kolejki z queue-data, przed crawl-deep)",

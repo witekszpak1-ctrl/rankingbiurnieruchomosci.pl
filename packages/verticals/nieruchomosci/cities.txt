@@ -1,0 +1,41 @@
+# Kolejność miast do zbierania kandydatów (największe najpierw). Jedno miasto w wierszu.
+Wrocław
+Warszawa
+Kraków
+Łódź
+Poznań
+Gdańsk
+Szczecin
+Bydgoszcz
+Lublin
+Białystok
+Katowice
+Gdynia
+Częstochowa
+Radom
+Rzeszów
+Toruń
+Sosnowiec
+Kielce
+Gliwice
+Olsztyn
+Zabrze
+Bielsko-Biała
+Bytom
+Zielona Góra
+Rybnik
+Ruda Śląska
+Opole
+Tychy
+Gorzów Wielkopolski
+Elbląg
+Płock
+Dąbrowa Górnicza
+Wałbrzych
+Włocławek
+Tarnów
+Chorzów
+Koszalin
+Kalisz
+Legnica
+Grudziądz

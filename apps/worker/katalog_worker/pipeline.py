@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import sys
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,7 +26,7 @@ from .extract import PageExtraction, extract_page, merge_extractions
 from .fetch import FetchResult, PoliteFetcher
 from .queries import build_queries
 from .registry import KrsClient, MfVatClient, RegistryEntity, RegistryError
-from .repo import Repo
+from .repo import Repo, slugify
 from .search.base import SearchProvider
 from .urls import canonical_url, pick_pages, registrable_domain, is_legal_url, pick_legal_pages
 from .validate import validate_result
@@ -192,6 +193,32 @@ def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
 # ----------------------------------------------------------------------------- S4
 
 
+def _fold(text: str) -> str:
+    text = text.lower().replace("ł", "l")
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
+def mentions_city(text: str, city: str) -> bool:
+    """Czy tekst wymienia miasto, także w odmianie (Wrocław, we Wrocławiu, Kraków, w Krakowie)."""
+    folded = _fold(city).strip()
+    if not folded:
+        return False
+    stem = folded[: max(4, len(folded) - 2)]
+    return stem in _fold(text)
+
+
+def listing_city(registry_city: str | None, city_hint: str | None, pages_text: str) -> str | None:
+    """Miasto wpisu: miasto z wyszukiwania, jeśli strona firmy je wymienia, w przeciwnym razie siedziba z rejestru.
+
+    Jednoosobowe firmy często są zarejestrowane w miejscu zamieszkania (np. wieś pod miastem), a biuro prowadzą w mieście.
+    """
+    if city_hint and mentions_city(pages_text, city_hint):
+        return city_hint
+    if registry_city:
+        return registry_city.title()
+    return city_hint
+
+
 def _brand_name(pages: list[PageExtraction], entity: RegistryEntity) -> str:
     home = pages[0]
     candidates = [home.og_site_name]
@@ -253,7 +280,7 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
         if entity and verification.status != "rejected":
             legal_entity_id = repo.upsert_legal_entity(entity)
             brand_id = repo.upsert_brand(legal_entity_id, _brand_name(pages, entity))
-            city_name = entity.city.title() if entity.city else row["city_hint"]
+            city_name = listing_city(entity.city, row["city_hint"], " ".join(p.text for p in pages))
             if city_name:
                 listing_status = "verified" if verification.status == "verified" else "needs_review"
                 repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), listing_status)
@@ -404,6 +431,9 @@ def _apply_describe(ctx: Context, item: dict, bundle: dict, result: dict, report
     db_ids = {f["fact_id"]: f.get("db_id") for f in bundle["facts"]}
     cited = sorted({db_ids[fid] for c in result["description"]["claims"] for fid in c["fact_ids"] if db_ids.get(fid)})
     repo.add_description(brand_id, result["description"]["text"].strip(), cited, report, "claude_code", "validated")
+    brand = result.get("brand")
+    if brand and brand.get("name"):
+        repo.rename_brand(brand_id, brand["name"].strip())
     for service in result.get("services", []):
         repo.add_fact(brand_id, "service", service["name"], service["quote"], service["source_url"], "llm", 0.7)
     prices = [
@@ -463,3 +493,47 @@ def stage_import(ctx: Context) -> dict:
             counts["done"] += 1
         repo.conn.commit()
     return dict(counts)
+
+
+# ----------------------------------------------------------------------------- publikacja
+
+
+def stage_publish_ready(ctx: Context, limit: int = 200) -> dict:
+    """Publikuje wpisy spełniające bramkę (gdy w ustawieniach auto_publish = true).
+
+    Bramka jak w panelu: domena zweryfikowana NIP-em, zwalidowany opis, minimum faktów (publish_min_facts).
+    Przy publikacji poprawia miasto wpisu na miasto z wyszukiwania, jeśli fakty o firmie je wymieniają.
+    Każda publikacja zapisuje wpis w audit_log (aktor: pipeline). Wpis można wycofać w panelu.
+    """
+    repo = ctx.repo
+    if repo.setting("auto_publish", False) is not True:
+        return {"auto_publish": "wyłączone"}
+    min_facts = int(repo.setting("publish_min_facts", 6))
+    counts: Counter = Counter()
+    for row in repo.listings_ready_to_publish(min_facts, limit):
+        city_id, city_name = str(row["city_id"]), row["city_name"]
+        hint = row["city_hint"]
+        if hint and _fold(hint) != _fold(city_name) and mentions_city(repo.brand_fact_text(str(row["brand_id"])), hint):
+            city_id, city_name = repo.ensure_city(hint), hint
+            counts["city_corrected"] += 1
+        slug = row["slug"] if row["slug"] and city_id == str(row["city_id"]) else None
+        if not slug:
+            slug = _unique_slug(slugify(row["brand_name"]) or "firma", repo.taken_slugs(str(row["vertical_id"]), city_id))
+        repo.publish_listing(str(row["id"]), city_id, slug, row["description_id"])
+        repo.write_audit(
+            "pipeline", "listing.publish", "listing", str(row["id"]),
+            {"status": "verified", "city": row["city_name"]},
+            {"status": "published", "city": city_name, "slug": slug, "auto": True},
+        )
+        counts["published"] += 1
+        repo.conn.commit()
+    return dict(counts)
+
+
+def _unique_slug(base: str, taken: set[str]) -> str:
+    if base not in taken:
+        return base
+    n = 2
+    while f"{base}-{n}" in taken:
+        n += 1
+    return f"{base}-{n}"

@@ -49,6 +49,18 @@ Claude Code czyta je według instrukcji z `packages/verticals/nieruchomosci/prom
 zdanie opisu wskazuje fakty, opis nie kopiuje źródła, liczby i tryb VAT w cenach zgadzają się z cytatem.
 Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza gałęzią `main`).
 
+### Automat (bez klikania)
+
+- **pipeline** codziennie o 03:17 UTC: import wyników, publikacja wpisów spełniających bramkę, nowi kandydaci z plików,
+  probe, verify, crawl-deep, paczki.
+- **import** co 3 godziny: wyniki z gałęzi `queue-data` do bazy i publikacja (`katalog publish-ready`).
+- **Codzienna sesja Claude Code** (zaplanowane zadanie na koncie claude.ai): pisze opisy dla nowych paczek i zbiera kandydatów
+  z kolejnego miasta z `packages/verticals/nieruchomosci/cities.txt`, według `packages/verticals/nieruchomosci/prompts/daily.md`.
+- Automatyczna publikacja działa, gdy w tabeli `settings` jest `auto_publish = true` (migracja 0003). Bramka: domena
+  zweryfikowana NIP-em, zwalidowany opis, minimum faktów. Każda publikacja ma wpis w audycie (aktor `pipeline`), wpis można
+  wycofać w panelu. Miasto wpisu: miasto z wyszukiwania, jeśli strona firmy je wymienia (zamiast wsi z adresu w rejestrze).
+  Nazwa marki: pole `brand` z wyniku opisu (z cytatem ze strony), zamiast tytułu strony.
+
 ### Obieg na produkcji (GitHub Actions + sesja Claude Code)
 
 Sesje Claude Code nie mają dostępu do artefaktów Actions ani do bazy, więc kolejka przechodzi przez gałąź `queue-data`

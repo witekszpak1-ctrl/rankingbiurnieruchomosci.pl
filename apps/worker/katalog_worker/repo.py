@@ -342,6 +342,65 @@ class Repo:
             (limit,),
         ).fetchall()
 
+    def rename_brand(self, brand_id: str, name: str) -> None:
+        self.conn.execute("update brands set name = %s where id = %s and name <> %s", (name, brand_id, name))
+
+    def setting(self, key: str, default):
+        row = self.conn.execute("select value from settings where key = %s", (key,)).fetchone()
+        return row["value"] if row else default
+
+    def listings_ready_to_publish(self, min_facts: int, limit: int) -> list[dict]:
+        """Wpisy spełniające bramkę publikacji: domena zweryfikowana, zwalidowany opis, minimum faktów."""
+        return self.conn.execute(
+            """select l.id, l.vertical_id, l.city_id, l.slug, c.name as city_name, b.id as brand_id, b.name as brand_name,
+                      (select d.city_hint from domains d where d.brand_id = b.id and d.verification_status = 'verified'
+                        order by d.verification_score desc nulls last limit 1) as city_hint,
+                      (select x.id from descriptions x where x.brand_id = b.id and x.status <> 'rejected'
+                        order by x.version desc limit 1) as description_id
+               from listings l
+               join brands b on b.id = l.brand_id
+               join cities c on c.id = l.city_id
+               where l.status = 'verified'
+                 and exists (select 1 from domains d where d.brand_id = b.id and d.verification_status = 'verified')
+                 and (select x.status from descriptions x where x.brand_id = b.id and x.status <> 'rejected'
+                       order by x.version desc limit 1) = 'validated'
+                 and (select count(*) from facts f where f.brand_id = b.id and f.is_current) >= %s
+               order by l.created_at limit %s""",
+            (min_facts, limit),
+        ).fetchall()
+
+    def brand_fact_text(self, brand_id: str) -> str:
+        rows = self.conn.execute(
+            "select value #>> '{}' as v, coalesce(quote, '') as q from facts where brand_id = %s and is_current",
+            (brand_id,),
+        ).fetchall()
+        return " ".join(f"{r['v']} {r['q']}" for r in rows)
+
+    def taken_slugs(self, vertical_id: str, city_id: str) -> set[str]:
+        rows = self.conn.execute(
+            "select slug from listings where vertical_id = %s and city_id = %s and slug is not null",
+            (vertical_id, city_id),
+        ).fetchall()
+        return {r["slug"] for r in rows}
+
+    def publish_listing(self, listing_id: str, city_id: str, slug: str, description_id: str | None) -> None:
+        self.conn.execute(
+            """update listings set status = 'published', city_id = %s, slug = %s, noindex = false,
+                      published_at = coalesce(published_at, now()) where id = %s""",
+            (city_id, slug, listing_id),
+        )
+        if description_id:
+            self.conn.execute(
+                "update descriptions set status = 'published' where id = %s and status = 'validated'", (description_id,)
+            )
+
+    def write_audit(self, actor: str, action: str, entity_type: str, entity_id: str, before, after) -> None:
+        self.conn.execute(
+            """insert into audit_log (actor, action, entity_type, entity_id, before, after)
+               values (%s, %s, %s, %s, %s, %s)""",
+            (actor, action, entity_type, entity_id, Jsonb(before), Jsonb(after)),
+        )
+
     # ------------------------------------------------------------------ kolejka
 
     def enqueue(self, type_: str, bundle_path: str, bundle_sha256: str, *, brand_id: str | None = None,

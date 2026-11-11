@@ -487,3 +487,77 @@ def test_lost_snapshots_and_bundles_are_recovered_on_next_run(flow):
     assert flow["bundle_path"].exists()
     statuses = [r["status"] for r in ctx.repo.conn.execute("select status from queue_items").fetchall()]
     assert statuses == ["pending"]  # to samo zadanie wróciło do kolejki z nowym plikiem paczki
+
+
+def test_mentions_city_handles_polish_inflection_and_listing_city_rule():
+    from katalog_worker.pipeline import listing_city, mentions_city
+
+    assert mentions_city("Biuro działa we Wrocławiu i okolicach", "Wrocław")
+    assert mentions_city("Mieszkania w Krakowie", "Kraków")
+    assert mentions_city("Oferty z Łodzi", "Łódź")
+    assert not mentions_city("Oferty z Poznania", "Wrocław")
+    # siedziba w rejestrze we wsi pod miastem, strona wymienia miasto z wyszukiwania
+    assert listing_city("KIEŁCZÓW", "Wrocław", "Biuro nieruchomości we Wrocławiu") == "Wrocław"
+    assert listing_city("ŻAGAŃ", "Wrocław", "Oferty w Żaganiu") == "Żagań"
+    assert listing_city(None, "Wrocław", "") == "Wrocław"
+
+
+def test_import_applies_brand_name_from_result(flow):
+    def add_brand(result):
+        bundle = json.loads(flow["bundle_path"].read_text(encoding="utf-8"))
+        source = bundle["source_text"][0]
+        words = source["text"].split()
+        quote = " ".join(words[:6])
+        result["brand"] = {"name": " ".join(words[:2]), "quote": quote, "source_url": source["source_url"]}
+
+    write_result(flow, add_brand)
+    assert stage_import(flow["ctx"]) == {"done": 1}
+    name = flow["ctx"].repo.conn.execute("select name from brands").fetchone()["name"]
+    bundle = json.loads(flow["bundle_path"].read_text(encoding="utf-8"))
+    assert name == " ".join(bundle["source_text"][0]["text"].split()[:2])
+
+
+def test_import_rejects_brand_name_missing_from_quote(flow):
+    def bad_brand(result):
+        bundle = json.loads(flow["bundle_path"].read_text(encoding="utf-8"))
+        source = bundle["source_text"][0]
+        result["brand"] = {"name": "Zmyślona Marka", "quote": " ".join(source["text"].split()[:6]),
+                           "source_url": source["source_url"]}
+
+    write_result(flow, bad_brand)
+    assert stage_import(flow["ctx"]) == {"rejected": 1}
+
+
+def test_publish_ready_publishes_gated_listing_with_slug_and_audit(flow):
+    from katalog_worker.pipeline import stage_publish_ready
+
+    ctx = flow["ctx"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    conn.commit()
+    assert stage_publish_ready(ctx) == {}  # brak opisu: nic do publikacji
+
+    write_result(flow)
+    stage_import(ctx)
+    counts = stage_publish_ready(ctx)
+    assert counts.get("published") == 1
+    listing = conn.execute("select status, slug, noindex, published_at from listings").fetchone()
+    assert listing["status"] == "published" and listing["noindex"] is False and listing["published_at"]
+    assert listing["slug"]
+    assert conn.execute("select status from descriptions").fetchone()["status"] == "published"
+    audit = conn.execute("select actor, action from audit_log").fetchone()
+    assert (audit["actor"], audit["action"]) == ("pipeline", "listing.publish")
+    assert stage_publish_ready(ctx) == {}  # drugi raz nic
+
+
+def test_publish_ready_respects_switch(flow):
+    from katalog_worker.pipeline import stage_publish_ready
+
+    conn = flow["ctx"].repo.conn
+    conn.execute("update settings set value = 'false' where key = 'auto_publish'")
+    conn.commit()
+    write_result(flow)
+    stage_import(flow["ctx"])
+    assert stage_publish_ready(flow["ctx"]) == {"auto_publish": "wyłączone"}
+    assert conn.execute("select status from listings").fetchone()["status"] == "verified"
