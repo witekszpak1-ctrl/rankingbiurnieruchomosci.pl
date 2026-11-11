@@ -132,11 +132,11 @@ def test_migrate_needs_no_create_privilege_when_nothing_is_pending(db_url):
     admin = psycopg.connect(ADMIN_URL, autocommit=True)
     owner = psycopg.connect(db_url, autocommit=True)
     try:
-        admin.execute(f'create role "{role}" login')
+        admin.execute(f"create role \"{role}\" login password '{role}'")  # CI łączy się po TCP z hasłem
         owner.execute(f'grant usage on schema public to "{role}"')
         owner.execute(f'grant select, insert, update, delete on all tables in schema public to "{role}"')
         owner.execute("revoke create on schema public from public")
-        with connect(make_conninfo(db_url, user=role)) as conn:
+        with connect(make_conninfo(db_url, user=role, password=role)) as conn:
             assert migrate(conn) == []
     finally:
         owner.execute(f'drop owned by "{role}"')
