@@ -1,4 +1,4 @@
-# Codzienna praca Claude Code (uruchamiana z harmonogramu)
+# Praca Claude Code (uruchamiana z harmonogramu co 2 godziny, tryb szybki)
 
 Pipeline na GitHub Actions co noc buduje paczki opisów i publikuje gotowe wpisy, a workflow `import` co 3 godziny
 zapisuje w bazie wyniki z gałęzi `queue-data`. Ta sesja robi część, której nie da się zrobić bez modelu: pisze opisy
@@ -18,8 +18,9 @@ bash scripts/queue_sync.sh pull
 ## 1. Opisy
 
 1. Paczki do zrobienia: pliki `queue/pending/describe/*.json`, dla których nie ma pliku o tej samej nazwie
-   ani w `queue/results/describe/`, ani w `queue/results/skipped/describe/`. Maksymalnie 60 na jedną sesję.
-2. Rozdziel je na subagentów (narzędzie Agent), po 3 paczki na agenta, kilku równolegle. Każdy agent dostaje ścieżki
+   ani w `queue/results/describe/`, ani w `queue/results/skipped/describe/`. Maksymalnie 150 na jedną sesję. Przy dużej liczbie paczek wysyłaj
+   wyniki partiami (`bash scripts/queue_sync.sh push-results` po każdej partii około 30), żeby import nie czekał na koniec sesji.
+2. Rozdziel je na subagentów (narzędzie Agent), po 4-5 paczek na agenta, do 8 równolegle. Każdy agent dostaje ścieżki
    swoich paczek i instrukcję: przeczytać `packages/verticals/nieruchomosci/prompts/describe.md`, zapisać wynik
    w `queue/results/describe/<firm_id>.json`, sprawdzić go poleceniem
    `cd apps/worker && . .venv/bin/activate && katalog validate --bundle <paczka> --result <wynik>` (kod 0 = poprawny),
@@ -29,13 +30,14 @@ bash scripts/queue_sync.sh pull
 3. Po zakończeniu agentów sprawdź sam każdy wynik walidatorem. Wyniki niepoprawne usuń (paczka wróci jutro).
 4. `bash scripts/queue_sync.sh push-results`
 
-## 2. Kandydaci z kolejnego miasta
+## 2. Kandydaci z kolejnych miast
 
-Według `packages/verticals/nieruchomosci/prompts/candidates.md`: jedno miasto na sesję, potem
-`bash scripts/queue_sync.sh push-candidates`.
+Według `packages/verticals/nieruchomosci/prompts/candidates.md`: **3 miasta na sesję** (kolejne trzy z kolejki bez pliku
+kandydatów), każde w osobnym pliku. Miasta możesz zlecić 3 subagentom równolegle (każdy dostaje jedno miasto i treść
+candidates.md). Na koniec `bash scripts/queue_sync.sh push-candidates`.
 
 ## Zasady
 
 - Nie zmieniaj kodu ani gałęzi `main`. Piszesz tylko do gałęzi `queue-data` przez `scripts/queue_sync.sh`.
 - Nie używaj długich myślników (U+2013, U+2014) w żadnym tekście.
-- Na końcu krótko podsumuj: ile paczek opisano, ile pominięto i dlaczego, które miasto zebrano i ile domen.
+- Na końcu krótko podsumuj: ile paczek opisano, ile pominięto i dlaczego, które miasta zebrano i ile domen w każdym.

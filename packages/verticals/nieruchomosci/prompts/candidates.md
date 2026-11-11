@@ -3,14 +3,35 @@
 Zbierasz wyniki wyszukiwania dla jednego miasta własnym narzędziem WebSearch i zapisujesz je w pliku, który pipeline
 importuje jako źródło `file` (`katalog discover --provider file`). Format pliku opisuje `apps/worker/katalog_worker/search/file.py`.
 
-## Które miasto
+## Które miasta
 
-Pierwsze miasto z `queue/cities.json` (po `bash scripts/queue_sync.sh pull`), dla którego w `queue/candidates/` nie ma
-pliku zaczynającego się od jego `slug` i myślnika (np. `wroclaw-`, `zielona-gora-`). Plik zawiera tylko miasta włączone
-w panelu admina (zakładka Miasta), w kolejności ustalonej w panelu. Jeśli pliku nie ma, użyj
-`packages/verticals/nieruchomosci/cities.txt` (slug: małe litery, bez polskich znaków, spacje jako myślnik).
+Plik `queue/cities.json` (po `bash scripts/queue_sync.sh pull`) zawiera miasta włączone w panelu admina, w kolejności
+szukania. Weź **3 pierwsze miasta do zrobienia**, gdzie "do zrobienia" znaczy:
+
+- miasto ma `deep_requested_at` (zlecone w panelu) i w `queue/candidates/` nie ma pliku `<slug>-<data>-deep.json`
+  z datą równą lub późniejszą niż data zlecenia, albo
+- miasto ma `deep: true` i nie ma żadnego pliku `<slug>-*-deep.json`, albo
+- w `queue/candidates/` nie ma żadnego pliku zaczynającego się od `<slug>-`.
+
+Jeśli `queue/cities.json` nie istnieje, użyj `packages/verticals/nieruchomosci/cities.txt` (slug: małe litery, bez
+polskich znaków, spacje jako myślnik).
 
 W mniejszych miastach zapytania zwracają mniej biur: to normalne. Zapisz wyniki tak samo, nawet jeśli jest ich mało.
+
+## Dokładne przeszukiwanie (deep)
+
+Dla miast z `deep: true` albo `deep_requested_at` rób **około 50 zapytań** zamiast 7, żeby znaleźć jak najwięcej biur:
+
+- dla każdej dzielnicy (w dużych miastach także popularnych osiedli) dwa zapytania:
+  `biuro nieruchomości MIASTO DZIELNICA` oraz `agencja nieruchomości DZIELNICA MIASTO sprzedaż wynajem`,
+- do tego 7 zapytań podstawowych z sekcji niżej oraz zapytania tematyczne: `pośrednik nieruchomości MIASTO`,
+  `biuro nieruchomości MIASTO rynek pierwotny`, `biuro nieruchomości MIASTO domy działki`,
+  `nieruchomości komercyjne MIASTO agencja`, `zarządzanie najmem MIASTO`, `wycena nieruchomości MIASTO biuro`,
+  `biuro nieruchomości MIASTO licencja PFRN`, `biuro nieruchomości okolice MIASTA` (z 3-5 miejscowościami pod miastem).
+
+Dzielnice bierz z wiedzy ogólnej (np. Warszawa: 18 dzielnic). Zapytania możesz rozdzielić na 3-4 subagentów
+równolegle. Plik zapisz jako `queue/candidates/<slug>-<RRRR-MM-DD>-deep.json` (ten sam format, wszystkie zapytania
+w jednej liście `queries`).
 
 ## Zapytania
 

@@ -78,7 +78,7 @@ export default async function CitiesPage({ searchParams }: Props) {
           <thead>
             <tr>
               <th>Miasto</th>
-              <th className="num">W katalogu</th>
+              <th className="num">Firm w katalogu</th>
               <th className="num">W przygotowaniu</th>
               <th className="num">Znalezione strony</th>
               <th>Ostatnio szukano</th>
@@ -91,8 +91,19 @@ export default async function CitiesPage({ searchParams }: Props) {
               <tr key={c.id}>
                 <td>
                   <b>{c.name}</b>
+                  {c.deepRequestedAt ? (
+                    <span className="chip warn" style={{ marginLeft: 8 }}>
+                      zlecone dokładne
+                    </span>
+                  ) : c.deep ? (
+                    <span className="chip" style={{ marginLeft: 8 }}>
+                      dokładne
+                    </span>
+                  ) : null}
                 </td>
-                <td className="num">{c.published || "-"}</td>
+                <td className="num">
+                  <b>{c.published}</b>
+                </td>
                 <td className="num">{c.preparing || "-"}</td>
                 <td className="num">{c.found || "-"}</td>
                 <td>{c.lastSearchedAt ? when(c.lastSearchedAt).split(",")[0] : <span className="note">jeszcze nie</span>}</td>
@@ -101,6 +112,13 @@ export default async function CitiesPage({ searchParams }: Props) {
                 </td>
                 <td>
                   <div className="row-actions">
+                    {!c.deepRequestedAt && (
+                      <form action={cityAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <input type="hidden" name="action" value="deep" />
+                        <button type="submit">Przeszukaj dokładnie</button>
+                      </form>
+                    )}
                     {c.searchEnabled && !c.lastSearchedAt && c.id !== next?.id && (
                       <form action={cityAction}>
                         <input type="hidden" name="id" value={c.id} />
@@ -121,7 +139,8 @@ export default async function CitiesPage({ searchParams }: Props) {
         </table>
       </div>
       <p className="note">
-        W mniejszych miastach automat zwykle znajduje kilka biur. Kolejka jest wysyłana do automatu każdej nocy.
+        „Przeszukaj dokładnie” to około 50 wyszukiwań po dzielnicach i rodzajach usług zamiast 7. 12 największych miast
+        jest przeszukiwanych dokładnie automatycznie. W mniejszych miastach automat zwykle znajduje kilka biur.
       </p>
     </>
   );

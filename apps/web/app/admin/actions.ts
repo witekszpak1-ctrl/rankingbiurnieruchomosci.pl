@@ -196,9 +196,14 @@ export async function cityAction(formData: FormData) {
     back(path, "ok", inserted ? `Dodano miasto ${name}.` : `Miasto ${name} już było na liście, szukanie włączone.`);
   }
   if (!UUID_RE.test(id)) back(path, "error", "Nieprawidłowe miasto.");
-  if (!["enable", "disable", "next"].includes(action)) back(path, "error", "Nieznana akcja.");
+  if (!["enable", "disable", "next", "deep"].includes(action)) back(path, "error", "Nieznana akcja.");
   await withTransaction(async (client) => {
-    if (action === "next") {
+    if (action === "deep") {
+      await client.query(
+        "update cities set search_enabled = true, deep_search = true, deep_requested_at = now() where id = $1",
+        [id],
+      );
+    } else if (action === "next") {
       await client.query(
         `update cities set search_enabled = true,
            search_priority = (select coalesce(min(search_priority), 1) - 1 from cities) where id = $1`,
@@ -210,7 +215,15 @@ export async function cityAction(formData: FormData) {
     await writeAudit(client, { actor: admin, action: `city.${action}`, entityType: "city", entityId: id });
   });
   revalidatePath(path);
-  back(path, "ok", action === "next" ? "Miasto będzie szukane jako następne." : "Zapisano.");
+  back(
+    path,
+    "ok",
+    action === "deep"
+      ? "Miasto zostanie przeszukane dokładnie (po dzielnicach) w najbliższej sesji."
+      : action === "next"
+        ? "Miasto będzie szukane jako następne."
+        : "Zapisano.",
+  );
 }
 
 /** Zapytanie klienta: oznaczenie jako załatwione albo przywrócenie do nowych. */

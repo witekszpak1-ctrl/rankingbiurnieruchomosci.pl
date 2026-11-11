@@ -81,8 +81,11 @@ class Repo:
 
     def city_search_queue(self) -> list[dict]:
         return self.conn.execute(
-            """select name, slug, last_searched_at from cities where search_enabled
-               order by (last_searched_at is not null), search_priority nulls last, name"""
+            """select name, slug, last_searched_at, deep_requested_at,
+                      (deep_search or coalesce(search_priority, 999) <= 12) as deep
+               from cities where search_enabled
+               order by (deep_requested_at is null), deep_requested_at,
+                        (last_searched_at is not null), search_priority nulls last, name"""
         ).fetchall()
 
     # ------------------------------------------------------------------ przebiegi i wyszukiwanie

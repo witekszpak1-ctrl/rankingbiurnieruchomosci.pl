@@ -162,9 +162,11 @@ def cities_export(ctx: Context) -> dict:
     rows = ctx.repo.city_search_queue()
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "note": "Miasta włączone w panelu, w kolejności szukania. Najpierw te, w których jeszcze nie szukano.",
+        "note": "Miasta włączone w panelu, w kolejności szukania: najpierw zlecone do dokładnego przeszukania, potem te, "
+                "w których jeszcze nie szukano. deep = przeszukać dokładnie (dzielnice i rodzaje usług).",
         "cities": [
-            {"name": r["name"], "slug": r["slug"],
+            {"name": r["name"], "slug": r["slug"], "deep": bool(r["deep"]),
+             "deep_requested_at": r["deep_requested_at"].isoformat() if r["deep_requested_at"] else None,
              "last_searched_at": r["last_searched_at"].isoformat() if r["last_searched_at"] else None}
             for r in rows
         ],

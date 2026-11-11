@@ -5,7 +5,7 @@
 #   (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
 #   workflow import.yml,
 # - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
-# - przy uruchomieniu z harmonogramu nie ma parametrów: źródło file, limit 50.
+# - przy uruchomieniu z harmonogramu nie ma parametrów: źródło file, limit 150.
 name: pipeline
 
 on:
@@ -22,10 +22,11 @@ on:
         default: ""
       limit:
         description: "Limit domen na etap"
-        default: "50"
-  # Codziennie o 03:17 UTC: import wyników, publikacja, nowi kandydaci, probe, verify, crawl, paczki.
+        default: "150"
+  # Co 3 godziny (tryb szybki: cała lista miast w około 2 tygodnie): import wyników, publikacja, nowi kandydaci,
+  # probe, verify, crawl, paczki.
   schedule:
-    - cron: "17 3 * * *"
+    - cron: "17 */3 * * *"
 
 permissions:
   contents: write # push paczek na gałąź queue-data
@@ -87,7 +88,7 @@ jobs:
         run: katalog discover --city "$INPUT_CITY" --provider "$INPUT_PROVIDER"
       - name: S3-S6
         env:
-          INPUT_LIMIT: ${{ inputs.limit || '50' }}
+          INPUT_LIMIT: ${{ inputs.limit || '150' }}
         run: |
           katalog probe --limit "$INPUT_LIMIT"
           katalog verify --limit "$INPUT_LIMIT"
