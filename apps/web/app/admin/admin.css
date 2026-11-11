@@ -348,3 +348,8 @@
 .adm .funnel b a { color: inherit; text-decoration: none; }
 .adm .funnel b a:hover { text-decoration: underline; }
 .adm table.tight td.wrap-cell { white-space: normal; min-width: 220px; max-width: 360px; font-size: 0.8rem; }
+.adm table.sites td { white-space: normal; vertical-align: top; padding: 6px 10px; }
+.adm table.sites td a { font-weight: 600; }
+.adm table.sites .sub { font-size: 0.74rem; color: var(--a-muted); line-height: 1.35; margin-top: 2px; max-width: 520px; }
+.adm table.sites .badge { font-size: 0.7rem; padding: 1px 6px; }
+.adm .badge.mini { margin-left: 6px; font-size: 0.68rem; padding: 0 5px; }

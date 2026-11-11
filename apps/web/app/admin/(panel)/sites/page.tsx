@@ -138,51 +138,46 @@ async function Sites({
         <button type="submit">Pokaż</button>
       </form>
       <div className="tablewrap">
-        <table className="tight">
+        <table className="tight sites">
           <thead>
             <tr>
               <th>Strona</th>
-              <th>Miasto</th>
-              <th>Znaleziona</th>
               <th>Stan</th>
-              <th>Co to jest</th>
-              <th>Powód</th>
               <th>Firma w katalogu</th>
-              <th>Fraza w Google</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => {
               const state = siteState(r);
+              const reason = reasonText(r.reasons);
               return (
                 <tr key={r.id}>
                   <td>
                     <a href={r.url ?? `https://${r.host}/`} target="_blank" rel="noreferrer">
                       {r.host}
                     </a>
+                    <div className="sub">
+                      {r.city ?? "bez miasta"} · {when(r.firstSeenAt)}
+                      {r.query ? ` · „${r.query}”` : ""}
+                    </div>
                   </td>
-                  <td>{r.city ?? "-"}</td>
-                  <td>{when(r.firstSeenAt)}</td>
                   <td>
                     <span className={`badge ${TONE[state]}`}>{SITE_STATES[state].label}</span>
+                    <div className="sub">
+                      {CLASS_LABEL[r.classification] ?? r.classification}
+                      {reason !== "-" ? ` · ${reason}` : ""}
+                    </div>
                   </td>
-                  <td className="note">{CLASS_LABEL[r.classification] ?? r.classification}</td>
-                  <td className="note wrap-cell">{reasonText(r.reasons)}</td>
                   <td>
                     {r.listingId ? (
                       <>
                         <Link href={`/admin/firms/${r.listingId}`}>{r.firmName}</Link>
-                        {r.listingStatus === "published" && (
-                          <span className="badge ok" style={{ marginLeft: 6 }}>
-                            na stronie
-                          </span>
-                        )}
+                        {r.listingStatus === "published" && <span className="badge ok mini">na stronie</span>}
                       </>
                     ) : (
                       <span className="note">-</span>
                     )}
                   </td>
-                  <td className="note">{r.query ?? "-"}</td>
                 </tr>
               );
             })}
