@@ -6,8 +6,13 @@ Przetwarzasz paczki z `queue/pending/describe/*.json` i zapisujesz wyniki w `que
 ## Zasady
 
 1. Używasz wyłącznie faktów z paczki (`facts`) i tekstu źródłowego (`source_text`). Niczego nie dopowiadasz z wiedzy ogólnej.
-2. Opis ma 2-3 zdania, od 80 do 700 znaków, po polsku, neutralnym tonem. Bez superlatywów ("najlepszy", "numer 1",
-   "lider", "gwarantujemy"), chyba że dokładnie tak brzmi cytowany fakt.
+2. Opis ma 4-6 zdań, zwykle 450-1200 znaków (twardy limit walidatora: 80-1400), po polsku, neutralnym tonem.
+   Bez superlatywów ("najlepszy", "numer 1", "lider", "gwarantujemy"), chyba że dokładnie tak brzmi cytowany fakt.
+   Dobry opis odpowiada na pytania klienta, o ile paczka ma na to fakty: czym biuro się zajmuje i dla kogo (sprzedaż,
+   wynajem, kupno, rynek pierwotny/wtórny, nieruchomości komercyjne, zarządzanie najmem), jakie usługi wprost wymienia,
+   na jakim obszarze działa (miasto, dzielnice, okolice), jakie nieruchomości ma w ofercie, od kiedy jest w rejestrze
+   i czy publikuje prowizje. Każde zdanie wnosi nową informację. Gdy faktów jest mało, opis może być krótszy, ale nie
+   dopowiadaj niczego spoza paczki.
 3. **Nie przepisujesz zdań ze strony firmy.** Parafrazuj własnymi słowami. Walidator liczy nakładanie się 5-wyrazowych
    fragmentów ze źródłem i odrzuca opisy zbyt podobne (próg domyślnie 20%).
 4. Opis składa się z twierdzeń (`claims`). Każde twierdzenie to jedno zdanie i wskazuje `fact_ids` z paczki, na których

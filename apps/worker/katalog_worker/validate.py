@@ -121,7 +121,7 @@ class Report:
 _SUPERLATIVES = ("najlepsz", "numer 1", "lider ", "gwarantuj", "bezkonkurencyjn", "najtańsz", "najtansz")
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
 DESCRIPTION_MIN_CHARS = 80
-DESCRIPTION_MAX_CHARS = 700
+DESCRIPTION_MAX_CHARS = 1400
 
 
 def _norm(text: str) -> str:
