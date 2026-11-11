@@ -27,7 +27,7 @@ describe("plan dnia automatu", () => {
     const at = (h: string, kind: string) => plan.find((s) => hhmm(s.at) === h && s.kind === kind)!;
     expect(at("10:17", "pipeline").state).toBe("running");
     expect(at("08:41", "claude").state).toBe("done");
-    expect(slotSummary(at("08:41", "claude"))).toBe("opisał 40 firm, szukał w: Kraków (90 stron)");
+    expect(slotSummary(at("08:41", "claude"))).toBe("napisał 40 opisów, szukał w: Kraków (90 stron)");
     expect(at("10:41", "claude").state).toBe("plan_running");
     expect(at("06:41", "claude").state).toBe("waiting_report");
     expect(at("07:17", "pipeline").state).toBe("missed");

@@ -1,0 +1,15 @@
+{
+  "_opis": "Dzielnice i popularne osiedla dużych miast do dokładnego przeszukiwania (2 zapytania na dzielnicę).",
+  "Warszawa": ["Bemowo", "Białołęka", "Bielany", "Mokotów", "Ochota", "Praga-Południe", "Praga-Północ", "Rembertów", "Śródmieście", "Targówek", "Ursus", "Ursynów", "Wawer", "Wesoła", "Wilanów", "Włochy", "Wola", "Żoliborz"],
+  "Kraków": ["Stare Miasto", "Grzegórzki", "Prądnik Czerwony", "Prądnik Biały", "Krowodrza", "Bronowice", "Zwierzyniec", "Dębniki", "Łagiewniki", "Podgórze", "Bieżanów", "Nowa Huta", "Czyżyny", "Mistrzejowice", "Kazimierz", "Ruczaj"],
+  "Łódź": ["Bałuty", "Górna", "Polesie", "Śródmieście", "Widzew", "Retkinia", "Teofilów", "Chojny", "Stoki", "Olechów"],
+  "Wrocław": ["Stare Miasto", "Śródmieście", "Krzyki", "Fabryczna", "Psie Pole", "Nadodrze", "Gaj", "Jagodno", "Leśnica", "Biskupin", "Oporów", "Kozanów"],
+  "Poznań": ["Stare Miasto", "Jeżyce", "Grunwald", "Wilda", "Nowe Miasto", "Rataje", "Winogrady", "Piątkowo", "Łazarz", "Naramowice", "Podolany"],
+  "Gdańsk": ["Śródmieście", "Wrzeszcz", "Oliwa", "Przymorze", "Zaspa", "Jasień", "Orunia", "Chełm", "Ujeścisko", "Letnica", "Brzeźno", "Piecki-Migowo"],
+  "Szczecin": ["Śródmieście", "Pogodno", "Gumieńce", "Warszewo", "Niebuszewo", "Prawobrzeże", "Dąbie", "Pomorzany", "Centrum"],
+  "Bydgoszcz": ["Śródmieście", "Fordon", "Bartodzieje", "Szwederowo", "Wyżyny", "Błonie", "Górzyskowo", "Bielawy"],
+  "Lublin": ["Śródmieście", "Czuby", "Czechów", "Wrotków", "Węglin", "Kalinowszczyzna", "Bronowice", "Ponikwoda", "Felin"],
+  "Białystok": ["Centrum", "Antoniuk", "Bojary", "Dziesięciny", "Wysoki Stoczek", "Białostoczek", "Nowe Miasto", "Bacieczki"],
+  "Katowice": ["Śródmieście", "Ligota", "Brynów", "Załęże", "Bogucice", "Giszowiec", "Koszutka", "Piotrowice", "Kostuchna"],
+  "Gdynia": ["Śródmieście", "Orłowo", "Redłowo", "Wzgórze Świętego Maksymiliana", "Chylonia", "Mały Kack", "Witomino", "Obłuże", "Pogórze"]
+}

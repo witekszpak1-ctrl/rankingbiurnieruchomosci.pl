@@ -21,7 +21,7 @@ const STEPS = [
   {
     n: "1",
     title: "Szuka stron www biur",
-    text: "Wpisuje w Google zapytania typu \"biuro nieruchomości Kraków\", \"agencja nieruchomości Mokotów Warszawa\". W dużych miastach osobno dla każdej dzielnicy. Pomija portale (Otodom, OLX, Gratka, Morizon), katalogi firm i Facebooka, zostawia tylko własne strony biur.",
+    text: "Automat GitHub przez Serper (wyniki Google) wpisuje zapytania typu \"biuro nieruchomości Kraków\", \"agencja nieruchomości Mokotów Warszawa\". W dużych miastach osobno dla każdej dzielnicy. Pomija portale (Otodom, OLX, Gratka, Morizon), katalogi firm i Facebooka, zostawia tylko własne strony biur.",
   },
   {
     n: "2",
@@ -214,7 +214,7 @@ export default async function RunsPage({ searchParams }: Props) {
             <b>
               {s.citiesSearched}/{s.citiesTotal}
             </b>{" "}
-            miast przeszukanych, zostało {left} (około {Math.ceil(left / 27)} dni)
+            miast przeszukanych, zostało {left} (około {Math.max(1, Math.ceil(left / 120))} dni, 15 miast co 3 godziny)
           </span>
         </div>
       </section>
@@ -359,7 +359,8 @@ export default async function RunsPage({ searchParams }: Props) {
           ))}
         </div>
         <p className="note">
-          Sesje Claude działają w chmurze Anthropic jako zaplanowane zadanie (szukanie stron w Google i pisanie opisów).
+          Sesje Claude działają w chmurze Anthropic jako zaplanowane zadanie i piszą opisy firm. Szukanie stron w Google
+          robi automat GitHub przez płatne API Serper (około 1 dolar za 1000 wyszukiwań).
           Automat GitHub to nasz program w Pythonie na serwerach GitHub Actions: pobiera strony (httpx, z poszanowaniem
           robots.txt), czyta je (BeautifulSoup), sprawdza firmy w wykazie VAT Ministerstwa Finansów i w KRS, oceny bierze
           z Google Places. Dane są w bazie Postgres (Neon), strona i panel na Vercel. Nic nie musi być włączone na Twoim

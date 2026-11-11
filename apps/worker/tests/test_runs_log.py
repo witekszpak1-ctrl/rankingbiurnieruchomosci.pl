@@ -72,3 +72,59 @@ def test_spaced_mobile_without_keyword_is_a_phone_but_regon_is_not():
     html = "<html><body><h2>Biuro w centrum miasta, zapraszamy</h2><div><i class='icon-phone'></i> 600 123 456</div><p>REGON 123456785</p></body></html>"
     page = extract_page(html, "https://biuro.pl/kontakt")
     assert [h.e164 for h in page.phones] == ["+48600123456"]
+
+
+class _Provider:
+    name = "serper"
+    cost_per_query_usd = 0.001
+
+    def __init__(self, fail_after=None):
+        self.queries = []
+        self.fail_after = fail_after
+
+    def search(self, query, *, country="pl", lang="pl", count=10):
+        from katalog_worker.search.base import SearchError, SearchResult
+
+        if self.fail_after is not None and len(self.queries) >= self.fail_after:
+            raise SearchError("Serper: HTTP 403: brak kredytów")
+        self.queries.append(query)
+        slug = abs(hash(query)) % 100000
+        return [SearchResult(f"https://biuro{slug}.pl/", "Biuro", "", 1), SearchResult("https://www.otodom.pl/x", "Otodom", "", 2)]
+
+
+def _cities(db, names_deep):
+    for i, (name, deep) in enumerate(names_deep):
+        repo = Repo(db)
+        repo.ensure_city_with_priority(name, i + 1)
+        if deep:
+            db.execute("update cities set deep_search = true where name = %s", (name,))
+    db.execute("update cities set search_priority = 50 + search_priority where not deep_search")
+    db.commit()
+
+
+def test_discover_queue_searches_next_cities_and_marks_them(db, tmp_path):
+    from katalog_worker.pipeline import stage_discover_queue
+
+    ctx = Context(Repo(db), load_vertical("nieruchomosci"), tmp_path / "snap", tmp_path / "queue")
+    _cities(db, [("Kraków", True), ("Tarnów", False), ("Nowy Sącz", False)])
+    provider = _Provider()
+    result = stage_discover_queue(ctx, provider, 2, {"Kraków": ["Podgórze", "Nowa Huta"]})
+    assert result["cities"] == 2
+    assert any("Kraków Podgórze" in q for q in provider.queries)
+    assert sum("Tarnów" in q for q in provider.queries) == 7
+    searched = {r["name"] for r in db.execute("select name from cities where last_searched_at is not null")}
+    assert searched == {"Kraków", "Tarnów"}
+    # drugi przebieg bierze kolejne miasto
+    provider2 = _Provider()
+    stage_discover_queue(ctx, provider2, 2, {})
+    assert {q.split()[-1] for q in provider2.queries} == {"Sącz"}
+
+
+def test_discover_queue_stops_on_search_error(db, tmp_path):
+    from katalog_worker.pipeline import stage_discover_queue
+
+    ctx = Context(Repo(db), load_vertical("nieruchomosci"), tmp_path / "snap", tmp_path / "queue")
+    _cities(db, [("Tarnów", False), ("Nowy Sącz", False)])
+    result = stage_discover_queue(ctx, _Provider(fail_after=3), 5, {})
+    assert result["search_errors"] == 1 and result["cities"] == 1
+    assert db.execute("select count(*) as n from cities where last_searched_at is not null").fetchone()["n"] == 0

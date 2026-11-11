@@ -91,13 +91,13 @@ export function buildDayPlan(day: string, runs: Run[], now = new Date()): Slot[]
       kind: "claude" as const,
       at: warsawAt(day, h, 41),
       title: "Sesja Claude",
-      what: "pisze opisy czekających firm, potem szuka stron biur w 3 kolejnych miastach",
+      what: "pisze własne opisy firm, które czekają (do 150 naraz)",
     })),
     ...utcSlotsOnWarsawDay(day, PIPELINE_UTC_HOURS, 17).map((at) => ({
       kind: "pipeline" as const,
       at,
       title: "Automat GitHub",
-      what: "zapisuje opisy i publikuje firmy, otwiera nowo znalezione strony, sprawdza KRS i VAT, zbiera dane do opisów",
+      what: "zapisuje opisy i publikuje firmy, szuka biur w Google (Serper) w 15 kolejnych miastach, otwiera znalezione strony, sprawdza KRS i VAT, zbiera dane do opisów, pobiera kontakty nowych firm",
     })),
     ...utcSlotsOnWarsawDay(day, [OFFERS_UTC.h], OFFERS_UTC.m).map((at) => ({
       kind: "offers" as const,
@@ -159,7 +159,7 @@ export function slotSummary(slot: Slot): string {
   if (r.length === 0) return "";
   if (slot.kind === "claude") {
     const c = r[0].counts;
-    const parts = [`opisał ${num(c.described)} firm`];
+    const parts = [`napisał ${num(c.described)} opisów`];
     if (num(c.skipped)) parts.push(`pominął ${num(c.skipped)} spoza branży`);
     if (c.city_list) parts.push(`szukał w: ${String(c.city_list)} (${num(c.new_domains)} stron)`);
     return parts.join(", ");
@@ -181,8 +181,9 @@ export function slotSummary(slot: Slot): string {
   if (described) parts.push(`zapisał ${described} opisów`);
   const published = sum(r, "publish", "published");
   if (published) parts.push(`dodał ${published} firm do katalogu`);
+  const searchedCities = r.filter((x) => x.stage === "discover").length;
   const found = sum(r, "discover", "new_domains");
-  if (found) parts.push(`${found} nowych stron z wyszukiwania`);
+  if (searchedCities) parts.push(`szukał w ${searchedCities} miastach: ${found} nowych stron`);
   const official = sum(r, "probe", "official");
   if (official) parts.push(`${official} stron biur`);
   const verified = sum(r, "verify", "verified") + sum(r, "verify", "probable");

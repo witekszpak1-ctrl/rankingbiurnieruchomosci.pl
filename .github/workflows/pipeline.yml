@@ -5,7 +5,7 @@
 #   (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
 #   workflow import.yml,
 # - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
-# - przy uruchomieniu z harmonogramu nie ma parametrów: źródło file, limit 150.
+# - przy uruchomieniu z harmonogramu nie ma parametrów: pliki kandydatów i Serper (gdy jest klucz), limit 200.
 name: pipeline
 
 on:
@@ -22,7 +22,7 @@ on:
         default: ""
       limit:
         description: "Limit domen na etap"
-        default: "150"
+        default: "200"
   # Co 3 godziny (tryb szybki: cała lista miast w około 2 tygodnie): import wyników, publikacja, nowi kandydaci,
   # probe, verify, crawl, paczki.
   schedule:
@@ -80,6 +80,11 @@ jobs:
           for f in "${files[@]}"; do
             katalog discover --provider file --file "$f"
           done
+      # Szukanie biur przez Serper (wyniki Google) w kolejnych miastach z kolejki panelu: 15 miast na przebieg,
+      # duże miasta dokładnie (po dzielnicach). Bez klucza ten krok się nie wykonuje.
+      - name: S1 szukanie biur w kolejnych miastach (Serper)
+        if: ${{ env.SERPER_API_KEY != '' && (inputs.city || '') == '' }}
+        run: katalog discover-queue --provider serper --cities 15
       - name: S1 discover przez API wyszukiwarki
         if: ${{ (inputs.provider || 'file') != 'file' && inputs.city != '' }}
         env:
@@ -88,7 +93,7 @@ jobs:
         run: katalog discover --city "$INPUT_CITY" --provider "$INPUT_PROVIDER"
       - name: S3-S6
         env:
-          INPUT_LIMIT: ${{ inputs.limit || '150' }}
+          INPUT_LIMIT: ${{ inputs.limit || '200' }}
         run: |
           katalog probe --limit "$INPUT_LIMIT"
           katalog verify --limit "$INPUT_LIMIT"

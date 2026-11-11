@@ -30,7 +30,7 @@ from .offers import scan_offers
 from .queries import build_queries
 from .registry import KrsClient, MfVatClient, RegistryEntity, RegistryError
 from .repo import Repo, slugify
-from .search.base import SearchProvider
+from .search.base import SearchError, SearchProvider
 from .urls import canonical_url, pick_pages, registrable_domain, is_legal_url, pick_legal_pages
 from .validate import validate_result
 from .verify import Verification, _page_names, name_similarity, verify_domain
@@ -132,6 +132,63 @@ def stage_discover(
     repo.mark_city_searched(city)
     repo.conn.commit()
     return counts
+
+
+# ----------------------------------------------------------------------------- szukanie przez API (kolejka miast)
+
+DEEP_EXTRA = [
+    "pośrednik nieruchomości {city}", "biuro nieruchomości {city} rynek pierwotny", "biuro nieruchomości {city} domy działki",
+    "nieruchomości komercyjne {city} agencja", "zarządzanie najmem {city}", "wycena nieruchomości {city} biuro",
+    "biuro nieruchomości {city} licencja", "biuro nieruchomości okolice {city}",
+]
+
+
+def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[str]], basic: int = 7) -> list[str]:
+    """Zwykłe miasto: 7 zapytań z szablonów branży. Dokładne: wszystkie szablony, zapytania tematyczne i po 2 na dzielnicę."""
+    if not deep:
+        return build_queries(ctx.vertical.search, city, limit=basic)
+    queries = build_queries(ctx.vertical.search, city)
+    queries += [q.format(city=city) for q in DEEP_EXTRA]
+    for district in districts.get(city, []):
+        queries.append(f"biuro nieruchomości {city} {district}")
+        queries.append(f"agencja nieruchomości {district} {city} sprzedaż wynajem")
+    seen: set[str] = set()
+    return [q for q in queries if not (q.casefold() in seen or seen.add(q.casefold()))]
+
+
+def cities_to_search(ctx: Context, limit: int) -> list[dict]:
+    """Miasta z kolejki panelu, które trzeba przeszukać: nigdy nieszukane albo z dokładnym przeszukaniem zleconym później."""
+    out = []
+    for row in ctx.repo.city_search_queue():
+        last, requested = row["last_searched_at"], row["deep_requested_at"]
+        if last is None or (requested is not None and requested > last):
+            out.append({"name": row["name"], "deep": bool(row["deep"]) or requested is not None})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, districts: dict[str, list[str]]) -> dict:
+    """Szuka biur przez API wyszukiwarki w kolejnych miastach z kolejki (zamiast plików od Claude)."""
+    totals: Counter = Counter()
+    done = []
+    for city in cities_to_search(ctx, cities):
+        queries = city_queries(ctx, city["name"], city["deep"], districts)
+        try:
+            counts = stage_discover(ctx, provider, city["name"], queries=queries)
+        except SearchError as exc:
+            # np. skończone kredyty: zapisujemy co się udało, reszta miast poczeka na następny przebieg
+            ctx.repo.conn.rollback()
+            totals["search_errors"] += 1
+            done.append(f"{city['name']}: błąd wyszukiwarki ({str(exc)[:120]})")
+            break
+        for key, value in counts.items():
+            if isinstance(value, int):
+                totals[key] += value
+        done.append(f"{city['name']}{' (dokładnie)' if city['deep'] else ''}: {counts.get('new_domains', 0)}")
+        print(json.dumps({"city": city["name"], "deep": city["deep"], **counts}, ensure_ascii=False), file=sys.stderr)
+    totals["cities"] = len(done)
+    return {**dict(totals), "detail": done}
 
 
 # ----------------------------------------------------------------------------- miasta

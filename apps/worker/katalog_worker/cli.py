@@ -95,6 +95,23 @@ def cmd_discover(args) -> int:
     return 0
 
 
+def cmd_discover_queue(args) -> int:
+    from .pipeline import stage_discover_queue
+    from .search import SearchError, make_provider
+
+    try:
+        provider = make_provider(args.provider, Settings())
+    except SearchError as exc:
+        print(f"Błąd: {exc}", file=sys.stderr)
+        return 2
+    districts = json.loads(Path(args.districts).read_text(encoding="utf-8")) if Path(args.districts).exists() else {}
+    districts = {k: v for k, v in districts.items() if isinstance(v, list)}
+    with connect() as conn:
+        ctx, _ = _context(args, conn)
+        _print(stage_discover_queue(ctx, provider, args.cities, districts))
+    return 0
+
+
 def cmd_probe(args) -> int:
     from .pipeline import stage_probe
 
@@ -262,6 +279,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--provider", choices=["brave", "serper", "file"], required=True)
     p.add_argument("--file", help="plik JSON z wynikami wyszukiwania (dostawca 'file', bez klucza API)")
     p.add_argument("--max-queries", type=int)
+    p = add("discover-queue", cmd_discover_queue, "S1: szukaj biur przez API w kolejnych miastach z kolejki panelu")
+    p.add_argument("--provider", choices=["brave", "serper"], default="serper")
+    p.add_argument("--cities", type=int, default=15, help="ile miast w jednym przebiegu")
+    p.add_argument("--districts", default="packages/verticals/nieruchomosci/districts.json")
     p = add("probe", cmd_probe, "S3: pobierz stronę główną i kontakt, sklasyfikuj")
     p.add_argument("--limit", type=int, default=50)
     p = add("verify", cmd_verify, "S4: NIP -> rejestry -> weryfikacja domeny")

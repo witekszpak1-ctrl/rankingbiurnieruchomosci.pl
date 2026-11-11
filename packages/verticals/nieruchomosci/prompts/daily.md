@@ -30,11 +30,12 @@ bash scripts/queue_sync.sh pull
 3. Po zakończeniu agentów sprawdź sam każdy wynik walidatorem. Wyniki niepoprawne usuń (paczka wróci jutro).
 4. `bash scripts/queue_sync.sh push-results`
 
-## 2. Kandydaci z kolejnych miast
+## 2. Szukanie nowych biur
 
-Według `packages/verticals/nieruchomosci/prompts/candidates.md`: **3 miasta na sesję** (kolejne trzy z kolejki bez pliku
-kandydatów), każde w osobnym pliku. Miasta możesz zlecić 3 subagentom równolegle (każdy dostaje jedno miasto i treść
-candidates.md). Na koniec `bash scripts/queue_sync.sh push-candidates`.
+Nie szukasz. Biura w kolejnych miastach wyszukuje automat GitHub przez Serper (wyniki Google), 15 miast co 3 godziny.
+Plik kandydatów zbierasz narzędziem WebSearch według `prompts/candidates.md` tylko wtedy, gdy w `queue/cities.json`
+jest miasto z `deep_requested_at` późniejszym niż `last_searched_at`, a od zlecenia minęło ponad 6 godzin (automat
+z jakiegoś powodu go nie przeszukał).
 
 ## 3. Raport sesji (widoczny w panelu, zakładka Automat)
 
@@ -48,7 +49,7 @@ Na samym początku sesji zapamiętaj czas startu (`date -u +%Y-%m-%dT%H:%M:%SZ`)
   "status": "ok",
   "described": 42,
   "skipped": 3,
-  "cities": [{"name": "Kraków", "deep": true, "domains": 120}, {"name": "Tarnów", "deep": false, "domains": 15}],
+  "cities": [],
   "errors": []
 }
 ```
