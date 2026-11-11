@@ -13,30 +13,68 @@ export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const [d, newRequests] = await Promise.all([getDashboard(), countNewRequests()]);
   const toReview = n(d.listings, "needs_review") + n(d.domains, "probable");
+  const toVerify = n(d.domains, "needs_review") + n(d.domains, "probable");
+  const toPublish = n(d.listings, "verified");
+  const waiting = n(d.queue, "describe:pending") + n(d.queue, "classify:pending");
+  const rejected = n(d.queue, "describe:rejected") + n(d.queue, "classify:rejected");
   return (
     <>
-      <h1>Przegląd</h1>
+      <div className="page-head">
+        <div>
+          <h1>Przegląd</h1>
+          <p className="page-sub">Stan katalogu i to, co czeka na Twoją decyzję.</p>
+        </div>
+        <div className="actions">
+          <Link className="btn" href="/admin/requests">
+            Zgłoszenia ({newRequests})
+          </Link>
+          <Link className="btn primary" href="/admin/review">
+            Kolejka weryfikacji ({toReview})
+          </Link>
+        </div>
+      </div>
       <Flash params={params} />
+
+      <div className="stats">
+        <div className="stat">
+          <b>{n(d.listings, "published")}</b>
+          <span>opublikowanych firm</span>
+        </div>
+        <div className="stat">
+          <b>{sum(d.domains)}</b>
+          <span>domen w bazie</span>
+        </div>
+        <div className="stat">
+          <b>{n(d.domains, "verified")}</b>
+          <span>zweryfikowanych</span>
+        </div>
+        <div className="stat">
+          <b>{sum(d.descriptions)}</b>
+          <span>opisów</span>
+        </div>
+        <div className="stat">
+          <b>{newRequests}</b>
+          <span>nowych zgłoszeń</span>
+        </div>
+      </div>
 
       <h2>Do zrobienia</h2>
       <div className="kpis">
-        <Kpi value={n(d.domains, "needs_review") + n(d.domains, "probable")} label="domen do weryfikacji ręcznej" />
-        <Kpi value={n(d.listings, "verified")} label="wpisów zweryfikowanych, niepublikowanych" />
-        <Kpi value={n(d.queue, "describe:pending") + n(d.queue, "classify:pending")} label="paczek czeka na Claude Code" />
-        <Kpi value={n(d.queue, "describe:rejected") + n(d.queue, "classify:rejected")} label="wyników odrzuconych przez walidator" />
-        <Kpi value={newRequests} label="nowych zgłoszeń ze strony dla firm" />
-      </div>
-      <p>
-        <Link className="btn" href="/admin/review">
-          Kolejka weryfikacji ({toReview})
-        </Link>{" "}
-        <Link className="btn" href="/admin/firms?status=verified">
-          Wpisy do publikacji
-        </Link>{" "}
-        <Link className="btn" href="/admin/requests">
-          Zgłoszenia ({newRequests})
+        <Link className={`kpi${toVerify ? " hot" : ""}`} href="/admin/review">
+          <b>{toVerify}</b>
+          <span>domen do weryfikacji ręcznej</span>
         </Link>
-      </p>
+        <Link className={`kpi${toPublish ? " hot" : ""}`} href="/admin/firms?status=verified">
+          <b>{toPublish}</b>
+          <span>wpisów zweryfikowanych, niepublikowanych</span>
+        </Link>
+        <Kpi value={waiting} label="paczek czeka na Claude Code" />
+        <Kpi value={rejected} label="wyników odrzuconych przez walidator" />
+        <Link className={`kpi${newRequests ? " hot" : ""}`} href="/admin/requests">
+          <b>{newRequests}</b>
+          <span>nowych zgłoszeń ze strony dla firm</span>
+        </Link>
+      </div>
 
       <h2>Lejek</h2>
       <div className="kpis">
