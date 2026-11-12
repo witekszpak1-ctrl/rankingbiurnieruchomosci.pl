@@ -1,8 +1,8 @@
 """Generuje logo i ikony serwisu jako wektory (tekst zamieniony na krzywe, bez zależności od czcionek u odbiorcy).
 
 Wzór: kwadratowa ramka z "RBN" oraz dwie linie "RANKING BIUR" / "NIERUCHOMOŚCI" (projekt właściciela serwisu).
-Proporcje zmierzone z projektu (674x264 px): ramka 124 px, kreska 2 px, RBN wysokości wersalików 30 px,
-linie tekstu wysokości wersalików 28 px. Czcionka: Inter (licencja SIL OFL), Bold, Regular i Light.
+Proporcje zmierzone z projektu (wersja 2, 638x198 px): ramka 121,5 px, kreska 5,5 px, RBN wysokości wersalików
+30 px, linie tekstu wysokości wersalików 27,5 px. Czcionka: Inter (licencja SIL OFL), Bold, Medium i Regular.
 
 Uruchomienie (wymaga fonttools i czcionek Inter w /usr/share/fonts/opentype/inter):
     python apps/web/scripts/build_logo.py
@@ -64,14 +64,20 @@ def text_path(face: Face, text: str, x_ink: float, baseline: float, cap_px: floa
 
 
 def main() -> None:
-    bold, regular, light = Face("Inter-Bold.otf"), Face("Inter-Regular.otf"), Face("Inter-Light.otf")
+    bold, medium, regular = Face("Inter-Bold.otf"), Face("Inter-Medium.otf"), Face("Inter-Regular.otf")
 
-    # Logo poziome: układ w pikselach projektu, przesunięty tak, żeby ramka zaczynała się w (0, 0).
-    rbn = text_path(bold, "RBN", 21, 76.5, 30, 81)
-    line1 = text_path(regular, "RANKING BIUR", 163, 50.5, 28, 313)
-    line2 = text_path(light, "NIERUCHOMOŚCI", 163, 100, 28, 366)
-    width, height = 530, 124
-    frame = '<rect x="1" y="1" width="122" height="122" fill="none" stroke="currentColor" stroke-width="2"/>'
+    # Logo poziome: układ w pikselach projektu (wersja 2: 638 x 198 px), ramka zaczyna się w (0, 0).
+    # Grubości dobrane po powierzchni tuszu: RBN Bold, pierwsza linia Medium, druga Regular.
+    frame_size, frame_stroke = 121.5, 5.5
+    rbn = text_path(bold, "RBN", 18, 76, 30, 85)
+    line1 = text_path(medium, "RANKING BIUR", 160, 50.5, 27.5, 316)
+    line2 = text_path(regular, "NIERUCHOMOŚCI", 160, 98.5, 27.5, 369)
+    width, height = 529, 122
+    inset = frame_stroke / 2
+    frame = (
+        f'<rect x="{inset}" y="{inset}" width="{frame_size - frame_stroke}" height="{frame_size - frame_stroke}" '
+        f'fill="none" stroke="currentColor" stroke-width="{frame_stroke}"/>'
+    )
     paths = f'<path d="{rbn}"/><path d="{line1}"/><path d="{line2}"/>'
 
     (WEB / "public" / "logo.svg").write_text(
@@ -83,7 +89,9 @@ def main() -> None:
 
     (WEB / "lib" / "logo-paths.ts").write_text(
         "// WYGENEROWANE przez scripts/build_logo.py: kształty liter logo (Inter, SIL OFL) jako ścieżki SVG.\n"
-        "// Układ w pikselach projektu: ramka 124 x 124 z kreską 2, tekst od x = 163, całość 530 x 124.\n\n"
+        "// Układ w pikselach projektu: ramka 121,5 x 121,5 z kreską 5,5, tekst od x = 160, całość 529 x 122.\n\n"
+        f"export const LOGO_FRAME_SIZE = {frame_size};\n"
+        f"export const LOGO_FRAME_STROKE = {frame_stroke};\n"
         f"export const LOGO_WIDTH = {width};\n"
         f"export const LOGO_HEIGHT = {height};\n"
         f'export const LOGO_RBN = "{rbn}";\n'
@@ -93,11 +101,11 @@ def main() -> None:
     )
 
     # Ikona: sama ramka z RBN na białym tle (widoczna także na ciemnym pasku kart), grubsza kreska dla małych rozmiarów.
-    icon_rbn = text_path(bold, "RBN", 10, 40.25, 16.5, 44)
+    icon_rbn = text_path(bold, "RBN", 11, 39.4, 14.8, 42)
     (WEB / "app" / "icon.svg").write_text(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">'
         '<rect width="64" height="64" fill="#ffffff"/>'
-        '<rect x="4" y="4" width="56" height="56" fill="none" stroke="#111111" stroke-width="4"/>'
+        '<rect x="4.5" y="4.5" width="55" height="55" fill="none" stroke="#111111" stroke-width="5"/>'
         f'<path fill="#111111" d="{icon_rbn}"/></svg>\n',
         encoding="utf-8",
     )

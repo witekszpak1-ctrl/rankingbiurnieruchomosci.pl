@@ -1,6 +1,14 @@
 import { ImageResponse } from "next/og";
 
-import { LOGO_HEIGHT, LOGO_LINE1, LOGO_LINE2, LOGO_RBN, LOGO_WIDTH } from "@/lib/logo-paths";
+import {
+  LOGO_FRAME_SIZE,
+  LOGO_FRAME_STROKE,
+  LOGO_HEIGHT,
+  LOGO_LINE1,
+  LOGO_LINE2,
+  LOGO_RBN,
+  LOGO_WIDTH,
+} from "@/lib/logo-paths";
 
 export const alt = "Ranking biur nieruchomości w Polsce";
 export const size = { width: 1200, height: 630 };
@@ -8,7 +16,8 @@ export const contentType = "image/png";
 
 const LOGO_WHITE = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LOGO_WIDTH} ${LOGO_HEIGHT}" fill="#ffffff">` +
-    `<rect x="1" y="1" width="122" height="122" fill="none" stroke="#ffffff" stroke-width="2"/>` +
+    `<rect x="${LOGO_FRAME_STROKE / 2}" y="${LOGO_FRAME_STROKE / 2}" width="${LOGO_FRAME_SIZE - LOGO_FRAME_STROKE}" ` +
+    `height="${LOGO_FRAME_SIZE - LOGO_FRAME_STROKE}" fill="none" stroke="#ffffff" stroke-width="${LOGO_FRAME_STROKE}"/>` +
     `<path d="${LOGO_RBN}"/><path d="${LOGO_LINE1}"/><path d="${LOGO_LINE2}"/></svg>`,
 )}`;
 

@@ -1,4 +1,29 @@
-import { LOGO_HEIGHT, LOGO_LINE1, LOGO_LINE2, LOGO_RBN, LOGO_WIDTH } from "@/lib/logo-paths";
+import {
+  LOGO_FRAME_SIZE,
+  LOGO_FRAME_STROKE,
+  LOGO_HEIGHT,
+  LOGO_LINE1,
+  LOGO_LINE2,
+  LOGO_RBN,
+  LOGO_WIDTH,
+} from "@/lib/logo-paths";
+
+const INSET = LOGO_FRAME_STROKE / 2;
+const INNER = LOGO_FRAME_SIZE - LOGO_FRAME_STROKE;
+
+function Frame() {
+  return (
+    <rect
+      x={INSET}
+      y={INSET}
+      width={INNER}
+      height={INNER}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={LOGO_FRAME_STROKE}
+    />
+  );
+}
 
 const NAME = "Ranking Biur Nieruchomości";
 
@@ -12,7 +37,7 @@ export function Logo() {
       aria-label={NAME}
       fill="currentColor"
     >
-      <rect x="1" y="1" width="122" height="122" fill="none" stroke="currentColor" strokeWidth={2} />
+      <Frame />
       <path d={LOGO_RBN} />
       <path d={LOGO_LINE1} />
       <path d={LOGO_LINE2} />
@@ -24,8 +49,8 @@ export function Logo() {
 export function LogoMark() {
   return (
     <span className="logo-mark" aria-hidden="true">
-      <svg viewBox="0 0 124 124" fill="currentColor">
-        <rect x="2" y="2" width="120" height="120" fill="none" stroke="currentColor" strokeWidth={4} />
+      <svg viewBox={`0 0 ${LOGO_FRAME_SIZE} ${LOGO_FRAME_SIZE}`} fill="currentColor">
+        <Frame />
         <path d={LOGO_RBN} />
       </svg>
     </span>
