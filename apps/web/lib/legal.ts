@@ -13,7 +13,7 @@ import { CONTACT_EMAIL, SITE_URL } from "./format";
 export const LEGAL_EFFECTIVE_DATE = "12 listopada 2026 r.";
 
 /** Okresy przechowywania danych z formularzy. Te same liczby stosuje automatyczne usuwanie (katalog purge). */
-export const RETENTION_MONTHS = { leads: 12, requests: 24, claims: 24 } as const;
+export const RETENTION_MONTHS = { leads: 12, requests: 24, claims: 24, visits: 24 } as const;
 
 export { CONSENT_COOKIE, CONSENT_MAX_AGE_DAYS, CONSENT_VERSION } from "./consent";
 

@@ -60,6 +60,16 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="m20 20-4-4" />
     </>
   ),
+  chart: (
+    <>
+      <path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />
+    </>
+  ),
+  code: (
+    <>
+      <path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14" />
+    </>
+  ),
   prompt: (
     <>
       <path d="M4 5h16v11H8l-4 4z" />

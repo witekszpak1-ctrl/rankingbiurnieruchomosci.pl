@@ -5,20 +5,24 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CONSENT_COOKIE, CONSENT_MAX_AGE_DAYS, CONSENT_VERSION } from "@/lib/consent";
+import { type PublicTracking, toolsIn, WITEKCRM } from "@/lib/tracking-tools";
 
 /**
- * Zgoda na pliki cookie i podobne technologie (art. 399 Prawa komunikacji elektronicznej, RODO).
- * Kategorie: niezbędne (zawsze) i statystyczne (skrypt WitekCRM, tylko po zgodzie).
- * Wybór zapisujemy w ciasteczku rbn_zgoda: "v=<wersja>&s=<0|1>&t=<data>". Odrzucenie jest tak samo łatwe jak akceptacja.
+ * Zgoda na pliki cookie i podobne technologie (art. 399 Prawa komunikacji elektronicznej, RODO) oraz wczytywanie
+ * narzędzi analitycznych i reklamowych dopiero po zgodzie. Kategorie: niezbędne (zawsze), statystyczne, marketingowe.
+ * Wybór zapisujemy w ciasteczku rbn_zgoda: "v=<wersja>&s=<0|1>&m=<0|1>&k=<wersja narzędzi>&t=<data>".
+ * Gdy w panelu dojdzie lub zniknie narzędzie, zmienia się wersja narzędzi i baner pyta o zgodę ponownie.
+ * Odrzucenie jest tak samo łatwe jak akceptacja. Liczenie wszystkich wejść przez serwer działa niezależnie od zgody.
  */
 
-export type Consent = { statistics: boolean };
+export type Consent = { statistics: boolean; marketing: boolean };
 
 const OPEN_EVENT = "rbn:otworz-zgode";
-const CHANGE_EVENT = "rbn:zgoda";
+const EMPTY: PublicTracking = { version: "", ids: {}, customStatistics: null, customMarketing: null };
 
-export function readConsent(): Consent | null {
-  if (typeof document === "undefined") return null;
+type Stored = Consent & { tools: string };
+
+function readStored(): Stored | null {
   const raw = document.cookie
     .split("; ")
     .find((part) => part.startsWith(`${CONSENT_COOKIE}=`))
@@ -26,30 +30,19 @@ export function readConsent(): Consent | null {
   if (!raw) return null;
   const params = new URLSearchParams(decodeURIComponent(raw));
   if (Number(params.get("v")) !== CONSENT_VERSION) return null;
-  return { statistics: params.get("s") === "1" };
+  return { statistics: params.get("s") === "1", marketing: params.get("m") === "1", tools: params.get("k") ?? "" };
 }
 
-function saveConsent(consent: Consent): void {
+function saveConsent(consent: Consent, tools: string): void {
   const value = new URLSearchParams({
     v: String(CONSENT_VERSION),
     s: consent.statistics ? "1" : "0",
+    m: consent.marketing ? "1" : "0",
+    k: tools,
     t: new Date().toISOString().slice(0, 10),
   }).toString();
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(value)}; Max-Age=${CONSENT_MAX_AGE_DAYS * 86400}; Path=/; SameSite=Lax${secure}`;
-  window.dispatchEvent(new CustomEvent<Consent>(CHANGE_EVENT, { detail: consent }));
-}
-
-/** Aktualna zgoda w komponentach klienta; null przed wyborem i podczas renderowania na serwerze. */
-export function useConsent(): Consent | null {
-  const [consent, setConsent] = useState<Consent | null>(null);
-  useEffect(() => {
-    setConsent(readConsent());
-    const onChange = (event: Event) => setConsent((event as CustomEvent<Consent>).detail);
-    window.addEventListener(CHANGE_EVENT, onChange);
-    return () => window.removeEventListener(CHANGE_EVENT, onChange);
-  }, []);
-  return consent;
 }
 
 /** Link otwierający ustawienia plików cookie (stopka, polityka prywatności). */
@@ -61,39 +54,179 @@ export function CookieSettingsLink({ children = "Ustawienia cookies" }: { childr
   );
 }
 
+// ----------------------------------------------------------------------------- wczytywanie narzędzi
+
+const loaded = new Set<string>();
+
+function addScript(key: string, attrs: { src?: string; text?: string; data?: Record<string, string> }): void {
+  if (loaded.has(key)) return;
+  loaded.add(key);
+  const el = document.createElement("script");
+  if (attrs.src) {
+    el.src = attrs.src;
+    el.async = true;
+  }
+  if (attrs.text) el.text = attrs.text;
+  for (const [name, value] of Object.entries(attrs.data ?? {})) el.setAttribute(`data-${name}`, value);
+  document.head.appendChild(el);
+}
+
+/** Wkleja własny kod z panelu: skrypty trzeba utworzyć od nowa, żeby przeglądarka je uruchomiła. */
+function addCustomCode(key: string, html: string): void {
+  if (loaded.has(key)) return;
+  loaded.add(key);
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  for (const node of Array.from(template.content.childNodes)) {
+    if (node instanceof HTMLScriptElement) {
+      const script = document.createElement("script");
+      for (const attr of Array.from(node.attributes)) script.setAttribute(attr.name, attr.value);
+      script.text = node.text;
+      document.head.appendChild(script);
+    } else {
+      document.body.appendChild(node);
+    }
+  }
+}
+
+function consentModeValues(c: Consent) {
+  const ad = c.marketing ? "granted" : "denied";
+  return `{analytics_storage:'${c.statistics ? "granted" : "denied"}',ad_storage:'${ad}',ad_user_data:'${ad}',ad_personalization:'${ad}'}`;
+}
+
+function loadTools(config: PublicTracking, c: Consent): void {
+  const { ids } = config;
+  const production = process.env.NODE_ENV === "production";
+  if (c.statistics && production) addScript("witekcrm", { src: WITEKCRM.src, data: { site: WITEKCRM.site } });
+
+  const googleIds = [c.statistics && ids.ga4, c.marketing && ids.googleAds].filter(Boolean) as string[];
+  const gtm = ids.gtm && (c.statistics || c.marketing) ? ids.gtm : null;
+  if (googleIds.length || gtm) {
+    if (!loaded.has("gtag-base")) {
+      addScript("gtag-base", {
+        text: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',${consentModeValues(c)});gtag('js',new Date());`,
+      });
+    } else {
+      addScript(`gtag-update-${c.statistics}-${c.marketing}`, { text: `gtag('consent','update',${consentModeValues(c)});` });
+    }
+    for (const id of googleIds) addScript(`gtag-config-${id}`, { text: `gtag('config','${id}');` });
+    if (googleIds.length) addScript("gtag-js", { src: `https://www.googletagmanager.com/gtag/js?id=${googleIds[0]}` });
+    if (gtm) {
+      addScript("gtm", {
+        text: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s);j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtm}');`,
+      });
+    }
+  }
+  if (c.statistics && ids.clarity) {
+    addScript("clarity", {
+      text: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${ids.clarity}");`,
+    });
+  }
+  if (c.statistics && ids.hotjar) {
+    addScript("hotjar", {
+      text: `(function(h,o,t,j,a,r){h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};h._hjSettings={hjid:${ids.hotjar},hjsv:6};a=o.getElementsByTagName('head')[0];r=o.createElement('script');r.async=1;r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;a.appendChild(r);})(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');`,
+    });
+  }
+  if (c.marketing && ids.metaPixel) {
+    addScript("meta-pixel", {
+      text: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${ids.metaPixel}');fbq('track','PageView');`,
+    });
+  }
+  if (c.marketing && ids.tiktok) {
+    addScript("tiktok", {
+      text: `!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};ttq.load('${ids.tiktok}');ttq.page();}(window,document,'ttq');`,
+    });
+  }
+  if (c.marketing && ids.linkedin) {
+    addScript("linkedin", {
+      text: `window._linkedin_data_partner_ids=window._linkedin_data_partner_ids||[];window._linkedin_data_partner_ids.push('${ids.linkedin}');(function(l){if(!l){window.lintrk=function(a,b){window.lintrk.q.push([a,b])};window.lintrk.q=[]}var s=document.getElementsByTagName("script")[0];var b=document.createElement("script");b.type="text/javascript";b.async=true;b.src="https://snap.licdn.com/li.lms-analytics/insight.min.js";s.parentNode.insertBefore(b,s);})(window.lintrk);`,
+    });
+  }
+  if (c.statistics && config.customStatistics) addCustomCode("custom-statistics", config.customStatistics.code);
+  if (c.marketing && config.customMarketing) addCustomCode("custom-marketing", config.customMarketing.code);
+}
+
+type TrackWindow = Window & { fbq?: (...args: unknown[]) => void; ttq?: { page: () => void } };
+
+/** Odsłona przy przejściu w obrębie serwisu dla pikseli, które same jej nie liczą (GA4, Clarity i Hotjar liczą). */
+function trackNavigation(): void {
+  const w = window as TrackWindow;
+  w.fbq?.("track", "PageView");
+  w.ttq?.page();
+}
+
+// ----------------------------------------------------------------------------- baner
+
 export function CookieConsent() {
   const pathname = usePathname();
+  const [config, setConfig] = useState<PublicTracking | null>(null);
+  const [consent, setConsent] = useState<Consent | null>(null);
   const [open, setOpen] = useState(false);
   const [details, setDetails] = useState(false);
-  const [statistics, setStatistics] = useState(false);
+  const [draft, setDraft] = useState<Consent>({ statistics: false, marketing: false });
   const firstButton = useRef<HTMLButtonElement>(null);
+  const firstPath = useRef<string | null>(null);
 
   useEffect(() => {
-    const current = readConsent();
-    if (current === null) setOpen(true);
-    else setStatistics(current.statistics);
+    let active = true;
+    fetch("/api/sledzenie")
+      .then((r) => (r.ok ? (r.json() as Promise<PublicTracking>) : EMPTY))
+      .catch(() => EMPTY)
+      .then((cfg) => {
+        if (!active) return;
+        setConfig(cfg);
+        const stored = readStored();
+        if (stored && stored.tools === cfg.version) {
+          setConsent({ statistics: stored.statistics, marketing: stored.marketing });
+          setDraft({ statistics: stored.statistics, marketing: stored.marketing });
+        } else {
+          if (stored) setDraft({ statistics: stored.statistics, marketing: stored.marketing });
+          setOpen(true);
+        }
+      });
     const onOpen = () => {
-      const saved = readConsent();
-      setStatistics(saved?.statistics ?? false);
       setDetails(true);
       setOpen(true);
       requestAnimationFrame(() => firstButton.current?.focus());
     };
     window.addEventListener(OPEN_EVENT, onOpen);
-    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      active = false;
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, []);
 
-  const choose = useCallback((consent: Consent) => {
-    const before = readConsent();
-    saveConsent(consent);
-    setStatistics(consent.statistics);
-    setOpen(false);
-    setDetails(false);
-    // Skryptu, który już działa, nie da się wyłączyć bez przeładowania strony.
-    if (before?.statistics && !consent.statistics) window.location.reload();
-  }, []);
+  useEffect(() => {
+    if (config && consent) loadTools(config, consent);
+  }, [config, consent]);
 
-  if (!open || pathname?.startsWith("/admin")) return null;
+  useEffect(() => {
+    if (firstPath.current === null) {
+      firstPath.current = pathname;
+      return;
+    }
+    if (consent?.marketing) trackNavigation();
+  }, [pathname, consent]);
+
+  const choose = useCallback(
+    (next: Consent) => {
+      const before = consent;
+      saveConsent(next, config?.version ?? "");
+      setConsent(next);
+      setDraft(next);
+      setOpen(false);
+      setDetails(false);
+      // Skryptów, które już działają, nie da się wyłączyć bez przeładowania strony.
+      if ((before?.statistics && !next.statistics) || (before?.marketing && !next.marketing)) window.location.reload();
+    },
+    [consent, config],
+  );
+
+  if (!open || !config || pathname?.startsWith("/admin")) return null;
+
+  const statsTools = toolsIn(config, "statistics");
+  const marketingTools = toolsIn(config, "marketing");
+  const hasMarketing = marketingTools.length > 0;
 
   return (
     <div className="cookie-banner" role="dialog" aria-modal="false" aria-labelledby="cookie-title">
@@ -102,8 +235,9 @@ export function CookieConsent() {
           Pliki cookie i statystyki
         </p>
         <p className="cookie-text">
-          Używamy plików cookie niezbędnych do działania serwisu. Za Twoją zgodą włączymy też statystyki odwiedzin, które
-          pomagają nam ulepszać serwis. Nie używamy reklam ani śledzenia między stronami. Szczegóły znajdziesz w{" "}
+          Używamy plików cookie niezbędnych do działania serwisu. Za Twoją zgodą włączymy też narzędzia statystyczne
+          {hasMarketing ? " i reklamowe" : ""}, które pomagają nam ulepszać serwis
+          {hasMarketing ? " i mierzyć skuteczność reklam" : ""}. Szczegóły znajdziesz w{" "}
           <Link href="/polityka-prywatnosci#cookies">Polityce prywatności</Link>.
         </p>
 
@@ -117,23 +251,48 @@ export function CookieConsent() {
               </span>
             </label>
             <label className="cookie-option">
-              <input type="checkbox" checked={statistics} onChange={(e) => setStatistics(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={draft.statistics}
+                onChange={(e) => setDraft({ ...draft, statistics: e.target.checked })}
+              />
               <span>
-                <b>Statystyczne</b> liczenie odwiedzin w systemie WitekCRM, bez plików cookie i bez reklam.
+                <b>Statystyczne</b> liczenie odwiedzin i analiza korzystania ze strony: {statsTools.join(", ")}.
               </span>
             </label>
+            {hasMarketing && (
+              <label className="cookie-option">
+                <input
+                  type="checkbox"
+                  checked={draft.marketing}
+                  onChange={(e) => setDraft({ ...draft, marketing: e.target.checked })}
+                />
+                <span>
+                  <b>Marketingowe</b> mierzenie skuteczności reklam i remarketing: {marketingTools.join(", ")}.
+                </span>
+              </label>
+            )}
           </fieldset>
         )}
 
         <div className="cookie-actions">
-          <button ref={firstButton} type="button" className="cookie-btn" onClick={() => choose({ statistics: true })}>
+          <button
+            ref={firstButton}
+            type="button"
+            className="cookie-btn"
+            onClick={() => choose({ statistics: true, marketing: hasMarketing })}
+          >
             Akceptuję wszystkie
           </button>
-          <button type="button" className="cookie-btn" onClick={() => choose({ statistics: false })}>
+          <button type="button" className="cookie-btn" onClick={() => choose({ statistics: false, marketing: false })}>
             Tylko niezbędne
           </button>
           {details ? (
-            <button type="button" className="cookie-btn secondary" onClick={() => choose({ statistics })}>
+            <button
+              type="button"
+              className="cookie-btn secondary"
+              onClick={() => choose({ statistics: draft.statistics, marketing: hasMarketing && draft.marketing })}
+            >
               Zapisz wybór
             </button>
           ) : (

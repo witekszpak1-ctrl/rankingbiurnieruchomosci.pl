@@ -31,7 +31,7 @@ def test_schema_has_expected_tables(db):
 def test_migrate_is_idempotent(db):
     assert migrate(db) == []  # szablon ma już wszystko zastosowane
     versions = [r["version"] for r in db.execute("select version from schema_migrations order by version").fetchall()]
-    assert versions == ["0001_init", "0002_requests", "0003_auto_publish", "0004_offers", "0005_offer_prices", "0006_city_search", "0007_leads", "0008_brand_images", "0009_google_reviews", "0010_brand_logo_cover", "0011_owner_claims", "0012_city_deep_search", "0013_unconfirmed_brands", "0014_city_editorial"]
+    assert versions == ["0001_init", "0002_requests", "0003_auto_publish", "0004_offers", "0005_offer_prices", "0006_city_search", "0007_leads", "0008_brand_images", "0009_google_reviews", "0010_brand_logo_cover", "0011_owner_claims", "0012_city_deep_search", "0013_unconfirmed_brands", "0014_city_editorial", "0015_page_views"]
 
 
 def test_changed_applied_migration_is_rejected(db, tmp_path):
@@ -184,7 +184,11 @@ def test_purge_personal_data_removes_only_expired_form_entries(db):
     add("owner_claims", *claim, "25 months")
     add("owner_claims", *claim, "1 day")
 
-    counts = Repo(db).purge_personal_data({"leads": 12, "requests": 24, "claims": 24})
-    assert counts == {"leads": 1, "requests": 1, "claims": 1}
-    for table in ("leads", "requests", "owner_claims"):
+    visit = "path, kind", "'/wroclaw', 'page'"
+    add("page_views", *visit, "25 months")
+    add("page_views", *visit, "1 hour")
+
+    counts = Repo(db).purge_personal_data({"leads": 12, "requests": 24, "claims": 24, "visits": 24})
+    assert counts == {"leads": 1, "requests": 1, "claims": 1, "visits": 1}
+    for table in ("leads", "requests", "owner_claims", "page_views"):
         assert db.execute(f"select count(*)::int as n from {table}").fetchone()["n"] == 1

@@ -7,6 +7,11 @@ import { PublicShell } from "@/components/SiteChrome";
 import { CONSENT_COOKIE, CONSENT_MAX_AGE_DAYS, LEGAL_EFFECTIVE_DATE, RETENTION_MONTHS, SERVICE_HOST } from "@/lib/legal";
 import { SESSION_COOKIE } from "@/lib/session";
 import { pageMetadata } from "@/lib/seo";
+import { getTracking } from "@/lib/tracking";
+import { TOOLS, WITEKCRM } from "@/lib/tracking-tools";
+
+// Lista narzędzi, odbiorców i plików cookie pochodzi z ustawień panelu (Analityka i piksele), więc odświeżamy stronę.
+export const revalidate = 300;
 
 export const metadata: Metadata = pageMetadata({
   title: "Polityka prywatności i plików cookie",
@@ -15,7 +20,12 @@ export const metadata: Metadata = pageMetadata({
   path: "/polityka-prywatnosci",
 });
 
-export default function PrivacyPolicyPage() {
+export default async function PrivacyPolicyPage() {
+  const tracking = await getTracking();
+  const enabled = TOOLS.filter((t) => tracking.ids[t.key]);
+  const statsTools = enabled.filter((t) => t.category !== "marketing");
+  const marketingTools = enabled.filter((t) => t.category !== "statistics");
+  const hasMarketing = marketingTools.length > 0 || Boolean(tracking.customMarketing);
   return (
     <PublicShell>
       <article className="legal">
@@ -25,9 +35,10 @@ export default function PrivacyPolicyPage() {
         <div className="answer">
           <strong>W skrócie</strong>
           <p>
-            Zbieramy tylko dane potrzebne do działania serwisu i formularzy. Nie sprzedajemy danych, nie używamy reklamowych
-            plików cookie, a statystyki odwiedzin włączamy dopiero po Twojej zgodzie. Dane z formularzy usuwamy automatycznie
-            po upływie okresu przechowywania. W każdej chwili możesz zapytać, jakie dane o Tobie mamy, poprawić je, usunąć albo
+            Zbieramy tylko dane potrzebne do działania serwisu, statystyk i formularzy. Nie sprzedajemy danych. Serwer liczy
+            wejścia na stronę bez plików cookie i bez zapisywania adresu IP, a narzędzia analityczne i reklamowe w
+            przeglądarce włączamy dopiero po Twojej zgodzie. Dane z formularzy usuwamy automatycznie po upływie okresu
+            przechowywania. W każdej chwili możesz zapytać, jakie dane o Tobie mamy, poprawić je, usunąć albo
             sprzeciwić się ich przetwarzaniu.
           </p>
         </div>
@@ -58,10 +69,26 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>Okres: logi przechowuje dostawca hostingu przez krótki czas wynikający z jego ustawień, zwykle kilka dni.</li>
         </ul>
+        <p id="statystyki-serwera">
+          <b>Statystyki wejść liczone przez serwer.</b> Każde wejście na stronę zapisujemy w statystykach Serwisu: adres
+          odwiedzonej strony, domenę strony, z której przyszedłeś, parametry kampanii (UTM) z adresu, kraj i przybliżone
+          miasto ustalone na podstawie adresu IP, typ urządzenia, przeglądarkę i system oraz to, czy wejście wykonał robot
+          (np. wyszukiwarki). Nie zapisujemy adresu IP ani pełnego nagłówka User-Agent i nie używamy do tego plików cookie ani
+          niczego nie zapisujemy w Twojej przeglądarce. Żeby policzyć unikalnych odwiedzających, tworzymy skrót z adresu IP,
+          danych przeglądarki i losowej wartości zmienianej codziennie. Wartość z poprzedniego dnia usuwamy, więc skrótu nie da
+          się odwrócić ani powiązać z Twoimi wizytami w inne dni.
+        </p>
+        <ul className="plain">
+          <li>Cel: liczenie odwiedzin, analiza ruchu i ulepszanie Serwisu.</li>
+          <li>
+            Podstawa: art. 6 ust. 1 lit. f RODO, czyli nasz prawnie uzasadniony interes w prowadzeniu statystyk Serwisu w
+            formie ograniczonej do niezbędnego minimum. Możesz się temu sprzeciwić (punkt 6).
+          </li>
+          <li>Okres: 2 lata od wejścia, potem dane usuwamy automatycznie.</li>
+        </ul>
         <p>
-          Wejścia programów automatycznych (np. robotów wyszukiwarek i narzędzi sztucznej inteligencji), rozpoznane po
-          nagłówku User-Agent, liczymy po stronie serwera w statystykach Serwisu. Zapisujemy wtedy tylko nagłówek User-Agent,
-          adres odwiedzonej strony i kraj, bez adresu IP.
+          Wejścia robotów (wyszukiwarek, narzędzi sztucznej inteligencji, podglądów linków) zgłaszamy też do statystyk
+          WitekCRM: nagłówek User-Agent, adres strony i kraj, bez adresu IP.
         </p>
         <p>
           Zdjęcia i logo firm wyświetlamy przez serwis wsrv.nl (images.weserv.nl), który zmniejsza obrazki, żeby strony
@@ -69,15 +96,22 @@ export default function PrivacyPolicyPage() {
           informacje o przeglądarce. Podstawą jest art. 6 ust. 1 lit. f RODO (sprawne działanie Serwisu).
         </p>
 
-        <h3>2.2. Statystyki odwiedzin (tylko za zgodą)</h3>
+        <h3>2.2. Narzędzia statystyczne w przeglądarce (tylko za zgodą)</h3>
         <p>
           Jeśli wyrazisz zgodę w banerze plików cookie (kategoria „Statystyczne”), strona wczyta skrypt statystyk z systemu
-          WitekCRM (witekcrm.com). Skrypt zbiera informacje o odsłonach: odwiedzone adresy, źródło wejścia (np. wyszukiwarka
-          albo link z innej strony), czas spędzony na stronie oraz podstawowe informacje o przeglądarce i urządzeniu. Narzędzie
-          nie zapisuje plików cookie.
+          WitekCRM (witekcrm.com), który zbiera informacje o odsłonach: odwiedzone adresy, źródło wejścia, czas spędzony na
+          stronie oraz podstawowe informacje o przeglądarce i urządzeniu, bez plików cookie.
+          {statsTools.length > 0 && (
+            <>
+              {" "}
+              Za tą samą zgodą wczytujemy też:{" "}
+              {statsTools.map((t) => `${t.provider} (${t.purpose})`).join("; ")}.
+            </>
+          )}
+          {tracking.customStatistics && <> Oraz: {tracking.customStatistics.description}.</>}
         </p>
         <ul className="plain">
-          <li>Cel: liczenie odwiedzin, sprawdzanie, które strony są przydatne, i ulepszanie Serwisu.</li>
+          <li>Cel: analiza korzystania z Serwisu, sprawdzanie, które strony są przydatne, i ulepszanie Serwisu.</li>
           <li>
             Podstawa: Twoja zgoda (art. 6 ust. 1 lit. a RODO oraz art. 399 ustawy Prawo komunikacji elektronicznej). Bez zgody
             skrypt w ogóle się nie wczytuje.
@@ -90,7 +124,31 @@ export default function PrivacyPolicyPage() {
           </li>
         </ul>
 
-        <h3>2.3. Zapytanie do biura (formularz na profilu biura)</h3>
+        <h3>2.3. Narzędzia reklamowe (tylko za zgodą)</h3>
+        {hasMarketing ? (
+          <>
+            <p>
+              Jeśli wyrazisz zgodę na kategorię „Marketingowe”, strona wczyta:{" "}
+              {[...marketingTools.map((t) => `${t.provider} (${t.purpose})`), tracking.customMarketing?.description]
+                .filter(Boolean)
+                .join("; ")}
+              . Narzędzia te zapisują pliki cookie i przekazują dostawcom informacje o Twojej wizycie (m.in. adres IP,
+              odwiedzone strony, identyfikatory urządzenia), które dostawcy mogą łączyć z danymi ze swoich serwisów.
+            </p>
+            <ul className="plain">
+              <li>Cel: mierzenie skuteczności reklam Serwisu i pokazywanie reklam osobom, które odwiedziły Serwis.</li>
+              <li>Podstawa: Twoja zgoda (art. 6 ust. 1 lit. a RODO oraz art. 399 ustawy Prawo komunikacji elektronicznej).</li>
+              <li>
+                Okres: do wycofania zgody, a pliki cookie według tabeli w punkcie 5. Dostawcy przetwarzają dane także według
+                własnych zasad prywatności.
+              </li>
+            </ul>
+          </>
+        ) : (
+          <p>Obecnie nie używamy narzędzi reklamowych ani pikseli reklamowych.</p>
+        )}
+
+        <h3>2.4. Zapytanie do biura (formularz na profilu biura)</h3>
         <p>
           Gdy wysyłasz zapytanie do biura, przetwarzamy: imię lub imię i nazwisko, adres e-mail, numer telefonu (jeśli go
           podasz), temat i treść wiadomości, wybrane biuro oraz datę wysłania.
@@ -115,7 +173,7 @@ export default function PrivacyPolicyPage() {
           </li>
         </ul>
 
-        <h3>2.4. Zgłoszenia na stronie „Dla biur”</h3>
+        <h3>2.5. Zgłoszenia na stronie „Dla biur”</h3>
         <p>
           Gdy wysyłasz zgłoszenie (korekta danych, usunięcie wpisu, inna sprawa, w tym sprawy dotyczące danych osobowych),
           przetwarzamy: rodzaj zgłoszenia, adres e-mail, NIP firmy (jeśli go podasz), treść zgłoszenia oraz datę wysłania.
@@ -130,7 +188,7 @@ export default function PrivacyPolicyPage() {
           <li>Okres: {RETENTION_MONTHS.requests} miesiące od wysłania, potem dane usuwamy automatycznie.</li>
         </ul>
 
-        <h3>2.5. Zgłoszenie właściciela firmy</h3>
+        <h3>2.6. Zgłoszenie właściciela firmy</h3>
         <p>
           Gdy zgłaszasz, że reprezentujesz firmę z katalogu, przetwarzamy: imię i nazwisko, stanowisko lub rolę w firmie,
           adres e-mail, numer telefonu (jeśli go podasz), NIP firmy, czego dotyczy zgłoszenie i treść wiadomości.
@@ -146,7 +204,7 @@ export default function PrivacyPolicyPage() {
           <li>Okres: {RETENTION_MONTHS.claims} miesiące od wysłania, potem dane usuwamy automatycznie.</li>
         </ul>
 
-        <h3 id="dane-firm">2.6. Dane firm w katalogu</h3>
+        <h3 id="dane-firm">2.7. Dane firm w katalogu</h3>
         <p>
           Katalog obejmuje biura nieruchomości prowadzone jako spółki i jako jednoosobowe działalności gospodarcze. Dane spółek
           nie są danymi osobowymi. Dane przedsiębiorców będących osobami fizycznymi (np. imię i nazwisko w nazwie firmy, adres
@@ -194,7 +252,7 @@ export default function PrivacyPolicyPage() {
           </li>
         </ul>
 
-        <h3>2.7. Opinie z Google</h3>
+        <h3>2.8. Opinie z Google</h3>
         <p>
           Na profilach firm pokazujemy ocenę i wybrane opinie z Map Google, pobrane przez oficjalne Places API: nazwę autora
           (tak jak jest widoczna w Google), ocenę, treść, datę i link do profilu autora w Google.
@@ -260,9 +318,27 @@ export default function PrivacyPolicyPage() {
               </tr>
               <tr>
                 <td>WitekCRM (witekcrm.com)</td>
-                <td>statystyki odwiedzin, tylko po wyrażeniu zgody</td>
+                <td>statystyki odwiedzin w przeglądarce (po zgodzie) i wejścia robotów</td>
                 <td>według ustawień systemu</td>
               </tr>
+              {enabled.map((t) => (
+                <tr key={t.key}>
+                  <td>{t.provider}</td>
+                  <td>
+                    {t.purpose}, tylko po zgodzie na kategorię {t.category === "marketing" ? "marketingową" : t.category === "statistics" ? "statystyczną" : "statystyczną lub marketingową"}
+                  </td>
+                  <td>{t.transfer}</td>
+                </tr>
+              ))}
+              {[tracking.customStatistics, tracking.customMarketing].map((c, i) =>
+                c ? (
+                  <tr key={`custom-${i}`}>
+                    <td>{c.description}</td>
+                    <td>{i === 0 ? "statystyki, tylko po zgodzie" : "reklama, tylko po zgodzie"}</td>
+                    <td>według zasad dostawcy</td>
+                  </tr>
+                ) : null,
+              )}
               <tr>
                 <td>Biuro wybrane w formularzu zapytania</td>
                 <td>odpowiedź na Twoje zapytanie (jako odrębny administrator)</td>
@@ -273,7 +349,10 @@ export default function PrivacyPolicyPage() {
         </div>
         <p>
           Dane możemy też przekazać sądom, organom ścigania i innym organom publicznym, gdy wymagają tego przepisy. Nie
-          sprzedajemy danych i nie udostępniamy ich w celach reklamowych.
+          sprzedajemy danych.
+          {hasMarketing
+            ? " Dostawcom narzędzi reklamowych dane trafiają tylko od osób, które zgodziły się na kategorię marketingową."
+            : " Nie udostępniamy ich w celach reklamowych."}
         </p>
 
         <h2 id="poza-eog">4. Przekazywanie danych poza Europejski Obszar Gospodarczy</h2>
@@ -286,8 +365,12 @@ export default function PrivacyPolicyPage() {
 
         <h2 id="cookies">5. Pliki cookie i podobne technologie</h2>
         <p>
-          Pliki cookie to małe pliki zapisywane w przeglądarce. Używamy ich jak najmniej. Nie stosujemy plików cookie
-          reklamowych ani śledzących między stronami. Czcionki wczytujemy z naszego serwera, a nie z serwerów Google.
+          Pliki cookie to małe pliki zapisywane w przeglądarce. Bez Twojej zgody używamy wyłącznie plików niezbędnych.
+          {hasMarketing
+            ? " Pliki reklamowe zapisujemy tylko po zgodzie na kategorię marketingową."
+            : " Nie stosujemy plików cookie reklamowych."}{" "}
+          Czcionki wczytujemy z naszego serwera, a nie z serwerów Google. Statystyki wejść liczone przez serwer (punkt 2.1)
+          nie używają plików cookie.
         </p>
         <div className="tablewrap">
           <table>
@@ -314,10 +397,33 @@ export default function PrivacyPolicyPage() {
               </tr>
               <tr>
                 <td>skrypt statystyk WitekCRM</td>
-                <td>liczenie odwiedzin (opis w punkcie 2.2)</td>
+                <td>{WITEKCRM.purpose} (punkt 2.2)</td>
                 <td>statystyczny, zewnętrzny, tylko po zgodzie</td>
-                <td>nie zapisuje plików cookie</td>
+                <td>{WITEKCRM.cookies}</td>
               </tr>
+              {enabled.map((t) => (
+                <tr key={t.key}>
+                  <td className="mono">{t.cookies.replace(/ \(.*?\)/g, "")}</td>
+                  <td>
+                    {t.provider.replace(/ \(.*$/, "")}: {t.purpose}
+                  </td>
+                  <td>
+                    {t.category === "marketing" ? "marketingowy" : t.category === "statistics" ? "statystyczny" : "zależnie od narzędzia"},
+                    zewnętrzny, tylko po zgodzie
+                  </td>
+                  <td>{t.cookies.match(/\((.*?)\)/g)?.map((m) => m.slice(1, -1)).join(", ") || "-"}</td>
+                </tr>
+              ))}
+              {[tracking.customStatistics, tracking.customMarketing].map((c, i) =>
+                c ? (
+                  <tr key={`custom-cookie-${i}`}>
+                    <td>{c.description}</td>
+                    <td>{i === 0 ? "statystyki" : "reklama"}</td>
+                    <td>{i === 0 ? "statystyczny" : "marketingowy"}, zewnętrzny, tylko po zgodzie</td>
+                    <td>według zasad dostawcy</td>
+                  </tr>
+                ) : null,
+              )}
             </tbody>
           </table>
         </div>

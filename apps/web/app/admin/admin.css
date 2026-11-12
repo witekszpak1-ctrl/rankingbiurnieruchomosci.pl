@@ -353,3 +353,29 @@
 .adm table.sites .sub { font-size: 0.74rem; color: var(--a-muted); line-height: 1.35; margin-top: 2px; max-width: 520px; }
 .adm table.sites .badge { font-size: 0.7rem; padding: 1px 6px; }
 .adm .badge.mini { margin-left: 6px; font-size: 0.68rem; padding: 0 5px; }
+
+/* ruch na stronie */
+.adm .traffic-chart h3 { margin-bottom: 14px; }
+.adm .chart-bars { display: grid; align-items: end; gap: 2px; height: 180px; }
+.adm .chart-col { position: relative; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.adm .chart-bar { position: absolute; bottom: 0; width: 70%; border-radius: 3px 3px 0 0; }
+.adm .chart-bar.views { background: var(--a-accent-soft); outline: 1px solid var(--a-accent); }
+.adm .chart-bar.visitors { background: var(--a-accent); width: 40%; }
+.adm .chart-axis { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 0.8rem; color: var(--a-faint); }
+.adm .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: -1px; }
+.adm .chart-legend i.views { background: var(--a-accent-soft); outline: 1px solid var(--a-accent); }
+.adm .chart-legend i.visitors { background: var(--a-accent); }
+.adm .traffic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 0 20px; }
+.adm .traffic-table h2 { font-size: 1rem; margin: 18px 0 0; }
+.adm .traffic-table td:first-child { position: relative; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm .traffic-bar { position: absolute; left: 0; top: 4px; bottom: 4px; background: var(--a-accent-soft); border-radius: 4px; z-index: 0; }
+.adm .traffic-label { position: relative; z-index: 1; }
+@media (max-width: 640px) { .adm .traffic-grid { grid-template-columns: 1fr; } }
+
+/* analityka i piksele */
+.adm .tracking-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px 20px; }
+.adm .tracking-field input { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.adm .tracking-field .note { margin: 4px 0 0; font-size: 0.8rem; }
+.adm .tracking-form .panel input { width: 100%; }
+.adm .tracking-form textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+.adm .tracking-form label .chip { margin-left: 6px; }

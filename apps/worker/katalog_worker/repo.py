@@ -452,10 +452,12 @@ class Repo:
     # ------------------------------------------------------------------ dane z formularzy
 
     def purge_personal_data(self, months: dict[str, int]) -> dict[str, int]:
-        """Usuwa dane z formularzy starsze niż okres przechowywania z polityki prywatności (w miesiącach)."""
-        tables = {"leads": "leads", "requests": "requests", "claims": "owner_claims"}
+        """Usuwa dane z formularzy i statystyki wejść starsze niż okres przechowywania z polityki prywatności (miesiące)."""
+        tables = {"leads": "leads", "requests": "requests", "claims": "owner_claims", "visits": "page_views"}
         counts: dict[str, int] = {}
         for key, table in tables.items():
+            if key not in months:
+                continue
             counts[key] = self.conn.execute(
                 f"delete from {table} where created_at < now() - make_interval(months => %s)",  # noqa: S608 (stała nazwa)
                 (int(months[key]),),

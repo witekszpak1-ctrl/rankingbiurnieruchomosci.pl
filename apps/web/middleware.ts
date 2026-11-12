@@ -1,14 +1,17 @@
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
+import { reportHit } from "./lib/analytics-edge";
 import { reportBot } from "./lib/pulse-bots";
 import { SESSION_COOKIE, verifySession } from "./lib/session";
 
 // Chroni cały /admin poza stroną logowania. Akcje serwerowe dodatkowo wołają requireAdmin().
-// Poza panelem: zgłasza boty (wyszukiwarki, AI, podglądy linków) do „Statystyk stron” w CRM.
+// Poza panelem: zgłasza boty (wyszukiwarki, AI, podglądy linków) do „Statystyk stron” w CRM
+// i zapisuje każde wejście w statystykach serwisu (lib/analytics-edge.ts, bez cookies i bez adresu IP).
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
   if (pathname !== "/admin" && !pathname.startsWith("/admin/")) {
     reportBot(request, event);
+    reportHit(request, event);
     return NextResponse.next();
   }
   if (pathname === "/admin/login") return NextResponse.next();

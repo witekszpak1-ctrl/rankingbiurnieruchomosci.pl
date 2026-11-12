@@ -10,6 +10,7 @@ import { query, withTransaction } from "@/lib/db";
 import { evaluateGate } from "@/lib/gate";
 import { REQUEST_STATUSES } from "@/lib/requests";
 import { slugify, uniqueSlug } from "@/lib/slug";
+import { parseTrackingForm } from "@/lib/tracking";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -306,4 +307,32 @@ export async function promptAction(formData: FormData) {
   });
   revalidatePath(path);
   back(path, "ok", action === "reset" ? "Przywrócono wersję domyślną." : "Zapisano. Claude użyje nowego prompta od najbliższej sesji po przebiegu automatu.");
+}
+
+/** Zapis narzędzi analitycznych i reklamowych (settings.tracking). Wczytują się na stronie dopiero po zgodzie w banerze. */
+export async function trackingAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const path = "/admin/analityka";
+  const parsed = parseTrackingForm(formData);
+  if (!parsed.ok) back(path, "error", parsed.message);
+  const value = parsed.value;
+  await withTransaction(async (client) => {
+    const before = await client.query<{ value: unknown }>("select value from settings where key = 'tracking'");
+    await client.query(
+      `insert into settings (key, value, updated_at) values ('tracking', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify({ ...value, updated_by: admin })],
+    );
+    await writeAudit(client, {
+      actor: admin,
+      action: "tracking.update",
+      entityType: "settings",
+      entityId: "tracking",
+      before: before.rows[0]?.value ?? null,
+      after: { ids: value.ids, customStatistics: Boolean(value.customStatistics), customMarketing: Boolean(value.customMarketing) },
+    });
+  });
+  revalidatePath(path);
+  revalidatePath("/polityka-prywatnosci");
+  back(path, "ok", "Zapisano. Narzędzia wczytają się u osób, które wyrażą zgodę w banerze (baner zapyta wszystkich ponownie, jeśli lista narzędzi się zmieniła).");
 }

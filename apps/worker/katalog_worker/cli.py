@@ -268,7 +268,7 @@ def cmd_ab_search(args) -> int:
 
 
 # Okresy przechowywania danych z formularzy (miesiące). Te same liczby podaje polityka prywatności (apps/web/lib/legal.ts).
-RETENTION_MONTHS = {"leads": 12, "requests": 24, "claims": 24}
+RETENTION_MONTHS = {"leads": 12, "requests": 24, "claims": 24, "visits": 24}
 
 
 def cmd_purge_personal(args) -> int:
@@ -353,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     add("status", cmd_status, "liczby rekordów według statusów", vertical=False)
     add(
         "purge-personal", cmd_purge_personal,
-        "usuń dane z formularzy po okresie przechowywania (zapytania 12 mies., zgłoszenia 24 mies.)", vertical=False,
+        "usuń dane z formularzy i statystyki wejść po okresie przechowywania (12 lub 24 mies.)", vertical=False,
     )
     return parser
 

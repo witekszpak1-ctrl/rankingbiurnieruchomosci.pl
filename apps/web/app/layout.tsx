@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { CookieConsent } from "@/components/CookieConsent";
-import PulseTracker from "@/components/PulseTracker";
 import { SITE_NAME, SITE_URL } from "@/lib/format";
 
 // Wdrożenia podglądowe Vercel (preview) nie mogą konkurować z produkcją w wynikach wyszukiwania.
@@ -30,7 +29,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <CookieConsent />
-        <PulseTracker />
       </body>
     </html>
   );
