@@ -40,6 +40,21 @@ export default async function TrackingPage({ searchParams }: Props) {
         </div>
       </div>
 
+      <section className="panel">
+        <h3>Testowanie narzędzi</h3>
+        <p>
+          <a className="btn" href="/?test_narzedzi=1" target="_blank" rel="noopener">
+            Otwórz stronę w trybie testowym
+          </a>
+        </p>
+        <p className="note">
+          W trybie testowym wszystkie zapisane narzędzia (piksele, Analytics, własny kod) uruchamiają się od razu, bez banera,
+          ale tylko w Twojej przeglądarce i tylko gdy jesteś zalogowany do panelu. Zwykli odwiedzający nadal widzą baner.
+          Działanie sprawdzisz w Menedżerze zdarzeń Meta (Testuj zdarzenia), w rozszerzeniu Meta Pixel Helper albo w raporcie
+          Google Analytics „W czasie rzeczywistym”. Tryb wyłączysz linkiem na dole strony albo zamykając kartę.
+        </p>
+      </section>
+
       <form action={trackingAction} className="tracking-form">
         <section className="panel">
           <h3>Identyfikatory narzędzi</h3>

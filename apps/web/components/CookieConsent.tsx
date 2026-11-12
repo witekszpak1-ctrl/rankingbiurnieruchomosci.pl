@@ -18,6 +18,8 @@ import { type PublicTracking, toolsIn, WITEKCRM } from "@/lib/tracking-tools";
 export type Consent = { statistics: boolean; marketing: boolean };
 
 const OPEN_EVENT = "rbn:otworz-zgode";
+const TEST_PARAM = "test_narzedzi";
+const TEST_FLAG = "rbn_test_narzedzi";
 const EMPTY: PublicTracking = { version: "", ids: {}, customStatistics: null, customMarketing: null };
 
 type Stored = Consent & { tools: string };
@@ -166,15 +168,39 @@ export function CookieConsent() {
   const [draft, setDraft] = useState<Consent>({ statistics: false, marketing: false });
   const firstButton = useRef<HTMLButtonElement>(null);
   const firstPath = useRef<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
 
   useEffect(() => {
     let active = true;
+    // Tryb testowy (tylko zalogowany administrator): ?test_narzedzi=1 włącza, ?test_narzedzi=0 wyłącza.
+    const param = new URLSearchParams(window.location.search).get(TEST_PARAM);
+    try {
+      if (param === "1") sessionStorage.setItem(TEST_FLAG, "1");
+      if (param === "0") sessionStorage.removeItem(TEST_FLAG);
+    } catch {
+      /* brak dostępu do sessionStorage: tryb testowy niedostępny */
+    }
+    let wantsTest = false;
+    try {
+      wantsTest = sessionStorage.getItem(TEST_FLAG) === "1";
+    } catch {
+      wantsTest = false;
+    }
+    const testCheck = wantsTest
+      ? fetch("/api/sledzenie/test", { cache: "no-store" }).then((r) => r.ok).catch(() => false)
+      : Promise.resolve(false);
     fetch("/api/sledzenie")
       .then((r) => (r.ok ? (r.json() as Promise<PublicTracking>) : EMPTY))
       .catch(() => EMPTY)
-      .then((cfg) => {
+      .then(async (cfg) => {
+        const isTest = await testCheck;
         if (!active) return;
         setConfig(cfg);
+        if (isTest) {
+          setTestMode(true);
+          setConsent({ statistics: true, marketing: true });
+          return;
+        }
         const stored = readStored();
         if (stored && stored.tools === cfg.version) {
           setConsent({ statistics: stored.statistics, marketing: stored.marketing });
@@ -221,6 +247,15 @@ export function CookieConsent() {
     },
     [consent, config],
   );
+
+  if (testMode && !pathname?.startsWith("/admin")) {
+    return (
+      <div className="tracking-test-badge" role="status">
+        Tryb testowy: wszystkie narzędzia z panelu działają bez zgody, tylko w tej przeglądarce (administrator).{" "}
+        <a href={`${pathname}?${TEST_PARAM}=0`}>Wyłącz</a>
+      </div>
+    );
+  }
 
   if (!open || !config || pathname?.startsWith("/admin")) return null;
 
