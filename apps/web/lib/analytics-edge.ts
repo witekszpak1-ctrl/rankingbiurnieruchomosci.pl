@@ -25,7 +25,20 @@ export function reportHit(req: NextRequest, event: NextFetchEvent): void {
   } catch {
     /* zostaje surowa wartość */
   }
+  const q = url.searchParams;
+  const adClick = q.has("fbclid")
+    ? "meta"
+    : q.has("gclid") || q.has("gbraid") || q.has("wbraid") || q.has("gad_source")
+      ? "google"
+      : q.has("msclkid")
+        ? "microsoft"
+        : q.has("ttclid")
+          ? "tiktok"
+          : q.has("li_fat_id")
+            ? "linkedin"
+            : null;
   const payload = {
+    adClick,
     path: url.pathname,
     kind: "page",
     referrer: h.get("referer"),

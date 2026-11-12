@@ -25,7 +25,10 @@ export type Hit = {
   ua: string;
   ip: string | null;
   host: string | null;
+  adClick?: string | null;
 };
+
+const AD_NETWORKS = new Set(["meta", "google", "microsoft", "tiktok", "linkedin"]);
 
 export type UaInfo = { device: "mobile" | "tablet" | "desktop" | "other"; browser: string; os: string };
 
@@ -103,8 +106,8 @@ export async function recordHit(hit: Hit): Promise<void> {
   }
   await query(
     `insert into page_views (path, kind, is_bot, bot, visitor, referrer_host, utm_source, utm_medium, utm_campaign,
-                             country, city, device, browser, os)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                             country, city, device, browser, os, ad_click)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       hit.path.slice(0, 300),
       hit.kind,
@@ -120,13 +123,14 @@ export async function recordHit(hit: Hit): Promise<void> {
       bot ? "other" : info.device,
       bot ? null : info.browser,
       bot ? null : info.os,
+      !bot && hit.adClick && AD_NETWORKS.has(hit.adClick) ? hit.adClick : null,
     ],
   );
 }
 
 // ----------------------------------------------------------------------------- raport w panelu
 
-export type TrafficSummary = { views: number; visitors: number; entries: number; bots: number };
+export type TrafficSummary = { views: number; visitors: number; entries: number; bots: number; adClicks: number };
 export type DayRow = { day: string; views: number; visitors: number; bots: number };
 export type CountRow = { label: string; views: number; visitors: number };
 
@@ -140,11 +144,12 @@ export async function trafficSummary(days: number): Promise<TrafficSummary> {
                select count(distinct visitor) as n from page_views
                where ${SINCE} and ${HUMAN} group by (created_at at time zone 'Europe/Warsaw')::date) d) as visitors,
             (count(*) filter (where ${HUMAN} and (referrer_host is not null or utm_source is not null)))::int as entries,
-            (count(*) filter (where is_bot))::int as bots
+            (count(*) filter (where is_bot))::int as bots,
+            (count(*) filter (where ${HUMAN} and ad_click is not null))::int as "adClicks"
      from page_views where ${SINCE}`,
     [days],
   );
-  return rows[0] ?? { views: 0, visitors: 0, entries: 0, bots: 0 };
+  return rows[0] ?? { views: 0, visitors: 0, entries: 0, bots: 0, adClicks: 0 };
 }
 
 export async function trafficByDay(days: number): Promise<DayRow[]> {
@@ -173,11 +178,18 @@ const COLUMNS = {
   device: "device",
   browser: "coalesce(browser, '?')",
   os: "coalesce(os, '?')",
+  ad: "ad_click",
+  adLanding: "concat(ad_click, ': ', path)",
+  adCampaign: "concat(ad_click, ': ', coalesce(utm_campaign, '(kampania bez UTM)'))",
 } as const;
 
 /** Najczęstsze wartości jednej kolumny wśród wejść ludzi (dla źródeł tylko pełne wejścia, bez przejść wewnętrznych). */
 export async function topValues(column: keyof typeof COLUMNS, days: number, limit = 15): Promise<CountRow[]> {
-  const extra = column === "referrer" ? "and kind = 'page'" : column === "utm" ? "and utm_source is not null" : "";
+  const extra =
+    column === "referrer" ? "and kind = 'page'"
+    : column === "utm" ? "and utm_source is not null"
+    : column.startsWith("ad") ? "and ad_click is not null"
+    : "";
   return query<CountRow>(
     `select ${COLUMNS[column]} as label, count(*)::int as views, count(distinct visitor)::int as visitors
      from page_views where ${SINCE} and ${HUMAN} ${extra}

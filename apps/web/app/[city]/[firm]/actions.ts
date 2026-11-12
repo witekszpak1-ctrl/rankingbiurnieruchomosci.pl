@@ -1,6 +1,12 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+
+import { SITE_URL } from "@/lib/format";
+import { metaContext, sendMetaEvent } from "@/lib/meta-capi";
 
 import { LEADS_PER_EMAIL_PER_HOUR, LEADS_PER_HOUR, countRecentLeads, insertLead, validateLead } from "@/lib/leads";
 
@@ -28,6 +34,17 @@ export async function submitLeadAction(formData: FormData) {
     console.error("Zapis zapytania nie powiódł się", error instanceof Error ? error.message : error);
     outcome = "server";
   }
-  if (outcome === "ok") redirect(`${path}?sent=1#zapytanie`);
+  if (outcome === "ok") {
+    // Konwersja do Meta Conversions API (tylko za zgodą na marketing): e-mail, telefon i imię jako skróty SHA-256.
+    const eventId = randomUUID();
+    const url = `${SITE_URL}${path}`;
+    const context = await metaContext(url).catch(() => null);
+    if (context?.allowed) {
+      const { email, phone, name } = result.value;
+      after(() => sendMetaEvent(context, { name: "Lead", eventId, url, user: { email, phone, firstName: name } }));
+      redirect(`${path}?sent=1&eid=${eventId}#zapytanie`);
+    }
+    redirect(`${path}?sent=1#zapytanie`);
+  }
   redirect(`${path}?error=${outcome}#zapytanie`);
 }

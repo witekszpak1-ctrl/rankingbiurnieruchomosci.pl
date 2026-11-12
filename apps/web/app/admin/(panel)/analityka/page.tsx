@@ -78,6 +78,52 @@ export default async function TrackingPage({ searchParams }: Props) {
           </div>
         </section>
 
+        <section className="panel">
+          <h3>Meta Conversions API (zdarzenia z serwera)</h3>
+          <p className="note">
+            Serwer wysyła do Meta te same zdarzenia co piksel (odsłony, oglądanie profilu, kontakt, wyszukiwanie, zapytania),
+            więc dochodzą także od osób z blokerem reklam i z iPhone&apos;ów. Przy wysłanym zapytaniu dołączamy zahaszowany
+            e-mail, telefon i imię, co poprawia dopasowanie konwersji. Działa tylko u osób ze zgodą na marketing, razem z
+            pikselem Meta (wpisz jego identyfikator wyżej). Token wygenerujesz w Menedżerze zdarzeń: Źródła danych, piksel,
+            Ustawienia, Conversions API, „Wygeneruj token dostępu”.
+          </p>
+          <div className="tracking-grid">
+            <div className="tracking-field">
+              <label htmlFor="metaCapiToken">
+                Token dostępu Conversions API{" "}
+                <span className="chip">{settings.metaCapiToken ? `zapisany (...${settings.metaCapiToken.slice(-4)})` : "brak"}</span>
+              </label>
+              <input
+                id="metaCapiToken"
+                name="metaCapiToken"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={settings.metaCapiToken ? "zostaw puste, żeby zachować zapisany token" : "EAAG..."}
+              />
+              {settings.metaCapiToken && (
+                <label className="inline-check">
+                  <input type="checkbox" name="metaCapiTokenRemove" /> usuń zapisany token
+                </label>
+              )}
+            </div>
+            <div className="tracking-field">
+              <label htmlFor="metaTestCode">Kod testowy (nieobowiązkowo, tylko na czas testów)</label>
+              <input
+                id="metaTestCode"
+                name="metaTestCode"
+                defaultValue={settings.metaTestCode ?? ""}
+                placeholder="TEST12345"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <p className="note">
+                Z zakładki Testuj zdarzenia w Menedżerze zdarzeń. Zdarzenia z kodem widać tam na żywo. Po testach usuń kod.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {(["Statistics", "Marketing"] as const).map((kind) => {
           const current = kind === "Statistics" ? settings.customStatistics : settings.customMarketing;
           return (

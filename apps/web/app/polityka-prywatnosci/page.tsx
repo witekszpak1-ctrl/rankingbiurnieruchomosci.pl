@@ -26,6 +26,7 @@ export default async function PrivacyPolicyPage() {
   const statsTools = enabled.filter((t) => t.category !== "marketing");
   const marketingTools = enabled.filter((t) => t.category !== "statistics");
   const hasMarketing = marketingTools.length > 0 || Boolean(tracking.customMarketing);
+  const metaCapi = Boolean(tracking.ids.metaPixel && tracking.metaCapiToken);
   return (
     <PublicShell>
       <article className="legal">
@@ -72,8 +73,9 @@ export default async function PrivacyPolicyPage() {
         <p id="statystyki-serwera">
           <b>Statystyki wejść liczone przez serwer.</b> Każde wejście na stronę zapisujemy w statystykach Serwisu: adres
           odwiedzonej strony, domenę strony, z której przyszedłeś, parametry kampanii (UTM) z adresu, kraj i przybliżone
-          miasto ustalone na podstawie adresu IP, typ urządzenia, przeglądarkę i system oraz to, czy wejście wykonał robot
-          (np. wyszukiwarki). Nie zapisujemy adresu IP ani pełnego nagłówka User-Agent i nie używamy do tego plików cookie ani
+          miasto ustalone na podstawie adresu IP, typ urządzenia, przeglądarkę i system, to, czy wejście nastąpiło z
+          kliknięcia w reklamę (tylko nazwa sieci reklamowej, np. Meta lub Google, rozpoznana po parametrze w adresie, bez
+          jego wartości) oraz to, czy wejście wykonał robot (np. wyszukiwarki). Nie zapisujemy adresu IP ani pełnego nagłówka User-Agent i nie używamy do tego plików cookie ani
           niczego nie zapisujemy w Twojej przeglądarce. Żeby policzyć unikalnych odwiedzających, tworzymy skrót z adresu IP,
           danych przeglądarki i losowej wartości zmienianej codziennie. Wartość z poprzedniego dnia usuwamy, więc skrótu nie da
           się odwrócić ani powiązać z Twoimi wizytami w inne dni.
@@ -134,7 +136,18 @@ export default async function PrivacyPolicyPage() {
                 .join("; ")}
               . Narzędzia te zapisują pliki cookie i przekazują dostawcom informacje o Twojej wizycie (m.in. adres IP,
               odwiedzone strony, identyfikatory urządzenia), które dostawcy mogą łączyć z danymi ze swoich serwisów.
+              Przekazujemy im też zdarzenia z Serwisu: odsłonę strony, obejrzenie profilu biura, wyszukiwanie, pokazanie
+              numeru telefonu, kliknięcie w stronę biura lub w ofertę, wysłanie zapytania i zgłoszenie właściciela firmy.
             </p>
+            {metaCapi && (
+              <p>
+                Zdarzenia dla Meta wysyłamy także bezpośrednio z naszego serwera (Meta Conversions API), razem z adresem IP,
+                informacjami o przeglądarce i identyfikatorami z plików cookie Meta. Gdy wysyłasz zapytanie do biura,
+                dołączamy Twój adres e-mail, numer telefonu i imię w postaci skrótów SHA-256, żeby Meta mogła dopasować
+                zapytanie do reklamy, z której przyszedłeś. Dzieje się to tylko wtedy, gdy zgodziłeś się na kategorię
+                marketingową.
+              </p>
+            )}
             <ul className="plain">
               <li>Cel: mierzenie skuteczności reklam Serwisu i pokazywanie reklam osobom, które odwiedziły Serwis.</li>
               <li>Podstawa: Twoja zgoda (art. 6 ust. 1 lit. a RODO oraz art. 399 ustawy Prawo komunikacji elektronicznej).</li>
@@ -167,6 +180,12 @@ export default async function PrivacyPolicyPage() {
             Odbiorca: biuro wybrane w formularzu. Po otrzymaniu zapytania biuro staje się odrębnym administratorem Twoich danych
             i przetwarza je według własnych zasad, w celu odpowiedzi na zapytanie.
           </li>
+          {metaCapi && (
+            <li>
+              Jeśli zgodziłeś się na kategorię marketingową, przekazujemy Meta Platforms Ireland Ltd. skróty SHA-256 adresu
+              e-mail, numeru telefonu i imienia oraz informację o wysłaniu zapytania (punkt 2.3). Podstawą jest Twoja zgoda.
+            </li>
+          )}
           <li>
             Okres: {RETENTION_MONTHS.leads} miesięcy od wysłania, potem dane usuwamy automatycznie. Wcześniej usuniemy je na
             Twoje żądanie. Wycofanie zgody nie cofa przekazania danych, które już nastąpiło.

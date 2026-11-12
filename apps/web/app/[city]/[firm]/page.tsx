@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { FirmImage } from "@/components/FirmImage";
 import { LeadForm } from "@/components/LeadForm";
 import { ShowPhone } from "@/components/ShowPhone";
+import { TrackEvent } from "@/components/TrackEvent";
 import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing, listCityListings, type ListingCard } from "@/lib/catalog";
@@ -170,6 +171,10 @@ export default async function FirmPage({ params, searchParams }: Props) {
               <span>{listing.name}</span>
             </nav>
             <h1 className="profile-name">{listing.name}</h1>
+            <TrackEvent
+              name="ViewContent"
+              params={{ content_name: listing.name, content_category: listing.cityName, content_type: "biuro_nieruchomosci" }}
+            />
             <p className="profile-intro">{intro}</p>
             {listing.googleRating && listing.googleCount ? (
               <div className="profile-rating">
@@ -199,7 +204,13 @@ export default async function FirmPage({ params, searchParams }: Props) {
               )}
               {listing.websiteUrl && (
                 <li>
-                  <a href={listing.websiteUrl} rel="noopener nofollow" target="_blank">
+                  <a
+                    href={listing.websiteUrl}
+                    rel="noopener nofollow"
+                    target="_blank"
+                    data-track="WebsiteClick"
+                    data-track-content-name={listing.name}
+                  >
                     {listing.host}
                   </a>
                 </li>
@@ -295,7 +306,14 @@ export default async function FirmPage({ params, searchParams }: Props) {
                           <span>oferta biura {listing.name}</span>
                         </span>
                         <span className={price ? "offer-price" : "offer-price none"}>{price ?? "cena na stronie biura"}</span>
-                        <a className="offer-go" href={offer.url} rel="noopener nofollow" target="_blank">
+                        <a
+                          className="offer-go"
+                          href={offer.url}
+                          rel="noopener nofollow"
+                          target="_blank"
+                          data-track="OfferClick"
+                          data-track-content-name={offer.title.slice(0, 120)}
+                        >
                           Zobacz ofertę
                           <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M7 17 17 7M9 7h8v8" />
@@ -470,6 +488,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
               firmName={listing.name}
               path={path}
               sent={sp.sent === "1"}
+              eventId={typeof sp.eid === "string" ? sp.eid : undefined}
               error={typeof sp.error === "string" ? sp.error : null}
               imageSlot={<FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="sm" />}
             />

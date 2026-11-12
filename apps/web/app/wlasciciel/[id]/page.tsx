@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { submitClaimAction } from "./actions";
 import { PublicShell } from "@/components/SiteChrome";
+import { TrackEvent } from "@/components/TrackEvent";
 import { CLAIM_WANTS, WANT_LABEL, getClaimTarget } from "@/lib/claims";
 import { RETENTION_MONTHS } from "@/lib/legal";
 
@@ -60,10 +61,13 @@ export default async function ClaimPage({ params, searchParams }: Props) {
         </div>
         <div className="lead claim-form">
           {sp.sent === "1" ? (
-            <div className="alert ok">
-              Dziękujemy, zgłoszenie zostało wysłane. Odezwiemy się w ciągu kilku dni roboczych.{" "}
-              <Link href={firm.path}>Wróć do profilu firmy</Link>
-            </div>
+            <>
+              <div className="alert ok">
+                Dziękujemy, zgłoszenie zostało wysłane. Odezwiemy się w ciągu kilku dni roboczych.{" "}
+                <Link href={firm.path}>Wróć do profilu firmy</Link>
+              </div>
+              <TrackEvent name="SubmitApplication" params={{ content_name: firm.name }} />
+            </>
           ) : (
             <form action={submitClaimAction} className="lead-form">
               {error && <div className="alert bad">{ERRORS[error] ?? ERRORS.server}</div>}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { submitLeadAction } from "@/app/[city]/[firm]/actions";
+import { TrackEvent } from "@/components/TrackEvent";
 import { LEAD_TOPICS, TOPIC_LABEL } from "@/lib/leads";
 import { RETENTION_MONTHS } from "@/lib/legal";
 
@@ -20,11 +21,12 @@ type Props = {
   firmName: string;
   path: string;
   sent: boolean;
+  eventId?: string;
   error: string | null;
   imageSlot?: React.ReactNode;
 };
 
-export function LeadForm({ listingId, firmName, path, sent, error, imageSlot }: Props) {
+export function LeadForm({ listingId, firmName, path, sent, eventId, error, imageSlot }: Props) {
   return (
     <section id="zapytanie" className="lead">
       <div className="lead-head">
@@ -35,7 +37,10 @@ export function LeadForm({ listingId, firmName, path, sent, error, imageSlot }: 
         </div>
       </div>
       {sent ? (
-        <div className="alert ok">Dziękujemy, zapytanie zostało wysłane. Biuro skontaktuje się z Tobą.</div>
+        <>
+          <div className="alert ok">Dziękujemy, zapytanie zostało wysłane. Biuro skontaktuje się z Tobą.</div>
+          <TrackEvent name="Lead" params={{ content_name: firmName }} eventId={eventId} serverSent={Boolean(eventId)} />
+        </>
       ) : (
         <form action={submitLeadAction} className="lead-form">
           {error && <div className="alert bad">{ERRORS[error] ?? ERRORS.server}</div>}

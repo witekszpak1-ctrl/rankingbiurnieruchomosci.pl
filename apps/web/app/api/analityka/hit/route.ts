@@ -34,6 +34,7 @@ export async function POST(request: Request): Promise<Response> {
     ua: str(body.ua, 500) ?? "",
     ip: str(body.ip, 64),
     host: str(body.host, 200),
+    adClick: str(body.adClick, 20),
   };
   try {
     await recordHit(hit);

@@ -10,7 +10,7 @@ import { query, withTransaction } from "@/lib/db";
 import { evaluateGate } from "@/lib/gate";
 import { REQUEST_STATUSES } from "@/lib/requests";
 import { slugify, uniqueSlug } from "@/lib/slug";
-import { parseTrackingForm } from "@/lib/tracking";
+import { getTracking, parseTrackingForm } from "@/lib/tracking";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -313,7 +313,7 @@ export async function promptAction(formData: FormData) {
 export async function trackingAction(formData: FormData) {
   const admin = await requireAdmin();
   const path = "/admin/analityka";
-  const parsed = parseTrackingForm(formData);
+  const parsed = parseTrackingForm(formData, await getTracking());
   if (!parsed.ok) back(path, "error", parsed.message);
   const value = parsed.value;
   await withTransaction(async (client) => {
@@ -328,11 +328,24 @@ export async function trackingAction(formData: FormData) {
       action: "tracking.update",
       entityType: "settings",
       entityId: "tracking",
-      before: before.rows[0]?.value ?? null,
-      after: { ids: value.ids, customStatistics: Boolean(value.customStatistics), customMarketing: Boolean(value.customMarketing) },
+      before: redactToken(before.rows[0]?.value),
+      after: {
+        ids: value.ids,
+        customStatistics: Boolean(value.customStatistics),
+        customMarketing: Boolean(value.customMarketing),
+        metaCapi: Boolean(value.metaCapiToken),
+        metaTestCode: value.metaTestCode,
+      },
     });
   });
   revalidatePath(path);
   revalidatePath("/polityka-prywatnosci");
   back(path, "ok", "Zapisano. Narzędzia wczytają się u osób, które wyrażą zgodę w banerze (baner zapyta wszystkich ponownie, jeśli lista narzędzi się zmieniła).");
+}
+
+function redactToken(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value ?? null;
+  const copy = { ...(value as Record<string, unknown>) };
+  if (copy.metaCapiToken) copy.metaCapiToken = "(ukryty)";
+  return copy;
 }

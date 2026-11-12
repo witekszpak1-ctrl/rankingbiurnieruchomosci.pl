@@ -111,7 +111,7 @@ export default async function HomePage({ searchParams }: Props) {
                   Jak oceniamy
                 </Link>
               </div>
-              <form className="search" action="/szukaj" method="get">
+              <form className="search" action="/szukaj" method="get" data-track="Search">
                 <label className="sr-only" htmlFor="miasto">
                   Miasto
                 </label>

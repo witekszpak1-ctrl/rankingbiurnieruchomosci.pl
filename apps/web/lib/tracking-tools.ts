@@ -136,6 +136,8 @@ export type CustomCode = { code: string; description: string };
 export type PublicTracking = {
   version: string;
   ids: Partial<Record<ToolKey, string>>;
+  /** Serwer wysyła zdarzenia piksela Meta także przez Conversions API (token tylko na serwerze). */
+  metaCapi?: boolean;
   customStatistics: CustomCode | null;
   customMarketing: CustomCode | null;
 };

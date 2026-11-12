@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { track } from "@/lib/track";
+
 /** Numer telefonu odkrywany po kliknięciu (jak w serwisach z ogłoszeniami), żeby roboty nie zbierały numerów hurtem. */
 export function ShowPhone({ phone, label }: { phone: string; label: string }) {
   const [shown, setShown] = useState(false);
@@ -10,7 +12,14 @@ export function ShowPhone({ phone, label }: { phone: string; label: string }) {
       <PhoneIcon /> {label}
     </a>
   ) : (
-    <button type="button" className="btn-blue" onClick={() => setShown(true)}>
+    <button
+      type="button"
+      className="btn-blue"
+      onClick={() => {
+        setShown(true);
+        track("Contact", { method: "telefon" });
+      }}
+    >
       <PhoneIcon /> Pokaż numer
     </button>
   );

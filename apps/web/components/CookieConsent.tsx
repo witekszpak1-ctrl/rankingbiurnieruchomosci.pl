@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CONSENT_COOKIE, CONSENT_MAX_AGE_DAYS, CONSENT_VERSION } from "@/lib/consent";
+import { track, type TrackName, type TrackOptions, type TrackParams } from "@/lib/track";
 import { type PublicTracking, toolsIn, WITEKCRM } from "@/lib/tracking-tools";
 
 /**
@@ -131,7 +132,7 @@ function loadTools(config: PublicTracking, c: Consent): void {
   }
   if (c.marketing && ids.metaPixel) {
     addScript("meta-pixel", {
-      text: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${ids.metaPixel}');fbq('track','PageView');`,
+      text: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${ids.metaPixel}');`,
     });
   }
   if (c.marketing && ids.tiktok) {
@@ -148,13 +149,90 @@ function loadTools(config: PublicTracking, c: Consent): void {
   if (c.marketing && config.customMarketing) addCustomCode("custom-marketing", config.customMarketing.code);
 }
 
-type TrackWindow = Window & { fbq?: (...args: unknown[]) => void; ttq?: { page: () => void } };
+type TrackWindow = Window & {
+  fbq?: (...args: unknown[]) => void;
+  ttq?: { page: () => void; track: (name: string, params?: TrackParams) => void };
+  gtag?: (...args: unknown[]) => void;
+  dataLayer?: unknown[];
+};
 
-/** Odsłona przy przejściu w obrębie serwisu dla pikseli, które same jej nie liczą (GA4, Clarity i Hotjar liczą). */
-function trackNavigation(): void {
+const META_STANDARD = new Set(["PageView", "ViewContent", "Contact", "Lead", "Search", "SubmitApplication"]);
+const GA4_NAME: Partial<Record<TrackName, string>> = {
+  ViewContent: "view_item",
+  Contact: "contact",
+  Lead: "generate_lead",
+  Search: "search",
+  SubmitApplication: "submit_application",
+  OfferClick: "select_content",
+  WebsiteClick: "click_website",
+};
+const TIKTOK_NAME: Partial<Record<TrackName, string>> = {
+  ViewContent: "ViewContent",
+  Contact: "Contact",
+  Lead: "SubmitForm",
+  Search: "Search",
+  SubmitApplication: "SubmitForm",
+  OfferClick: "ClickButton",
+  WebsiteClick: "ClickButton",
+};
+
+function newEventId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** Rozsyła zdarzenie do narzędzi, na które jest zgoda. Piksel Meta dostaje event_id wspólny z Conversions API. */
+function dispatch(config: PublicTracking, c: Consent, test: boolean, name: TrackName, params: TrackParams, options: TrackOptions): void {
   const w = window as TrackWindow;
-  w.fbq?.("track", "PageView");
-  w.ttq?.page();
+  const eventId = options.eventId ?? newEventId();
+  if (c.statistics || c.marketing) w.dataLayer?.push({ event: `rbn_${name}`, ...params });
+  if (c.statistics && config.ids.ga4 && w.gtag && GA4_NAME[name]) w.gtag("event", GA4_NAME[name], params);
+  if (c.marketing && config.ids.metaPixel && w.fbq) {
+    w.fbq(META_STANDARD.has(name) ? "track" : "trackCustom", name, params, { eventID: eventId });
+    if (config.metaCapi && !options.serverSent) {
+      fetch("/api/meta/zdarzenie", {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json", ...(test ? { "x-rbn-test": "1" } : {}) },
+        body: JSON.stringify({ name, eventId, url: window.location.href, params }),
+      }).catch(() => undefined);
+    }
+  }
+  if (c.marketing && w.ttq && name !== "PageView" && TIKTOK_NAME[name]) w.ttq.track(TIKTOK_NAME[name] as string, params);
+}
+
+/** Kliknięcia elementów z data-track (np. data-track="WebsiteClick" data-track-content_name="...") i wysłanie
+ *  formularza z data-track="Search" (wpisana fraza, np. miasto, jako search_string). */
+function listenForTrackedElements(): () => void {
+  const params = (el: HTMLElement): TrackParams => {
+    const out: TrackParams = {};
+    for (const [key, value] of Object.entries(el.dataset)) {
+      if (key.startsWith("track") && key !== "track" && value) {
+        const name = key.slice(5).replace(/^[A-Z]/, (ch) => ch.toLowerCase()).replace(/[A-Z]/g, (ch) => `_${ch.toLowerCase()}`);
+        out[name] = value;
+      }
+    }
+    return out;
+  };
+  const onClick = (event: MouseEvent) => {
+    const el = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-track]");
+    if (el && el.tagName !== "FORM") track(el.dataset.track as TrackName, params(el));
+  };
+  const onSubmit = (event: SubmitEvent) => {
+    const form = event.target as HTMLFormElement | null;
+    if (form?.dataset.track === "Search") {
+      const field = form.querySelector<HTMLInputElement>('input[name="q"], input[name="miasto"], input[type="search"], input[type="text"]');
+      const q = field?.value?.trim();
+      track("Search", q ? { search_string: q.slice(0, 100) } : {});
+    }
+  };
+  document.addEventListener("click", onClick, true);
+  document.addEventListener("submit", onSubmit, true);
+  return () => {
+    document.removeEventListener("click", onClick, true);
+    document.removeEventListener("submit", onSubmit, true);
+  };
 }
 
 // ----------------------------------------------------------------------------- baner
@@ -223,15 +301,30 @@ export function CookieConsent() {
   }, []);
 
   useEffect(() => {
-    if (config && consent) loadTools(config, consent);
-  }, [config, consent]);
+    if (!config || !consent) return;
+    loadTools(config, consent);
+    if (!consent.statistics && !consent.marketing) {
+      window.__rbnQueue = [];
+      return;
+    }
+    const firstSetup = !window.__rbnTrack;
+    window.__rbnTrack = (name, params, options) => dispatch(config, consent, testMode, name, params, options);
+    const queued = window.__rbnQueue ?? [];
+    window.__rbnQueue = [];
+    if (firstSetup) track("PageView");
+    for (const [name, params, options] of queued) track(name, params, options);
+    return listenForTrackedElements();
+  }, [config, consent, testMode]);
 
   useEffect(() => {
     if (firstPath.current === null) {
       firstPath.current = pathname;
       return;
     }
-    if (consent?.marketing) trackNavigation();
+    if (consent?.marketing) {
+      track("PageView");
+      (window as TrackWindow).ttq?.page();
+    }
   }, [pathname, consent]);
 
   const choose = useCallback(

@@ -9,9 +9,20 @@ export type TrackingSettings = {
   ids: Partial<Record<ToolKey, string>>;
   customStatistics: CustomCode | null;
   customMarketing: CustomCode | null;
+  /** Token Conversions API Meta (sekret, nigdy nie trafia do przeglądarki) i kod testowy z Menedżera zdarzeń. */
+  metaCapiToken: string | null;
+  metaTestCode: string | null;
 };
 
-export const EMPTY_TRACKING: TrackingSettings = { ids: {}, customStatistics: null, customMarketing: null };
+export const EMPTY_TRACKING: TrackingSettings = {
+  ids: {},
+  customStatistics: null,
+  customMarketing: null,
+  metaCapiToken: null,
+  metaTestCode: null,
+};
+const TOKEN_RE = /^[A-Za-z0-9_-]{30,400}$/;
+const TEST_CODE_RE = /^TEST[A-Z0-9]{2,20}$/;
 export const CUSTOM_CODE_MAX = 20000;
 
 export async function getTracking(): Promise<TrackingSettings> {
@@ -28,6 +39,8 @@ export async function getTracking(): Promise<TrackingSettings> {
       ids,
       customStatistics: value.customStatistics?.code ? value.customStatistics : null,
       customMarketing: value.customMarketing?.code ? value.customMarketing : null,
+      metaCapiToken: typeof value.metaCapiToken === "string" && TOKEN_RE.test(value.metaCapiToken) ? value.metaCapiToken : null,
+      metaTestCode: typeof value.metaTestCode === "string" && TEST_CODE_RE.test(value.metaTestCode) ? value.metaTestCode : null,
     };
   } catch {
     return EMPTY_TRACKING;
@@ -40,6 +53,7 @@ export function trackingVersion(settings: TrackingSettings): string {
     ...TOOLS.filter((t) => settings.ids[t.key]).map((t) => t.key),
     settings.customStatistics ? `cs:${settings.customStatistics.description}` : "",
     settings.customMarketing ? `cm:${settings.customMarketing.description}` : "",
+    settings.ids.metaPixel && settings.metaCapiToken ? "capi" : "",
   ];
   return createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 10);
 }
@@ -50,13 +64,14 @@ export function toPublic(settings: TrackingSettings): PublicTracking {
     ids: settings.ids,
     customStatistics: settings.customStatistics,
     customMarketing: settings.customMarketing,
+    metaCapi: Boolean(settings.ids.metaPixel && settings.metaCapiToken),
   };
 }
 
 export type TrackingParse = { ok: true; value: TrackingSettings } | { ok: false; message: string };
 
-/** Sprawdza dane z formularza panelu: format identyfikatorów, długość własnego kodu i jego opis. */
-export function parseTrackingForm(form: FormData): TrackingParse {
+/** Sprawdza dane z formularza panelu. Puste pole tokenu zostawia zapisany token (chyba że zaznaczono usunięcie). */
+export function parseTrackingForm(form: FormData, current: TrackingSettings = EMPTY_TRACKING): TrackingParse {
   const ids: Partial<Record<ToolKey, string>> = {};
   for (const tool of TOOLS) {
     const raw = String(form.get(tool.key) ?? "").trim();
@@ -77,5 +92,17 @@ export function parseTrackingForm(form: FormData): TrackingParse {
   if (typeof stats === "string") return { ok: false, message: stats };
   const marketing = custom("Marketing");
   if (typeof marketing === "string") return { ok: false, message: marketing };
-  return { ok: true, value: { ids, customStatistics: stats, customMarketing: marketing } };
+  const tokenRaw = String(form.get("metaCapiToken") ?? "").trim();
+  let metaCapiToken = current.metaCapiToken;
+  if (form.get("metaCapiTokenRemove") === "on") metaCapiToken = null;
+  else if (tokenRaw) {
+    if (!TOKEN_RE.test(tokenRaw)) return { ok: false, message: "Token Conversions API wygląda na niepełny (skopiuj go w całości z Menedżera zdarzeń)." };
+    metaCapiToken = tokenRaw;
+  }
+  const testRaw = String(form.get("metaTestCode") ?? "").trim().toUpperCase();
+  if (testRaw && !TEST_CODE_RE.test(testRaw)) return { ok: false, message: "Kod testowy Meta ma postać TEST12345." };
+  return {
+    ok: true,
+    value: { ids, customStatistics: stats, customMarketing: marketing, metaCapiToken, metaTestCode: testRaw || null },
+  };
 }

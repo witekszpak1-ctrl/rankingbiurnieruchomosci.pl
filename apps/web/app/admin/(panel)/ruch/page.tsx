@@ -15,6 +15,13 @@ const RANGES: [number, string][] = [
 ];
 
 const DEVICE_LABEL: Record<string, string> = { mobile: "telefon", tablet: "tablet", desktop: "komputer", other: "inne" };
+const AD_LABEL: Record<string, string> = {
+  meta: "Meta (Facebook, Instagram)",
+  google: "Google Ads",
+  microsoft: "Microsoft Ads (Bing)",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+};
 
 function fmt(n: number): string {
   return n.toLocaleString("pl-PL");
@@ -67,7 +74,7 @@ export default async function TrafficPage({ searchParams }: Props) {
   const requested = Number(typeof params.dni === "string" ? params.dni : 30);
   const days = RANGES.some(([d]) => d === requested) ? requested : 30;
   const span = days === 1 ? 2 : days;
-  const [summary, byDay, paths, referrers, utm, countries, cities, devices, browsers, systems, bots] = await Promise.all([
+  const [summary, byDay, paths, referrers, utm, countries, cities, devices, browsers, systems, bots, ads, adLandings, adCampaigns] = await Promise.all([
     trafficSummary(span),
     trafficByDay(span),
     topValues("path", span, 25),
@@ -79,6 +86,9 @@ export default async function TrafficPage({ searchParams }: Props) {
     topValues("browser", span),
     topValues("os", span),
     topBots(span),
+    topValues("ad", span),
+    topValues("adLanding", span),
+    topValues("adCampaign", span),
   ]);
   const peak = Math.max(1, ...byDay.map((d) => d.views));
   const pagesPerVisitor = summary.visitors ? (summary.views / summary.visitors).toFixed(1).replace(".", ",") : "0";
@@ -122,6 +132,10 @@ export default async function TrafficPage({ searchParams }: Props) {
           <span>wczytania na odwiedzającego</span>
         </div>
         <div className="kpi">
+          <b>{fmt(summary.adClicks)}</b>
+          <span>wejścia z kliknięcia w reklamę (Meta, Google i inne)</span>
+        </div>
+        <div className="kpi">
           <b>{fmt(summary.bots)}</b>
           <span>wejścia robotów (wyszukiwarki, AI, podglądy linków)</span>
         </div>
@@ -162,6 +176,9 @@ export default async function TrafficPage({ searchParams }: Props) {
           )}
         />
         <Table title="Skąd przychodzą (źródła wejść)" rows={referrers} labelHeader="Źródło" />
+        <Table title="Kliknięcia w reklamy według sieci" rows={ads} labelHeader="Sieć reklamowa" map={(l) => AD_LABEL[l] ?? l} />
+        <Table title="Kampanie reklamowe (sieć: kampania UTM)" rows={adCampaigns} labelHeader="Kampania" />
+        <Table title="Strony docelowe reklam" rows={adLandings} labelHeader="Sieć: strona" />
         <Table title="Kampanie (parametry UTM)" rows={utm} labelHeader="źródło / medium / kampania" />
         <Table title="Kraje" rows={countries} labelHeader="Kraj" />
         <Table title="Miasta (przybliżone, z adresu IP)" rows={cities} labelHeader="Miasto" />

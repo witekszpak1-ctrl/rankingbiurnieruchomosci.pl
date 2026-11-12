@@ -379,3 +379,5 @@
 .adm .tracking-form .panel input { width: 100%; }
 .adm .tracking-form textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
 .adm .tracking-form label .chip { margin-left: 6px; }
+.adm .inline-check { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.adm .inline-check input { width: auto; }
