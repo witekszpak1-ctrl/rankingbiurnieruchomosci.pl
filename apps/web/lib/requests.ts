@@ -11,7 +11,7 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 export const KIND_LABEL: Record<RequestKind, string> = {
   correction: "Korekta danych",
   removal: "Usunięcie wpisu",
-  other: "Inna sprawa",
+  other: "Inna sprawa (także dane osobowe)",
 };
 
 export const STATUS_LABEL: Record<RequestStatus, string> = {

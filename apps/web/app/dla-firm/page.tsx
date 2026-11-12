@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PublicShell } from "@/components/SiteChrome";
 import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/format";
+import { RETENTION_MONTHS } from "@/lib/legal";
 import { KIND_LABEL, REQUEST_KINDS } from "@/lib/requests";
 
 import { submitRequestAction } from "./actions";
@@ -95,7 +96,10 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
         </button>
       </form>
       <p className="note">
-        Adres e-mail, NIP i treść zgłoszenia wykorzystujemy tylko do rozpatrzenia sprawy i odpowiedzi.
+        Adres e-mail, NIP i treść zgłoszenia wykorzystujemy tylko do rozpatrzenia sprawy i odpowiedzi, a po{" "}
+        {RETENTION_MONTHS.requests} miesiącach usuwamy je automatycznie. Szczegóły:{" "}
+        <Link href="/polityka-prywatnosci#dane">Polityka prywatności</Link>. W sprawach danych osobowych (dostęp, sprostowanie,
+        usunięcie, sprzeciw) wybierz rodzaj „Inna sprawa”.
         {CONTACT_EMAIL && (
           <>
             {" "}

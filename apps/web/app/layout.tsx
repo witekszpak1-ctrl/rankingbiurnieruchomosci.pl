@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+// Czcionka Inter z naszego serwera (bez łączenia przeglądarki z Google Fonts).
+import "@fontsource-variable/inter";
 import "./globals.css";
+import { CookieConsent } from "@/components/CookieConsent";
 import PulseTracker from "@/components/PulseTracker";
 import { SITE_NAME, SITE_URL } from "@/lib/format";
 
@@ -21,17 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pl">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* Zmniejszone obrazki firm (lib/images.ts) */}
         <link rel="preconnect" href="https://wsrv.nl" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        />
       </head>
       <body>
         {children}
+        <CookieConsent />
         <PulseTracker />
       </body>
     </html>

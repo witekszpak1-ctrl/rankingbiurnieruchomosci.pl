@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CookieSettingsLink } from "@/components/CookieConsent";
 import { Logo, LogoMark } from "@/components/Logo";
 import { listCities } from "@/lib/catalog";
 import { SITE_NAME } from "@/lib/format";
@@ -84,7 +85,11 @@ export async function SiteFooter() {
         <span>
           © {new Date().getFullYear()} {SITE_NAME}
         </span>
-        <span>Opisy przygotowujemy z faktów ze źródeł i oznaczamy datą aktualizacji.</span>
+        <nav className="footer-legal" aria-label="Informacje prawne">
+          <Link href="/regulamin">Regulamin</Link>
+          <Link href="/polityka-prywatnosci">Polityka prywatności</Link>
+          <CookieSettingsLink />
+        </nav>
       </div>
     </footer>
   );

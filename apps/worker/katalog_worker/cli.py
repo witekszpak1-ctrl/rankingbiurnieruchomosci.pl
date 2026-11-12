@@ -267,6 +267,20 @@ def cmd_ab_search(args) -> int:
     return 0
 
 
+# Okresy przechowywania danych z formularzy (miesiące). Te same liczby podaje polityka prywatności (apps/web/lib/legal.ts).
+RETENTION_MONTHS = {"leads": 12, "requests": 24, "claims": 24}
+
+
+def cmd_purge_personal(args) -> int:
+    from .repo import Repo
+
+    with connect() as conn:
+        counts = Repo(conn).purge_personal_data(RETENTION_MONTHS)
+        conn.commit()
+    _print({"deleted": counts, "retention_months": RETENTION_MONTHS})
+    return 0
+
+
 def cmd_status(args) -> int:
     from .repo import Repo
 
@@ -337,6 +351,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--providers", default="brave,serper")
     p.add_argument("--queries-per-entity", type=int, default=2)
     add("status", cmd_status, "liczby rekordów według statusów", vertical=False)
+    add(
+        "purge-personal", cmd_purge_personal,
+        "usuń dane z formularzy po okresie przechowywania (zapytania 12 mies., zgłoszenia 24 mies.)", vertical=False,
+    )
     return parser
 
 

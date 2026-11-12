@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { submitClaimAction } from "./actions";
 import { PublicShell } from "@/components/SiteChrome";
 import { CLAIM_WANTS, WANT_LABEL, getClaimTarget } from "@/lib/claims";
+import { RETENTION_MONTHS } from "@/lib/legal";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -112,6 +113,11 @@ export default async function ClaimPage({ params, searchParams }: Props) {
               <button className="lead-submit" type="submit">
                 Wyślij zgłoszenie
               </button>
+              <p className="lead-note full">
+                Dane wykorzystamy do sprawdzenia, czy reprezentujesz firmę, i do kontaktu w sprawie zgłoszenia. Usuniemy je
+                automatycznie po {RETENTION_MONTHS.claims} miesiącach. Szczegóły i Twoje prawa:{" "}
+                <Link href="/polityka-prywatnosci#dane">Polityka prywatności</Link>.
+              </p>
             </form>
           )}
         </div>

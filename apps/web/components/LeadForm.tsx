@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 import { submitLeadAction } from "@/app/[city]/[firm]/actions";
 import { LEAD_TOPICS, TOPIC_LABEL } from "@/lib/leads";
+import { RETENTION_MONTHS } from "@/lib/legal";
 
 const ERRORS: Record<string, string> = {
   topic: "Wybierz, w jakiej sprawie piszesz.",
@@ -79,7 +82,10 @@ export function LeadForm({ listingId, firmName, path, sent, error, imageSlot }: 
             Zapytaj bezpłatnie
           </button>
           <p className="lead-note full">
-            Twoje dane trafią tylko do tego biura i posłużą wyłącznie do odpowiedzi na zapytanie.
+            Dane przekażemy tylko temu biuru, w celu odpowiedzi na zapytanie, a z naszej bazy usuniemy je automatycznie po{" "}
+            {RETENTION_MONTHS.leads} miesiącach. Administratorem danych jest operator serwisu. Szczegóły i Twoje prawa:{" "}
+            <Link href="/polityka-prywatnosci#dane">Polityka prywatności</Link>. Wysyłając zapytanie, akceptujesz{" "}
+            <Link href="/regulamin">Regulamin</Link>.
           </p>
         </form>
       )}

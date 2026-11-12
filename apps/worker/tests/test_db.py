@@ -166,3 +166,25 @@ def test_connect_reports_bad_dsn_shape_without_leaking_it(monkeypatch):
     message = str(info.value)
     assert "niepoprawny format" in message and "zawiera postgresql://: nie" in message
     assert "tajne-haslo-12345" not in message and secret not in message
+
+
+def test_purge_personal_data_removes_only_expired_form_entries(db):
+    from katalog_worker.repo import Repo
+
+    def add(table: str, columns: str, values: str, age: str) -> None:
+        db.execute(f"insert into {table} ({columns}, created_at) values ({values}, now() - interval '{age}')")
+
+    lead = "topic, name, email, message", "'kupno', 'Anna', 'a@example.org', 'Szukam mieszkania 2 pokoje'"
+    request = "kind, requester_email, message", "'other', 'b@example.org', 'Proszę o dostęp do danych'"
+    claim = "name, email, wants", "'Jan Nowak', 'c@example.org', 'update'"
+    add("leads", *lead, "13 months")
+    add("leads", *lead, "11 months")
+    add("requests", *request, "25 months")
+    add("requests", *request, "23 months")
+    add("owner_claims", *claim, "25 months")
+    add("owner_claims", *claim, "1 day")
+
+    counts = Repo(db).purge_personal_data({"leads": 12, "requests": 24, "claims": 24})
+    assert counts == {"leads": 1, "requests": 1, "claims": 1}
+    for table in ("leads", "requests", "owner_claims"):
+        assert db.execute(f"select count(*)::int as n from {table}").fetchone()["n"] == 1

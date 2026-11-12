@@ -449,6 +449,19 @@ class Repo:
             (actor, action, entity_type, entity_id, Jsonb(before), Jsonb(after)),
         )
 
+    # ------------------------------------------------------------------ dane z formularzy
+
+    def purge_personal_data(self, months: dict[str, int]) -> dict[str, int]:
+        """Usuwa dane z formularzy starsze niż okres przechowywania z polityki prywatności (w miesiącach)."""
+        tables = {"leads": "leads", "requests": "requests", "claims": "owner_claims"}
+        counts: dict[str, int] = {}
+        for key, table in tables.items():
+            counts[key] = self.conn.execute(
+                f"delete from {table} where created_at < now() - make_interval(months => %s)",  # noqa: S608 (stała nazwa)
+                (int(months[key]),),
+            ).rowcount
+        return counts
+
     # ------------------------------------------------------------------ oferty
 
     def domains_for_offers(self, limit: int) -> list[dict]:
