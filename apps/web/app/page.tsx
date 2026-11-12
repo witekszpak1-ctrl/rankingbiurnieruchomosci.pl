@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
-import { JsonLd, Logo, PublicShell } from "@/components/SiteChrome";
+import { JsonLd, LogoMark, PublicShell } from "@/components/SiteChrome";
 import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
@@ -142,7 +142,7 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="hero-visual">
             <div className="mock-card">
               <div className="mock-brand">
-                <Logo />
+                <LogoMark />
                 <span>{SITE_NAME}</span>
               </div>
               <p className="mock-label">Najwyżej ocenione biura</p>

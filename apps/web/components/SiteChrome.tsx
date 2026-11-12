@@ -1,27 +1,17 @@
 import Link from "next/link";
 
+import { Logo, LogoMark } from "@/components/Logo";
 import { listCities } from "@/lib/catalog";
 import { SITE_NAME } from "@/lib/format";
 
-export function Logo() {
-  return (
-    <span className="logo-mark" aria-hidden="true">
-      <svg viewBox="0 0 32 32">
-        <rect width="32" height="32" rx="9" fill="currentColor" />
-        <path d="M8 22V14l8-6 8 6v8" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinejoin="round" />
-        <path d="M13 22v-5h6v5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinejoin="round" />
-      </svg>
-    </span>
-  );
-}
+export { Logo, LogoMark };
 
 export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="wrap header-inner">
-        <Link className="brand" href="/">
+        <Link className="brand" href="/" title={`${SITE_NAME}: strona główna`}>
           <Logo />
-          <span>{SITE_NAME}</span>
         </Link>
         <nav className="nav" aria-label="Główna nawigacja">
           <Link href="/#miasta">Miasta</Link>
@@ -43,9 +33,8 @@ export async function SiteFooter() {
     <footer className="site-footer">
       <div className="wrap footer-grid">
         <div className="footer-about">
-          <Link className="brand" href="/">
+          <Link className="brand" href="/" title={`${SITE_NAME}: strona główna`}>
             <Logo />
-            <span>{SITE_NAME}</span>
           </Link>
           <p>
             Niezależny katalog biur nieruchomości. Dane pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT) i ze
