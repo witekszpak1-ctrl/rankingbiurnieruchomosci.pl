@@ -1,7 +1,7 @@
 # Praca Claude Code (uruchamiana z harmonogramu co 2 godziny, tryb szybki)
 
 Pipeline na GitHub Actions co noc buduje paczki opisów i publikuje gotowe wpisy, a workflow `import` co 3 godziny
-zapisuje w bazie wyniki z gałęzi `queue-data`. Ta sesja robi część, której nie da się zrobić bez modelu: pisze opisy
+zapisuje w bazie wyniki z gałęzi `queue-data` prywatnego repozytorium `witekszpak1-ctrl/rankingbiur-kolejka`. Ta sesja robi część, której nie da się zrobić bez modelu: pisze opisy
 i zbiera kandydatów z kolejnego miasta. Nic nie wymaga klikania przez człowieka.
 
 ## Przygotowanie
@@ -69,6 +69,8 @@ ten sam workflow jest już w kolejce lub trwa (sprawdź actions_list, list_workf
 
 ## Zasady
 
-- Nie zmieniaj kodu ani gałęzi `main`. Piszesz tylko do gałęzi `queue-data` przez `scripts/queue_sync.sh`.
+- Nie zmieniaj kodu ani gałęzi `main`. Piszesz tylko do gałęzi `queue-data` repozytorium kolejki
+  (`witekszpak1-ctrl/rankingbiur-kolejka`) przez `scripts/queue_sync.sh`. Jeśli skrypt nie ma dostępu do tego
+  repozytorium, napisz to w podsumowaniu i zakończ, niczego nie wysyłając gdzie indziej.
 - Nie używaj długich myślników (U+2013, U+2014) w żadnym tekście.
 - Na końcu krótko podsumuj: ile paczek opisano, ile pominięto i dlaczego, które miasta zebrano i ile domen w każdym.

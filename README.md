@@ -78,7 +78,10 @@ Katalogi `queue/` i `snapshots/` są w `.gitignore` (dane trzymamy poza gałęzi
 ### Obieg na produkcji (GitHub Actions + sesja Claude Code)
 
 Sesje Claude Code nie mają dostępu do artefaktów Actions ani do bazy, więc kolejka przechodzi przez gałąź `queue-data`
-tego samego repozytorium (bez wspólnej historii z `main`, tylko katalog `queue/`). Obsługuje ją `scripts/queue_sync.sh`.
+osobnego, prywatnego repozytorium `witekszpak1-ctrl/rankingbiur-kolejka` (tylko katalog `queue/`). Paczki zawierają
+teksty ze stron biur, w tym czasem dane osobowe, więc nie leżą w repozytorium z kodem. Obsługuje ją
+`scripts/queue_sync.sh`; workflow dostają dostęp przez sekret `QUEUE_REPO_TOKEN` (token fine-grained z prawem
+Contents: Read and write tylko do repozytorium kolejki, ważny rok; po wygaśnięciu trzeba wygenerować nowy).
 
 0. Kandydaci bez klucza wyszukiwarki: sesja Claude Code zbiera wyniki własnym narzędziem WebSearch (z wykluczonymi
    portalami i katalogami, żeby trafiały strony samych firm), zapisuje je w `queue/candidates/<miasto>-<data>.json`

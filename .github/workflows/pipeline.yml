@@ -1,8 +1,8 @@
 # Ręczne uruchomienie etapów pipeline'u na GitHub Actions.
 # NIEPRZETESTOWANE: powstało bez dostępu do GitHuba. Ograniczenia, o których trzeba wiedzieć:
 # - system plików runnera jest tymczasowy, więc etapy zależne od snapshotów (probe, verify, crawl-deep, bundle)
-#   muszą działać w jednym zadaniu, jak poniżej. Paczki dla Claude Code trafiają na gałąź queue-data
-#   (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
+#   muszą działać w jednym zadaniu, jak poniżej. Paczki dla Claude Code trafiają do prywatnego
+#   repozytorium rankingbiur-kolejka (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
 #   workflow import.yml,
 # - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
 # - przy uruchomieniu z harmonogramu nie ma parametrów: pliki kandydatów i Serper (gdy jest klucz), limit 200.
@@ -32,7 +32,7 @@ on:
     - cron: "17 * * * *"
 
 permissions:
-  contents: write # push paczek na gałąź queue-data
+  contents: read # paczki idą do repozytorium kolejki z tokenem QUEUE_REPO_TOKEN
   actions: write # uruchomienie kolejnego przebiegu, gdy została praca
 
 concurrency:
@@ -45,6 +45,8 @@ jobs:
     timeout-minutes: 120
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Kolejka paczek leży w prywatnym repozytorium rankingbiur-kolejka (scripts/queue_sync.sh).
+      QUEUE_REPO_TOKEN: ${{ secrets.QUEUE_REPO_TOKEN }}
       BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
       SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
       CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
@@ -58,7 +60,7 @@ jobs:
       - run: pip install -e apps/worker
       - name: Migracje
         run: katalog migrate
-      - name: Pobranie kolejki z gałęzi queue-data
+      - name: Pobranie kolejki z repozytorium kolejki
         run: bash scripts/queue_sync.sh pull
       - name: S7 import wyników Claude Code
         run: katalog import
@@ -79,7 +81,7 @@ jobs:
           shopt -s nullglob
           files=(queue/candidates/*.json)
           if [ ${#files[@]} -eq 0 ]; then
-            echo "Brak plików w queue/candidates na gałęzi queue-data."
+            echo "Brak plików w queue/candidates w repozytorium kolejki."
           fi
           for f in "${files[@]}"; do
             katalog discover --provider file --file "$f"
@@ -112,7 +114,7 @@ jobs:
       - name: Kontakty i zdjęcia nowych firm
         run: katalog contacts --only-new --limit 150
       # Publikacja i zapis zrzutów także po błędzie: paczki zapisane w bazie muszą mieć swoje pliki na gałęzi.
-      - name: Publikacja paczek na gałąź queue-data
+      - name: Publikacja paczek w repozytorium kolejki
         if: ${{ always() }}
         run: bash scripts/queue_sync.sh push-pending
       - name: Kolejka miast z panelu dla porannej sesji

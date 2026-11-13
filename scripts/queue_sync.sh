@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Synchronizacja kolejki dla Claude Code z gałęzią queue-data tego samego repozytorium.
-# Gałąź nie ma wspólnej historii z main, trzyma tylko katalog queue/ (paczki i wyniki).
+# Synchronizacja kolejki dla Claude Code z gałęzią queue-data osobnego, prywatnego repozytorium
+# witekszpak1-ctrl/rankingbiur-kolejka. Paczki zawierają teksty ze stron biur (czasem imiona, nazwiska i e-maile
+# właścicieli), więc nie mogą leżeć w publicznym repozytorium z kodem. Gałąź trzyma tylko katalog queue/.
 #
 #   queue_sync.sh push-pending   kopiuje queue/pending na gałąź (istniejących plików nie nadpisuje)
 #   queue_sync.sh push-results   kopiuje queue/results na gałąź (nadpisuje)
@@ -9,11 +10,29 @@
 #   queue_sync.sh push-cities    kopiuje queue/cities.json (kolejka miast z panelu) na gałąź (nadpisuje)
 #   queue_sync.sh pull           pobiera całą gałąź do ./queue (nadpisuje lokalne pliki o tych samych nazwach)
 #
-# Zmienne: QUEUE_BRANCH (domyślnie queue-data), QUEUE_REMOTE (domyślnie origin).
+# Zmienne: QUEUE_BRANCH (domyślnie queue-data), QUEUE_REPO_URL (adres repozytorium kolejki),
+# QUEUE_REPO_TOKEN (token z prawem zapisu do repozytorium kolejki; w GitHub Actions z sekretu o tej nazwie,
+# w sesji Claude Code niepotrzebny, bo dostęp daje proxy sesji), QUEUE_REMOTE (zamiast adresu, np. origin).
 set -euo pipefail
 
 BRANCH="${QUEUE_BRANCH:-queue-data}"
-REMOTE="${QUEUE_REMOTE:-origin}"
+QUEUE_REPO_URL="${QUEUE_REPO_URL:-https://github.com/witekszpak1-ctrl/rankingbiur-kolejka.git}"
+if [ -n "${QUEUE_REMOTE:-}" ]; then
+  REMOTE="$QUEUE_REMOTE"
+elif [ -n "${QUEUE_REPO_TOKEN:-}" ]; then
+  REMOTE="https://x-access-token:${QUEUE_REPO_TOKEN}@${QUEUE_REPO_URL#https://}"
+  # actions/checkout zostawia nagłówek z tokenem repozytorium z kodem dla całego github.com; przykryłby on
+  # token kolejki, więc pusta wartość czyści listę nagłówków (tylko dla poleceń git tego skryptu).
+  export GIT_CONFIG_COUNT=2
+  export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0=""
+  export GIT_CONFIG_KEY_1="http.extraheader" GIT_CONFIG_VALUE_1=""
+else
+  REMOTE="$QUEUE_REPO_URL"
+fi
+if [ -n "${GITHUB_ACTIONS:-}" ] && [ -z "${QUEUE_REPO_TOKEN:-}" ] && [ -z "${QUEUE_REMOTE:-}" ]; then
+  echo "Brak sekretu QUEUE_REPO_TOKEN: automat nie ma dostępu do repozytorium kolejki (token wygasł albo go usunięto)." >&2
+  exit 1
+fi
 cmd="${1:-}"
 
 cd "$(git rev-parse --show-toplevel)"
@@ -66,7 +85,7 @@ commit_and_push() {
   git -C "$tmp" -c user.name="katalog-bot" -c user.email="katalog-bot@users.noreply.github.com" \
     commit -q -m "$1"
   git -C "$tmp" push -q "$REMOTE" "HEAD:refs/heads/$BRANCH"
-  echo "Wysłano na gałąź $BRANCH."
+  echo "Wysłano do kolejki ($BRANCH)."
 }
 
 push_with_retry() {
@@ -130,7 +149,7 @@ case "$cmd" in
     if [ -d "$tmp/queue" ]; then
       cp -r "$tmp/queue/." queue/
     fi
-    echo "Pobrano kolejkę z gałęzi $BRANCH do ./queue."
+    echo "Pobrano kolejkę ($BRANCH) do ./queue."
     ;;
   *)
     echo "Użycie: $0 {push-pending|push-results|push-candidates|push-cities|push-prompts|pull}" >&2
