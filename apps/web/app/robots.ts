@@ -8,7 +8,8 @@ import { absoluteUrl } from "@/lib/format";
 // Boty wyszukiwania asystentów AI jawnie dopuszczamy (chcemy być cytowani). Boty treningowe (GPTBot, ClaudeBot)
 // podlegają regule ogólnej: to osobna decyzja biznesowa, którą można zmienić tutaj.
 export default function robots(): MetadataRoute.Robots {
-  const disallow = ["/admin", "/admin/", "/szukaj"];
+  // Regulamin i polityka prywatności: decyzja właściciela, roboty mają tam nie wchodzić (nie ma ich też w mapie strony).
+  const disallow = ["/admin", "/admin/", "/szukaj", "/regulamin", "/polityka-prywatnosci"];
   const named = ["Googlebot", "Bingbot", "OAI-SearchBot", "ChatGPT-User", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User"];
   return {
     rules: [{ userAgent: "*", allow: "/", disallow }, ...named.map((userAgent) => ({ userAgent, allow: "/", disallow }))],
