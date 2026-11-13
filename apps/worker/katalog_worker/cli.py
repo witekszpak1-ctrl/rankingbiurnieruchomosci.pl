@@ -294,6 +294,7 @@ def cmd_backlog(args) -> int:
                 "select count(*) from domains d where (d.verification_status = 'verified'"
                 " or (d.verification_status = 'needs_review' and d.brand_id is not null))"
                 " and (select count(*) from crawl_pages p where p.domain_id = d.id) < 3"
+                " and (d.deep_crawled_at is null or d.deep_crawled_at < now() - interval '7 days')"
             ),
             "cities": one("select count(*) from cities where search_enabled and last_searched_at is null"),
         }

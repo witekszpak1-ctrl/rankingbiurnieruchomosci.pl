@@ -162,8 +162,11 @@ jobs:
                   return {}
 
           b = last_json("backlog.json")
-          made = last_json("bundle-result.json").get("describe", 0)
-          print(1 if (b.get("probe", 0) > 0 or b.get("cities", 0) > 0 or made > 0) else 0)
+          # Tylko nowe paczki (ta sama paczka zbudowana ponownie nie jest pracą). Miasta nie napędzają serii:
+          # przy błędzie wyszukiwarki (np. brak kredytów) seria kręciłaby się na pusto, a co godzinę i tak
+          # rusza przebieg z harmonogramu, który szuka w kolejnych miastach.
+          made = last_json("bundle-result.json").get("describe_new", 0)
+          print(1 if (b.get("probe", 0) > 0 or b.get("deep_crawl", 0) > 0 or made > 0) else 0)
           PY
           )
           if [ "$more" = "1" ] && [ "$CHAIN" -lt 24 ]; then

@@ -480,6 +480,7 @@ def stage_crawl_deep(ctx: Context, fetcher: PoliteFetcher, limit: int = 20, max_
         if home is not None:
             if not home.ok:
                 counts[f"refetch_failed_{home.error}"] += 1
+                repo.mark_deep_crawled(str(row["id"]))
                 repo.conn.commit()
                 continue
             _save_page(ctx, row["id"], row["host"], home)
@@ -490,6 +491,7 @@ def stage_crawl_deep(ctx: Context, fetcher: PoliteFetcher, limit: int = 20, max_
                 counts["pages"] += 1
             else:
                 counts[f"skipped_{result.error}"] += 1
+        repo.mark_deep_crawled(str(row["id"]))
         counts["domains"] += 1
         repo.conn.commit()
     return dict(counts)
@@ -556,8 +558,11 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
             print(f"Pominięto paczkę describe dla marki {row['brand_id']}: {exc}", file=sys.stderr)
             counts["blocked_contacts"] += 1
             continue
+        is_new = not repo.queue_item_exists("describe", bundle["bundle_sha256"], brand_id=row["brand_id"])
         repo.enqueue("describe", str(path), bundle["bundle_sha256"], brand_id=row["brand_id"])
         counts["describe"] += 1
+        if is_new:
+            counts["describe_new"] += 1  # nowa praca dla sesji opisów (ta sama paczka zbudowana ponownie się nie liczy)
         repo.conn.commit()
     for row in repo.domains_needing_classification(limit):
         pages = [p for p in _load_pages(ctx, row["id"]) if not is_legal_url(p.url)]

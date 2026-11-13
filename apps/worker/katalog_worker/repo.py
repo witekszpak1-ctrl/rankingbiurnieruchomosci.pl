@@ -212,9 +212,13 @@ class Repo:
             """select d.id, d.host, d.canonical_url from domains d
                where (d.verification_status = 'verified' or (d.verification_status = 'needs_review' and d.brand_id is not null))
                  and (select count(*) from crawl_pages p where p.domain_id = d.id) < 3
+                 and (d.deep_crawled_at is null or d.deep_crawled_at < now() - interval '7 days')
                order by d.first_seen_at limit %s""",
             (limit,),
         ).fetchall()
+
+    def mark_deep_crawled(self, domain_id: str) -> None:
+        self.conn.execute("update domains set deep_crawled_at = now() where id = %s", (domain_id,))
 
     def domains_awaiting_bundle(self, limit: int) -> list[dict]:
         """Zweryfikowane domeny marek, które czekają na paczkę opisu (do ponownego pobrania stron, gdy zrzutów brak)."""
@@ -374,6 +378,10 @@ class Repo:
                where not exists (select 1 from descriptions x where x.brand_id = b.id and x.status <> 'rejected')
                  and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
                                  and q.status in ('pending', 'claimed'))
+                 -- firma pominięta przez sesję opisów (urząd, deweloper, portal): paczki nie budujemy od nowa
+                 and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
+                                 and q.status = 'rejected'
+                                 and q.validator_report -> 'errors' @> '[{"code": "skipped"}]'::jsonb)
                order by b.created_at limit %s""",
             (limit,),
         ).fetchall()
@@ -610,6 +618,14 @@ class Repo:
         )
 
     # ------------------------------------------------------------------ kolejka
+
+    def queue_item_exists(self, type_: str, bundle_sha256: str, *, brand_id: str | None = None,
+                          domain_id: str | None = None) -> bool:
+        return self.conn.execute(
+            """select 1 from queue_items where type = %s and bundle_sha256 = %s
+                 and brand_id is not distinct from %s and domain_id is not distinct from %s""",
+            (type_, bundle_sha256, brand_id, domain_id),
+        ).fetchone() is not None
 
     def enqueue(self, type_: str, bundle_path: str, bundle_sha256: str, *, brand_id: str | None = None,
                 domain_id: str | None = None) -> str:

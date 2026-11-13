@@ -261,7 +261,7 @@ def test_deep_crawl_adds_pages_and_skips_pdf(flow):
 
 
 def test_bundle_is_clean_and_queued(flow):
-    assert flow["counts"]["bundle"] == {"describe": 1}
+    assert flow["counts"]["bundle"] == {"describe": 1, "describe_new": 1}
     path = flow["bundle_path"]
     assert path.exists()
     bundle = json.loads(path.read_text(encoding="utf-8"))
@@ -289,6 +289,14 @@ def test_import_closes_item_skipped_by_model(flow):
     assert item["status"] == "rejected"
     assert item["validator_report"]["errors"][0] == {"code": "skipped", "message": "deweloper, nie biuro nieruchomości"}
     assert stage_import(flow["ctx"]) == {}  # zadanie zamknięte, nie wraca
+    assert stage_bundle(flow["ctx"], 10) == {}  # pominiętej firmy nie pakujemy od nowa w każdym przebiegu
+
+
+def test_deep_crawl_marks_domain_and_skips_it_for_a_week(flow):
+    conn = flow["ctx"].repo.conn
+    marked = conn.execute("select count(*) as n from domains where deep_crawled_at is not null").fetchone()["n"]
+    assert marked >= 1
+    assert flow["ctx"].repo.domains_for_deep_crawl(50) == []
 
 
 def test_import_valid_result_saves_description_facts_and_prices(flow):
