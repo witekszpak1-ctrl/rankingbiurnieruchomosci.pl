@@ -26,7 +26,8 @@ bash scripts/queue_sync.sh pull
    gdy pliku nie ma, `packages/verticals/nieruchomosci/prompts/describe.md`), zapisać wynik
    w `queue/results/describe/<firm_id>.json`, sprawdzić go poleceniem
    `cd apps/worker && . .venv/bin/activate && katalog validate --bundle <paczka> --result <wynik>` (kod 0 = poprawny),
-   poprawić najwyżej 3 razy. Paczkę, która nie dotyczy biura nieruchomości (deweloper, portal, firma z innej branży),
+   poprawić najwyżej 3 razy. Paczkę, która nie dotyczy biura nieruchomości (deweloper, portal, urząd lub BIP, rzeczoznawca bez pośrednictwa,
+   zarządca wspólnot lub firma tylko od zarządzania nieruchomościami, bez sprzedaży i wynajmu, firma z innej branży),
    pominąć: zamiast wyniku zapisać `queue/results/skipped/describe/<firm_id>.json` z treścią
    `{"reason": "krótki powód"}`. Import zamknie wtedy to zadanie i paczka nie wróci następnego dnia.
 3. Po zakończeniu agentów sprawdź sam każdy wynik walidatorem. Wyniki niepoprawne usuń (paczka wróci jutro).
