@@ -389,7 +389,14 @@ class Repo:
         ).fetchall()
 
     def rename_brand(self, brand_id: str, name: str) -> None:
-        self.conn.execute("update brands set name = %s where id = %s and name <> %s", (name, brand_id, name))
+        # Inna marka tej samej spółki może już mieć tę nazwę (duplikat pod innym adresem): wtedy zostawiamy
+        # starą nazwę zamiast łamać unikalność (legal_entity_id, name) i przerywać cały import.
+        self.conn.execute(
+            """update brands b set name = %s where b.id = %s and b.name <> %s
+               and not exists (select 1 from brands o where o.id <> b.id
+                               and o.legal_entity_id = b.legal_entity_id and o.name = %s)""",
+            (name, brand_id, name, name),
+        )
 
     def setting(self, key: str, default):
         row = self.conn.execute("select value from settings where key = %s", (key,)).fetchone()

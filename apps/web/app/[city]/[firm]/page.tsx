@@ -13,7 +13,7 @@ import { inCity } from "@/lib/cities";
 import { optimizedImage, responsiveSrcSet } from "@/lib/images";
 import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
 import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel, plural } from "@/lib/plural";
-import { isPlausible, priceBasis } from "@/lib/prices";
+import { isShownOnFirmPage, priceBasis } from "@/lib/prices";
 import { firmMeta } from "@/lib/meta-texts";
 import { firmFaq } from "@/lib/firm-faq";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     cityName: listing.cityName,
     score,
     hasGoogle: Boolean(listing.googleRating && listing.googleCount),
-    hasPrices: listing.prices.some(isPlausible),
+    hasPrices: listing.prices.some(isShownOnFirmPage),
     offers: listing.offersCount,
   });
   return pageMetadata({
@@ -104,7 +104,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const listing = await getPublishedListing(city, firm);
   if (!listing) notFound();
-  const visiblePrices = listing.prices.filter(isPlausible);
+  const visiblePrices = listing.prices.filter(isShownOnFirmPage);
   const { breakdown, score } = scoreListing(rankingInput(listing));
   const cityListings = await listCityListings(listing.citySlug).catch(() => []);
   const cityRanked = cityListings.length >= CITY_RANKING_MIN ? rankListings(cityListings, rankingInput) : null;

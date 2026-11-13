@@ -34,6 +34,16 @@ export function isPlausible(p: Pick<PriceRow, "unit" | "amountMin" | "amountMax"
   return true;
 }
 
+/**
+ * Cena do pokazania na stronie firmy: wiarygodna albo jawne 0% (np. "0% prowizji od kupującego").
+ * Zero nie wchodzi do statystyk miasta (isPlausible), ale klient powinien je zobaczyć u firmy.
+ */
+export function isShownOnFirmPage(p: Pick<PriceRow, "unit" | "amountMin" | "amountMax" | "service">): boolean {
+  if (isPlausible(p)) return true;
+  const values = [p.amountMin, p.amountMax].filter((v): v is number => v != null);
+  return p.unit === "percent" && values.length > 0 && values.every((v) => v === 0);
+}
+
 /** Od czego liczona jest stawka procentowa, żeby "8%" nie wisiało w powietrzu. */
 export function priceBasis(p: Pick<PriceRow, "unit" | "service">): string | null {
   if (p.unit !== "percent") return null;

@@ -278,8 +278,10 @@ def implausible_price(service: str, unit: str, values: list[float]) -> str | Non
     """Powód odrzucenia ceny spoza rozsądnego przedziału (zwykle statystyka, rabat albo cena nieruchomości)."""
     kind = price_kind(service)
     if unit == "percent":
-        if any(v <= 0 or v > 200 for v in values):
+        if any(v < 0 or v > 200 for v in values):  # 0% to prawdziwa oferta (np. bez prowizji od kupującego)
             return "procent poza zakresem 0-200"
+        if values and all(v == 0 for v in values):
+            return None  # jawne 0%, np. "0% prowizji od kupującego"
         if kind == "sale" and any(v < 0.5 or v > 10 for v in values):
             return "prowizja od sprzedaży poza zakresem 0,5-10%"
         if kind == "management" and any(v < 2 or v > 40 for v in values):

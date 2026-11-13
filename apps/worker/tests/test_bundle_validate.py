@@ -361,3 +361,19 @@ def test_fact_values_and_name_are_redacted_and_leaks_report_fields(tmp_path):
         assert "71 123 45 67" not in str(exc)  # komunikat nie ujawnia treści
     else:  # pragma: no cover
         raise AssertionError("oczekiwano ContactLeakError")
+
+
+def test_zero_percent_is_allowed_but_other_out_of_range_values_are_not():
+    from katalog_worker.validate import implausible_price
+
+    assert implausible_price("pośrednictwo w sprzedaży (kupujący)", "percent", [0.0]) is None
+    assert implausible_price("pośrednictwo w sprzedaży", "percent", [0.2]) is not None
+    assert implausible_price("pośrednictwo w sprzedaży", "percent", [-1.0]) is not None
+
+
+def test_digits_split_across_fields_do_not_look_like_a_phone(tmp_path):
+    # Koniec jednego pola i początek następnego razem przypominały numer telefonu ("(nieznane pole)").
+    bundle = make_bundle()
+    bundle["url"] = "https://xyz.pl/oferta/12345"
+    bundle["facts"][0]["value"] = "6789 m2 działki"
+    write_bundle(bundle, tmp_path)  # nie rzuca

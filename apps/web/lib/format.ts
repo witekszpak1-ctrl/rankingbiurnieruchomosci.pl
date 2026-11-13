@@ -25,7 +25,9 @@ export function formatPrice(price: Pick<PriceRow, "unit" | "amountMin" | "amount
   const { unit, amountMin, amountMax, taxMode } = price;
   const suffix = unit === "percent" ? "%" : unit === "pln_per_month" ? " zł / mies." : unit === "pln" ? " zł" : "";
   let amount: string;
-  if (amountMin != null && amountMax != null && amountMin !== amountMax) {
+  if (amountMin === 0 && (amountMax == null || amountMax === 0)) {
+    amount = `0${suffix}`; // "od 0%" brzmi dziwnie; zero to po prostu brak opłaty
+  } else if (amountMin != null && amountMax != null && amountMin !== amountMax) {
     amount = `${nf(amountMin)}${suffix} - ${nf(amountMax)}${suffix}`;
   } else if (amountMin != null) {
     amount = `od ${nf(amountMin)}${suffix}`;

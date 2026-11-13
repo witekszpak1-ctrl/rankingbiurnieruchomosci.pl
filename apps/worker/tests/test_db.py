@@ -192,3 +192,17 @@ def test_purge_personal_data_removes_only_expired_form_entries(db):
     assert counts == {"leads": 1, "requests": 1, "claims": 1, "visits": 1}
     for table in ("leads", "requests", "owner_claims", "page_views"):
         assert db.execute(f"select count(*)::int as n from {table}").fetchone()["n"] == 1
+
+
+def test_rename_brand_keeps_old_name_when_sibling_brand_has_it(db):
+    from katalog_worker.repo import Repo
+
+    entity = db.execute("insert into legal_entities (nip, name) values ('7740001454', 'Spółka') returning id").fetchone()["id"]
+    first = db.execute("insert into brands (legal_entity_id, name) values (%s, 'Kufel Nieruchomości') returning id", (entity,)).fetchone()["id"]
+    second = db.execute("insert into brands (legal_entity_id, name) values (%s, 'Agent Żywiec') returning id", (entity,)).fetchone()["id"]
+    repo = Repo(db)
+    repo.rename_brand(str(second), "Kufel Nieruchomości")  # duplikat nazwy w tej samej spółce: bez wyjątku
+    assert db.execute("select name from brands where id = %s", (second,)).fetchone()["name"] == "Agent Żywiec"
+    repo.rename_brand(str(second), "Agent Nieruchomości Żywiec")
+    assert db.execute("select name from brands where id = %s", (second,)).fetchone()["name"] == "Agent Nieruchomości Żywiec"
+    assert db.execute("select name from brands where id = %s", (first,)).fetchone()["name"] == "Kufel Nieruchomości"

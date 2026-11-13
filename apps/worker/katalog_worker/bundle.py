@@ -202,22 +202,13 @@ def contact_fields(bundle: dict) -> list[str]:
     return found
 
 
-def _content_strings(bundle: dict) -> str:
-    """Pola z treścią (bez sum kontrolnych i identyfikatorów, które mają długie ciągi cyfr)."""
-    parts: list[str] = [str(bundle.get(k, "")) for k in ("name", "city", "url")]
-    for fact in bundle.get("facts", []):
-        parts.extend([str(fact.get("value", "")), str(fact.get("quote", ""))])
-    for source in bundle.get("source_text", []):
-        parts.append(str(source.get("text", "")))
-    for candidate in bundle.get("price_candidates", []):
-        parts.append(str(candidate.get("snippet", "")))
-    return "\n".join(parts)
-
-
 def write_bundle(bundle: dict, queue_dir: Path) -> Path:
     """Zapisuje paczkę do queue/pending/<typ>/<firm_id>.json. Odmawia, gdy w paczce są kontakty."""
-    if contains_contacts(_content_strings(bundle)):
-        raise ContactLeakError(contact_fields(bundle) or ["(nieznane pole)"])
+    # Każde pole osobno: w sklejonym tekście cyfry z końca jednego pola i początku następnego
+    # potrafiły razem wyglądać jak numer telefonu, choć żadne pole go nie zawierało.
+    leaks = contact_fields(bundle)
+    if leaks:
+        raise ContactLeakError(leaks)
     target = queue_dir / "pending" / bundle["type"] / f"{bundle['firm_id']}.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
