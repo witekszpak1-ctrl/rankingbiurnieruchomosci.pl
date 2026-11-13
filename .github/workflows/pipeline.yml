@@ -23,6 +23,9 @@ on:
       limit:
         description: "Limit domen na etap"
         default: "200"
+      chain:
+        description: "Numer przebiegu w serii uruchamianej automatycznie (0 = uruchomiony ręcznie lub z harmonogramu)"
+        default: "0"
   # Co godzinę (szybkie uzupełnianie katalogu): import wyników, publikacja, nowi kandydaci, probe, verify, crawl,
   # paczki. Przebieg trwa 45-70 minut, a grupa katalog-db pilnuje, żeby naraz szedł tylko jeden.
   schedule:
@@ -30,6 +33,7 @@ on:
 
 permissions:
   contents: write # push paczek na gałąź queue-data
+  actions: write # uruchomienie kolejnego przebiegu, gdy została praca
 
 concurrency:
   group: katalog-db
@@ -101,7 +105,8 @@ jobs:
           timeout 30m katalog probe --limit "$INPUT_LIMIT" || echo "probe: limit czasu, reszta w następnym przebiegu"
           timeout 15m katalog verify --limit "$((INPUT_LIMIT * 2))" || echo "verify: limit czasu"
           timeout 35m katalog crawl-deep --limit "$((INPUT_LIMIT / 3))" || echo "crawl-deep: limit czasu, reszta w następnym przebiegu"
-          katalog bundle --limit "$INPUT_LIMIT"
+          katalog bundle --limit "$INPUT_LIMIT" > bundle-result.json
+          cat bundle-result.json
           katalog status
       # Nowe firmy dostają telefon, e-mail, social media i logo od razu, a nie dopiero następnego ranka.
       - name: Kontakty i zdjęcia nowych firm
@@ -126,6 +131,42 @@ jobs:
         with:
           path: snapshots
           key: snapshots-${{ github.run_id }}
+      # Harmonogram GitHuba często pomija przebiegi, więc przebieg sam uruchamia następny, dopóki jest praca:
+      # nieprzeszukane miasta, domeny do otwarcia albo nowe paczki w tym przebiegu. Najwyżej 24 przebiegi pod rząd.
+      - name: Kolejny przebieg, gdy została praca
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHAIN: ${{ inputs.chain || '0' }}
+        run: |
+          katalog backlog > backlog.json
+          cat backlog.json
+          more=$(python - <<'PY'
+          import json, pathlib
+
+          def last_json(path):
+              # Ostatni obiekt JSON w pliku (na wypadek komunikatów przed nim).
+              p = pathlib.Path(path)
+              if not p.exists():
+                  return {}
+              text = p.read_text()
+              start = text.rfind("\n{")
+              try:
+                  return json.loads(text[start + 1:] if start >= 0 else text)
+              except ValueError:
+                  return {}
+
+          b = last_json("backlog.json")
+          made = last_json("bundle-result.json").get("describe", 0)
+          print(1 if (b.get("probe", 0) > 0 or b.get("cities", 0) > 0 or made > 0) else 0)
+          PY
+          )
+          if [ "$more" = "1" ] && [ "$CHAIN" -lt 24 ]; then
+            echo "Została praca, uruchamiam przebieg nr $((CHAIN + 1)) w serii."
+            gh workflow run pipeline.yml --repo "$GITHUB_REPOSITORY" --ref main -f chain="$((CHAIN + 1))"
+          else
+            echo "Bez kolejnego przebiegu (praca: $more, przebieg w serii: $CHAIN)."
+          fi
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:

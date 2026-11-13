@@ -72,6 +72,32 @@ def is_blocklisted(value: str, blocklist: set[str] | frozenset[str]) -> bool:
     return False
 
 
+# Strony urzędów i instytucji publicznych (BIP, gminy, powiaty, domeny gov.pl). Mają w treści słowo
+# "nieruchomości" (sprzedaż mienia gminy, przetargi), więc wyszukiwarka je zwraca, ale to nie biura pośrednictwa.
+# .edu.pl celowo pominięte: używają go też firmy (np. twojdom.edu.pl).
+_PUBLIC_SUFFIXES = (".gov.pl", ".mil.pl")
+_PUBLIC_LABELS = frozenset({"bip", "um", "ug", "umig", "gmina", "powiat", "starostwo", "urzad", "esp", "eurzad"})
+_PUBLIC_NAME_PREFIXES = ("bip", "gmina", "powiat", "starostwo", "urzadmiasta", "urzadgminy", "urzadmiejski")
+
+
+def is_public_institution(value: str) -> bool:
+    """Prawda dla adresów urzędów: bip.*, *.bip.*, *.gov.pl, um.*, ug.*, gmina*.pl, powiat*.pl itp."""
+    host = normalize_host(value)
+    if not host:
+        return False
+    if host == "gov.pl" or host.endswith(_PUBLIC_SUFFIXES):
+        return True
+    # Wszystkie człony poza końcówką: um.bydgoszcz.pl ma bydgoszcz.pl na liście sufiksów publicznych,
+    # więc "um" jest tu częścią domeny rejestrowalnej, a nie poddomeną.
+    domain = registrable_domain(value)
+    for label in host.split(".")[:-1]:
+        if label in _PUBLIC_LABELS or label.startswith("bip-") or label.endswith("-bip"):
+            return True
+    name = domain.split(".")[0] if domain else ""
+    # "powiatowe-centrum-nieruchomosci" to biuro, nie starostwo.
+    return name.startswith(_PUBLIC_NAME_PREFIXES) and "nieruchom" not in name and not name.startswith("powiatow")
+
+
 _PAGE_HINTS: tuple[tuple[str, int], ...] = (
     ("kontakt", 10),
     ("contact", 10),

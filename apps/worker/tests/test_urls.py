@@ -85,3 +85,16 @@ def test_pick_legal_pages_prefers_privacy_and_skips_cookies_foreign_and_pdf():
     assert is_legal_url("https://przyklad.pl/polityka-prywatnosci")
     assert not is_legal_url("https://przyklad.pl/oferta/sprzedaz-mieszkan")
     assert pick_legal_pages([("/kontakt", "Kontakt")], "https://przyklad.pl/") == []
+
+
+def test_is_public_institution():
+    from katalog_worker.urls import is_public_institution
+
+    for url in ("https://bip.kutno.pl/", "https://www.um.zawiercie.pl/x", "https://otwock.bip.gov.pl",
+                "https://gminaskierniewice.pl", "https://powiatlowicki.pl", "https://www.gov.pl/web/rozwoj",
+                "https://ug-bialapodlaska.bip.net.pl", "https://starostwo.brzeziny.pl", "https://um.bydgoszcz.pl"):
+        assert is_public_institution(url), url
+    for url in ("https://umbrella-nieruchomosci.pl", "https://bipolska.pl.example.com", "https://domar.pl",
+                "https://nieruchomosci-brzeziny.pl", "https://ugoda-nieruchomosci.pl",
+                "https://twojdom.edu.pl", "https://powiatowe-centrum-nieruchomosci.info"):
+        assert not is_public_institution(url), url

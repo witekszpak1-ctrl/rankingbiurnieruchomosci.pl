@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from .classify import DEFAULT_BLOCKLIST
 from .search.base import SearchProvider, SearchResult
-from .urls import canonical_url, is_blocklisted, registrable_domain
+from .urls import canonical_url, is_blocklisted, is_public_institution, registrable_domain
 
 
 @dataclass
@@ -62,7 +62,7 @@ def discover(
             host = registrable_domain(result.url)
             if not host:
                 continue
-            if is_blocklisted(result.url, blocked_domains):
+            if is_blocklisted(result.url, blocked_domains) or is_public_institution(result.url):
                 blocked_here += 1
                 continue
             existing = candidates.get(host)

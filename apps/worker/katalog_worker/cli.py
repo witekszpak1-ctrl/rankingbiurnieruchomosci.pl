@@ -281,6 +281,27 @@ def cmd_purge_personal(args) -> int:
     return 0
 
 
+def cmd_backlog(args) -> int:
+    """Ile pracy czeka na automat: domeny do otwarcia, domeny do pobrania podstron i nieprzeszukane miasta."""
+    with connect() as conn:
+        one = lambda sql: int(next(iter(dict(conn.execute(sql).fetchone()).values())))  # noqa: E731
+        data = {
+            "probe": one(
+                "select count(*) from domains where classification = 'unknown' and verification_status = 'candidate'"
+                " and (last_checked_at is null or last_checked_at < now() - interval '1 day')"
+            ),
+            "deep_crawl": one(
+                "select count(*) from domains d where (d.verification_status = 'verified'"
+                " or (d.verification_status = 'needs_review' and d.brand_id is not null))"
+                " and (select count(*) from crawl_pages p where p.domain_id = d.id) < 3"
+            ),
+            "cities": one("select count(*) from cities where search_enabled and last_searched_at is null"),
+        }
+    data["total"] = data["probe"] + data["deep_crawl"] + data["cities"]
+    _print(data)
+    return 0
+
+
 def cmd_status(args) -> int:
     from .repo import Repo
 
@@ -351,6 +372,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--providers", default="brave,serper")
     p.add_argument("--queries-per-entity", type=int, default=2)
     add("status", cmd_status, "liczby rekordów według statusów", vertical=False)
+    add("backlog", cmd_backlog, "ile pracy czeka na automat (do decyzji o kolejnym przebiegu)", vertical=False)
     add(
         "purge-personal", cmd_purge_personal,
         "usuń dane z formularzy i statystyki wejść po okresie przechowywania (12 lub 24 mies.)", vertical=False,

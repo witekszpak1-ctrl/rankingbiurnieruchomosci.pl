@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass, field
 
 from .extract import PageExtraction
-from .urls import is_blocklisted
+from .urls import is_blocklisted, is_public_institution
 
 # Domeny, które nigdy nie są oficjalną stroną jednej firmy. Wartość to etykieta.
 DEFAULT_BLOCKLIST: dict[str, str] = {
@@ -97,6 +97,8 @@ def classify_page(
     for domain, label in blocklist.items():
         if is_blocklisted(page.url, {domain}):
             return Classification(label, 1.0, [f"blocklista: {domain}"])
+    if is_public_institution(page.url):
+        return Classification("irrelevant", 1.0, ["strona urzędu lub instytucji publicznej (BIP, gmina, gov.pl)"])
 
     text = f"{page.title}\n{page.meta_description}\n{page.text}"
     lowered = text.lower()
