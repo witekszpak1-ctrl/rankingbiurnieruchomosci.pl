@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   openGraph: { siteName: SITE_NAME, locale: "pl_PL", type: "website" },
   twitter: { card: "summary_large_image" },
+  // Weryfikacja własności w Google Search Console
+  verification: { google: "xZ1iC4kL0YXvL3t_6GTo_0zPiGXxzrrVJnaYu2YWbPw" },
   ...(isPreview ? { robots: { index: false, follow: false } } : {}),
 };
 
