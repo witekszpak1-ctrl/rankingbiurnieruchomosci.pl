@@ -55,7 +55,7 @@ export default async function TrackingPage({ searchParams }: Props) {
         </p>
       </section>
 
-      <form action={trackingAction} className="tracking-form">
+      <form action={trackingAction} className="tracking-form" autoComplete="off">
         <section className="panel">
           <h3>Identyfikatory narzędzi</h3>
           <div className="tracking-grid">
@@ -70,6 +70,10 @@ export default async function TrackingPage({ searchParams }: Props) {
                   defaultValue={settings.ids[tool.key] ?? ""}
                   placeholder={tool.placeholder}
                   autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  data-bwignore
+                  data-form-type="other"
                   spellCheck={false}
                 />
                 <p className="note">{tool.help}</p>
@@ -96,8 +100,12 @@ export default async function TrackingPage({ searchParams }: Props) {
               <input
                 id="metaCapiToken"
                 name="metaCapiToken"
-                type="password"
+                type="text"
                 autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
+                data-form-type="other"
                 spellCheck={false}
                 placeholder={settings.metaCapiToken ? "zostaw puste, żeby zachować zapisany token" : "EAAG..."}
               />

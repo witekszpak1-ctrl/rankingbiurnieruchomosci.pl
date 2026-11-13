@@ -74,8 +74,10 @@ export type TrackingParse = { ok: true; value: TrackingSettings } | { ok: false;
 export function parseTrackingForm(form: FormData, current: TrackingSettings = EMPTY_TRACKING): TrackingParse {
   const ids: Partial<Record<ToolKey, string>> = {};
   for (const tool of TOOLS) {
-    const raw = String(form.get(tool.key) ?? "").trim();
-    if (!raw) continue;
+    // Usuwamy spacje i niewidoczne znaki z wklejenia. Adres e-mail w polu to autouzupełnianie przeglądarki
+    // (menedżer haseł wpisuje login obok pola tokenu), więc traktujemy je jak puste pole.
+    const raw = String(form.get(tool.key) ?? "").replace(/[\s\u200B-\u200D\uFEFF]/g, "");
+    if (!raw || raw.includes("@")) continue;
     const id = tool.key === "clarity" ? raw.toLowerCase() : raw.toUpperCase();
     if (!tool.pattern.test(id)) return { ok: false, message: `${tool.label}: nieprawidłowy format (np. ${tool.placeholder}).` };
     ids[tool.key] = id;
