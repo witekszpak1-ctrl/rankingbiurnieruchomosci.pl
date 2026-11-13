@@ -23,10 +23,10 @@ on:
       limit:
         description: "Limit domen na etap"
         default: "200"
-  # Co 3 godziny (tryb szybki: cała lista miast w około 2 tygodnie): import wyników, publikacja, nowi kandydaci,
-  # probe, verify, crawl, paczki.
+  # Co godzinę (szybkie uzupełnianie katalogu): import wyników, publikacja, nowi kandydaci, probe, verify, crawl,
+  # paczki. Przebieg trwa 45-70 minut, a grupa katalog-db pilnuje, żeby naraz szedł tylko jeden.
   schedule:
-    - cron: "17 */3 * * *"
+    - cron: "17 * * * *"
 
 permissions:
   contents: write # push paczek na gałąź queue-data
