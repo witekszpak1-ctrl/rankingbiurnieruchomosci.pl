@@ -60,8 +60,15 @@ copy_no_clobber() {
   done < <(cd "$src" && find . -type f | sed 's#^\./##')
 }
 
+# 0 = gałąź jest, 1 = repozytorium dostępne, ale gałęzi brak. Brak dostępu (zły lub wygasły token) przerywa skrypt,
+# żeby nie udawać pustej kolejki.
 branch_exists() {
-  git ls-remote --exit-code --heads "$REMOTE" "$BRANCH" >/dev/null 2>&1
+  local out
+  if ! out="$(git ls-remote --heads "$REMOTE" "$BRANCH" 2>&1)"; then
+    echo "Brak dostępu do repozytorium kolejki ${QUEUE_REPO_URL}: ${out//${QUEUE_REPO_TOKEN:-@@brak@@}/***}" >&2
+    exit 1
+  fi
+  [ -n "$out" ]
 }
 
 # Przygotowuje katalog roboczy z aktualnym stanem gałęzi (albo pustą gałąź sierocą, gdy jeszcze nie istnieje).
@@ -71,7 +78,7 @@ checkout_branch() {
     git worktree add -q --detach "$tmp" FETCH_HEAD
   else
     git worktree add -q --detach "$tmp" HEAD
-    git -C "$tmp" checkout -q --orphan "$BRANCH"
+    git -C "$tmp" checkout -q --orphan "queue-sync-$$-$RANDOM"
     git -C "$tmp" rm -rfq .
   fi
 }
@@ -84,7 +91,8 @@ commit_and_push() {
   fi
   git -C "$tmp" -c user.name="katalog-bot" -c user.email="katalog-bot@users.noreply.github.com" \
     commit -q -m "$1"
-  git -C "$tmp" push -q "$REMOTE" "HEAD:refs/heads/$BRANCH"
+  # "if commit_and_push" wyłącza set -e, więc błąd wysyłki trzeba zwrócić jawnie.
+  git -C "$tmp" push -q "$REMOTE" "HEAD:refs/heads/$BRANCH" || return 1
   echo "Wysłano do kolejki ($BRANCH)."
 }
 

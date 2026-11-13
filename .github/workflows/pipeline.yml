@@ -54,6 +54,9 @@ jobs:
       SNAPSHOTS_DIR: ./snapshots
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Bez zapamiętanego tokenu tego repozytorium: przykrywałby on token kolejki (QUEUE_REPO_TOKEN).
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
