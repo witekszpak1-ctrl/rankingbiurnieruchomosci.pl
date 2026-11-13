@@ -18,7 +18,7 @@ bash scripts/queue_sync.sh pull
 ## 1. Opisy
 
 1. Paczki do zrobienia: pliki `queue/pending/describe/*.json`, dla których nie ma pliku o tej samej nazwie
-   ani w `queue/results/describe/`, ani w `queue/results/skipped/describe/`. Maksymalnie 150 na jedną sesję. Przy dużej liczbie paczek wysyłaj
+   ani w `queue/results/describe/`, ani w `queue/results/skipped/describe/`. Maksymalnie 300 na jedną sesję. Przy dużej liczbie paczek wysyłaj
    wyniki partiami (`bash scripts/queue_sync.sh push-results` po każdej partii około 30), żeby import nie czekał na koniec sesji.
 2. Rozdziel je na subagentów (narzędzie Agent z parametrem `model: "sonnet"`, czyli Claude Sonnet: tańszy i szybszy,
    a walidator i tak odrzuca zły opis), po 4-5 paczek na agenta, do 8 równolegle. Każdy agent dostaje ścieżki
