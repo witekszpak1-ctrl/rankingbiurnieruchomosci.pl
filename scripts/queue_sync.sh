@@ -16,6 +16,8 @@
 set -euo pipefail
 
 BRANCH="${QUEUE_BRANCH:-queue-data}"
+# Spacje i nowe linie doklejone przy wklejaniu sekretu psują adres z tokenem.
+QUEUE_REPO_TOKEN="$(printf '%s' "${QUEUE_REPO_TOKEN:-}" | tr -d '[:space:]')"
 QUEUE_REPO_URL="${QUEUE_REPO_URL:-https://github.com/witekszpak1-ctrl/rankingbiur-kolejka.git}"
 if [ -n "${QUEUE_REMOTE:-}" ]; then
   REMOTE="$QUEUE_REMOTE"
