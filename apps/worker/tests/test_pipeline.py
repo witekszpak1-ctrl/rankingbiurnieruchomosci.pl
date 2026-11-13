@@ -718,3 +718,30 @@ def test_agency_without_any_nip_gets_unconfirmed_brand_listing_and_bundle(ctx):
     assert ctx.repo.conn.execute("select count(*) as n from brands").fetchone()["n"] == 1
     stage_crawl_deep(ctx, fetcher, 10)
     assert stage_bundle(ctx, 10).get("describe") == 1
+
+
+def test_fetch_parallel_uses_clones_and_returns_every_item(monkeypatch):
+    import threading
+
+    from katalog_worker.pipeline import _fetch_parallel
+
+    class Fake:
+        clones = 0
+        lock = threading.Lock()
+
+        def clone(self):
+            with Fake.lock:
+                Fake.clones += 1
+            return Fake()
+
+    monkeypatch.setenv("CRAWLER_WORKERS", "4")
+    items = list(range(20))
+    seen = dict(_fetch_parallel(Fake(), items, lambda f, i: (type(f).__name__, i * 2)))
+    assert sorted(seen) == items
+    assert all(v == ("Fake", k * 2) for k, v in seen.items())
+    assert 1 <= Fake.clones <= 4
+
+    monkeypatch.setenv("CRAWLER_WORKERS", "1")
+    Fake.clones = 0
+    assert [i for i, _ in _fetch_parallel(Fake(), items, lambda f, i: i)] == items
+    assert Fake.clones == 0

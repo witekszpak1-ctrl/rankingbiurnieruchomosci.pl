@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import threading
 import re
 import sys
 import unicodedata
 from collections import Counter
+from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -79,6 +83,40 @@ def _load_pages(ctx: Context, domain_id: str) -> list[PageExtraction]:
             continue
         pages.append(extract_page(path.read_text(encoding="utf-8"), row["url"]))
     return pages
+
+
+# ----------------------------------------------------------------------------- równoległe pobieranie
+
+def _crawler_workers() -> int:
+    """Ile domen pobierać naraz (CRAWLER_WORKERS, domyślnie 8). Każda domena ma jeden wątek, więc odstęp między
+    zapytaniami do jednego hosta zostaje bez zmian; równolegle idą tylko różne biura."""
+    try:
+        return max(1, min(32, int(os.environ.get("CRAWLER_WORKERS", "8"))))
+    except ValueError:
+        return 8
+
+
+def _fetch_parallel(fetcher, items: Iterable, work: Callable) -> Iterator[tuple]:
+    """Wywołuje work(fetcher_wątku, item) dla każdej pozycji w kilku wątkach i zwraca (item, wynik) w kolejności
+    ukończenia. work może tylko pobierać strony i je analizować: zapis do bazy robi wywołujący w głównym wątku.
+    Fetcher bez metody clone (np. testowy) albo CRAWLER_WORKERS=1 oznacza pracę po kolei."""
+    items = list(items)
+    workers = _crawler_workers()
+    if workers == 1 or len(items) <= 1 or not hasattr(fetcher, "clone"):
+        for item in items:
+            yield item, work(fetcher, item)
+        return
+    local = threading.local()
+
+    def run(item):
+        if not hasattr(local, "fetcher"):
+            local.fetcher = fetcher.clone()
+        return work(local.fetcher, item)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(run, item): item for item in items}
+        for future in as_completed(futures):
+            yield futures[future], future.result()
 
 
 # ----------------------------------------------------------------------------- S1
@@ -236,13 +274,39 @@ def cities_export(ctx: Context) -> dict:
 # ----------------------------------------------------------------------------- S3
 
 
+def _probe_fetch(fetcher: PoliteFetcher, row: dict) -> tuple[FetchResult, list[tuple[FetchResult, PageExtraction]]]:
+    """Część sieciowa etapu probe (bez bazy): strona główna, kontakt i w razie potrzeby strony prawne."""
+    home = fetcher.fetch(row["canonical_url"] or f"https://{row['host']}/")
+    if not home.ok:
+        return home, []
+    fetched = [(home, extract_page(home.text, home.final_url))]
+    # Strona kontaktu (tam zwykle jest NIP) wybierana spośród wszystkich ocenionych podstron, bo cennik i "o nas"
+    # dostają więcej punktów i wypychały ją poza czołówkę.
+    picks = pick_pages(fetched[0][1].links, home.final_url, limit=50)
+    contact = next((u for u in picks if _CONTACT_RE.search(u)), None)
+    if contact and contact != canonical_url(home.final_url):
+        extra = fetcher.fetch(contact)
+        if extra.ok:
+            fetched.append((extra, extract_page(extra.text, extra.final_url)))
+    if not any(page.nips for _, page in fetched):
+        # Brak NIP na stronie głównej i w kontakcie: szukamy go w polityce prywatności albo regulaminie.
+        for legal_url in pick_legal_pages(fetched[0][1].links, home.final_url, limit=2):
+            extra = fetcher.fetch(legal_url)
+            if extra.ok:
+                page = extract_page(extra.text, extra.final_url)
+                fetched.append((extra, page))
+                if page.nips:
+                    break
+    return home, fetched
+
+
 def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
     run_id = repo.start_run("probe", None)
     repo.conn.commit()
-    for row in repo.domains_to_probe(limit):
-        home = fetcher.fetch(row["canonical_url"] or f"https://{row['host']}/")
+    rows = list(repo.domains_to_probe(limit))
+    for row, (home, fetched) in _fetch_parallel(fetcher, rows, _probe_fetch):
         if home.error == "robots":
             repo.update_domain_classification(
                 row["id"], "unknown", ["robots.txt zabrania pobierania"], robots_status="disallowed",
@@ -256,26 +320,6 @@ def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
             counts["fetch_error"] += 1
             repo.conn.commit()
             continue
-
-        fetched = [(home, extract_page(home.text, home.final_url))]
-        # Strona kontaktu (tam zwykle jest NIP) wybierana spośród wszystkich ocenionych podstron, bo cennik i "o nas"
-        # dostają więcej punktów i wypychały ją poza czołówkę.
-        picks = pick_pages(fetched[0][1].links, home.final_url, limit=50)
-        contact = next((u for u in picks if _CONTACT_RE.search(u)), None)
-        if contact and contact != canonical_url(home.final_url):
-            extra = fetcher.fetch(contact)
-            if extra.ok:
-                fetched.append((extra, extract_page(extra.text, extra.final_url)))
-
-        if not any(page.nips for _, page in fetched):
-            # Brak NIP na stronie głównej i w kontakcie: szukamy go w polityce prywatności albo regulaminie.
-            for legal_url in pick_legal_pages(fetched[0][1].links, home.final_url, limit=2):
-                extra = fetcher.fetch(legal_url)
-                if extra.ok:
-                    page = extract_page(extra.text, extra.final_url)
-                    fetched.append((extra, page))
-                    if page.nips:
-                        break
 
         merged = merge_extractions([page for _, page in fetched])
         classification = classify_page(merged, ctx.keywords, ctx.blocklist)
@@ -415,24 +459,32 @@ def stage_crawl_deep(ctx: Context, fetcher: PoliteFetcher, limit: int = 20, max_
     candidates: dict[str, dict] = {}
     for row in list(repo.domains_for_deep_crawl(limit)) + list(repo.domains_awaiting_bundle(limit)):
         candidates.setdefault(str(row["id"]), row)
-    for row in candidates.values():
-        pages = _load_pages(ctx, row["id"])
+    # Strony z bazy i zrzutów wczytujemy w głównym wątku; w wątkach idzie tylko pobieranie z sieci.
+    jobs = [(row, _load_pages(ctx, row["id"])) for row in candidates.values()]
+
+    def work(f: PoliteFetcher, job: tuple[dict, list[PageExtraction]]) -> tuple[FetchResult | None, list[FetchResult]]:
+        row, pages = job
+        home = None
         if not pages:
             # Brak lokalnych zrzutów (np. przebieg na nowym runnerze): pobieramy stronę główną od nowa.
-            home = fetcher.fetch(row["canonical_url"] or f"https://{row['host']}/")
+            home = f.fetch(row["canonical_url"] or f"https://{row['host']}/")
+            if not home.ok:
+                return home, []
+            pages = [extract_page(home.text, home.final_url)]
+        have = {canonical_url(p.url) for p in pages}
+        links = [link for p in pages for link in p.links]
+        results = [f.fetch(url) for url in pick_pages(links, pages[0].url, limit=max_pages) if url not in have]
+        return home, results
+
+    for (row, _), (home, results) in _fetch_parallel(fetcher, jobs, work):
+        if home is not None:
             if not home.ok:
                 counts[f"refetch_failed_{home.error}"] += 1
                 repo.conn.commit()
                 continue
             _save_page(ctx, row["id"], row["host"], home)
-            pages = [extract_page(home.text, home.final_url)]
             counts["refetched_home"] += 1
-        have = {canonical_url(p.url) for p in pages}
-        links = [link for p in pages for link in p.links]
-        for url in pick_pages(links, pages[0].url, limit=max_pages):
-            if url in have:
-                continue
-            result = fetcher.fetch(url)
+        for result in results:
             if result.ok:
                 _save_page(ctx, row["id"], row["host"], result)
                 counts["pages"] += 1

@@ -79,6 +79,16 @@ class PoliteFetcher:
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, object] = {}
 
+    def clone(self) -> "PoliteFetcher":
+        """Nowy fetcher z tymi samymi ustawieniami i własnym klientem HTTP (do pracy w osobnym wątku).
+
+        Każdy wątek obsługuje inne domeny, więc odstęp między zapytaniami do jednego hosta nadal obowiązuje.
+        """
+        return PoliteFetcher(
+            self._ua, min_delay_seconds=self._min_delay, max_bytes=self._max_bytes,
+            max_redirects=self._max_redirects, timeout=self._client.timeout,
+        )
+
     # ------------------------------------------------------------------ robots
 
     def _wait(self, host: str) -> None:
