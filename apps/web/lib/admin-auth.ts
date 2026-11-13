@@ -26,7 +26,14 @@ export async function login(email: string, password: string): Promise<boolean> {
   const emailOk = !!expectedEmail && email.trim().toLowerCase() === expectedEmail;
   // verifyPassword wykonujemy zawsze, żeby czas odpowiedzi nie zdradzał, czy e-mail jest poprawny
   const passwordOk = verifyPassword(password, process.env.ADMIN_PASSWORD_HASH);
-  if (!emailOk || !passwordOk) return false;
+  if (!emailOk || !passwordOk) {
+    // Diagnostyka nieudanego logowania: same wartości logiczne, bez loginu i hasła.
+    const hash = process.env.ADMIN_PASSWORD_HASH ?? "";
+    console.warn(
+      `[admin-login] nieudane: emailOk=${emailOk} passwordOk=${passwordOk} hashParts=${hash.split("$").length} hashLen=${hash.length} emailSet=${!!expectedEmail}`,
+    );
+    return false;
+  }
   const token = await signSession(secret, expectedEmail);
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
