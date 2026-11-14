@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { CompareBar, CompareToggle } from "@/components/Compare";
 import { FirmImage } from "@/components/FirmImage";
+import { Stars } from "@/components/Stars";
 import { TopThree } from "@/components/TopThree";
 import { notFound } from "next/navigation";
 
@@ -12,7 +13,7 @@ import { cityCommissionStats, commissionReport, cityPriceExamples, cityServices,
 import { inCity } from "@/lib/cities";
 import { brandServiceGroups, choosingGuide, cityFaq, cityH1, cityIntro, commissionSection, topThree, type CityData } from "@/lib/city-content";
 import { absoluteUrl, formatDate, formatYear } from "@/lib/format";
-import { nBiur, nBiurGen, plural } from "@/lib/plural";
+import { nBiur, nBiurGen, nOpinii, plural } from "@/lib/plural";
 import { cityMeta } from "@/lib/meta-texts";
 import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
 import { FILTERS, GOALS, PER_PAGE, parseView, viewHref, type Filter, type Goal, type SearchParams } from "@/lib/city-view";
@@ -261,56 +262,75 @@ export default async function CityPage({ params, searchParams }: Props) {
           <a href={viewHref(city.slug, { page: 1, goal: null, filters: [] }) + "#lista"}>Pokaż wszystkie biura</a>.
         </p>
       ) : (
-        <div className="tablewrap">
-          <table className="city-table">
-            <thead>
-              <tr>
-                {ranked && <th className="num">#</th>}
-                <th>Biuro</th>
-                {ranked && <th>Wynik</th>}
-                <th>Cennik</th>
-                <th>W rejestrze od</th>
-                <th className="num">Usługi</th>
-                <th>
-                  <span className="sr-only">Porównaj</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((row) => (
-                <tr key={row.listingId}>
-                  {ranked && <td className="num">{row.position}.</td>}
-                  <td className="firm">
-                    <Link href={`/${city.slug}/${row.slug}`} className="firm-cell">
-                      <FirmImage src={row.logoUrl} kind="logo" name={row.name} alt={`Logo ${row.name}`} size="sm" />
-                      <span>{row.name}</span>
-                    </Link>
-                  </td>
-                  {ranked && (
-                    <td data-label="Wynik">
-                      <span className="bar-track" aria-hidden="true">
-                        <span className="bar" style={{ width: `${row.score}%` }} />
-                      </span>
-                      {row.score}/100
-                    </td>
+        <ol className="firm-list" aria-label={`Biura nieruchomości ${where}`}>
+          {pageRows.map((row) => {
+            const href = `/${city.slug}/${row.slug}`;
+            const since = row.registryConfirmed && row.startDate ? formatYear(row.startDate) : null;
+            const picture = row.coverUrl ?? (row.imageKind === "og" ? row.imageUrl : null) ?? row.logoUrl;
+            return (
+              <li key={row.listingId} className="firm-card">
+                <div className="fc-thumb">
+                  <FirmImage
+                    src={picture}
+                    kind={picture === row.logoUrl ? "logo" : "og"}
+                    name={row.name}
+                    alt={`Logo ${row.name}`}
+                    size="md"
+                  />
+                  {ranked && <span className="fc-pos">{row.position}.</span>}
+                  {row.offersCount > 0 && (
+                    <span className="fc-count">
+                      {row.offersCount} {plural(row.offersCount, "oferta", "oferty", "ofert")}
+                    </span>
                   )}
-                  <td data-label="Cennik">
-                    {row.hasPublicPrices ? <span className="badge ok">jawny</span> : <span className="badge">brak</span>}
-                  </td>
-                  <td data-label="W rejestrze od">
-                    {row.registryConfirmed ? formatYear(row.startDate) : <span className="note">bez potwierdzenia</span>}
-                  </td>
-                  <td className="num" data-label="Usługi">
-                    {row.servicesCount}
-                  </td>
-                  <td>
-                    <CompareToggle id={row.listingId} name={row.name} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </div>
+                <div className="fc-mid">
+                  <ul className="fc-chips">
+                    {row.registryConfirmed ? (
+                      <li className="ok">✓ W rejestrze{since ? ` od ${since}` : ""}</li>
+                    ) : (
+                      <li>Bez potwierdzenia w rejestrze</li>
+                    )}
+                    {row.hasPublicPrices && <li className="y">Jawny cennik</li>}
+                    {row.servicesCount > 0 && (
+                      <li>
+                        {row.servicesCount} {plural(row.servicesCount, "usługa", "usługi", "usług")}
+                      </li>
+                    )}
+                  </ul>
+                  <h3>
+                    <Link className="fc-name" href={href}>
+                      {row.name}
+                    </Link>
+                  </h3>
+                  {row.host && <p className="fc-meta">{row.host}</p>}
+                  {row.description && <p className="fc-desc">{row.description}</p>}
+                </div>
+                <div className="fc-side">
+                  {ranked ? (
+                    <div className="fc-score">
+                      <b>{row.score}</b>
+                      <span>/100</span>
+                      <small>wynik w rankingu</small>
+                    </div>
+                  ) : null}
+                  {row.googleRating != null && row.googleCount ? (
+                    <div className="fc-google">
+                      <Stars value={row.googleRating} size={15} />
+                      <span>
+                        {row.googleRating.toFixed(1).replace(".", ",")} · {nOpinii(row.googleCount)} w Google
+                      </span>
+                    </div>
+                  ) : null}
+                  <span className="fc-see" aria-hidden="true">
+                    Zobacz biuro <span className="arr">→</span>
+                  </span>
+                  <CompareToggle id={row.listingId} name={row.name} />
+                </div>
+              </li>
+            );
+          })}
+        </ol>
       )}
       {pages > 1 && (
         <nav className="pager" aria-label="Strony listy biur">

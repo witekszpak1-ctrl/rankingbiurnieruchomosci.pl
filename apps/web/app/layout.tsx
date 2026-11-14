@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
-// Czcionka Inter z naszego serwera (bez łączenia przeglądarki z Google Fonts).
-import "@fontsource-variable/inter";
+// Czcionki z naszego serwera (bez łączenia przeglądarki z Google Fonts): Archivo w nagłówkach, Instrument Sans w tekście,
+// IBM Plex Mono w drobnych etykietach.
+import "@fontsource-variable/archivo";
+import "@fontsource-variable/instrument-sans";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 import { CookieConsent } from "@/components/CookieConsent";
 import { SITE_NAME, SITE_URL } from "@/lib/format";

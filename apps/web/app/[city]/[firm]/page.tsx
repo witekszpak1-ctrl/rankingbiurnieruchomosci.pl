@@ -536,6 +536,31 @@ export default async function FirmPage({ params, searchParams }: Props) {
           </div>
 
           <aside className="profile-aside">
+            <div className="score-card">
+              <span className="score-card-label">Wynik w rankingu</span>
+              <b className="score-card-num">
+                {score}
+                <small>/100</small>
+              </b>
+              <p>
+                {position && cityRanked ? (
+                  <>
+                    {position}. miejsce na {cityRanked.length} w rankingu{" "}
+                    <Link href={`/${listing.citySlug}`}>biur nieruchomości {where}</Link>
+                  </>
+                ) : (
+                  <>
+                    według <Link href="/metodologia">metodologii katalogu</Link>
+                  </>
+                )}
+              </p>
+              {listing.googleRating && listing.googleCount ? (
+                <p className="score-card-google">
+                  <Stars value={listing.googleRating} size={16} /> {listing.googleRating.toFixed(1).replace(".", ",")} ·{" "}
+                  <a href="#opinie">{nOpinii(listing.googleCount)} w Google</a>
+                </p>
+              ) : null}
+            </div>
             <LeadForm
               listingId={listing.listingId}
               firmName={listing.name}
