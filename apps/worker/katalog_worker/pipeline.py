@@ -28,6 +28,7 @@ from urllib.parse import urljoin, urlsplit
 from .bundle import ContactLeakError, Fact, build_classify_bundle, build_describe_bundle, facts_from_pages, write_bundle
 from .classify import DEFAULT_BLOCKLIST, Classification, classify_page
 from .discovery import discover
+from .names import better_name, is_bad_name, is_catalog_host, name_from_registry, name_from_titles, registrable_domain, title_segments
 from .city import SOURCE_LABEL, AddressHit, CityDecision, decide_city, known_cities, parse_address_fact
 from .extract import PageExtraction, _e164, extract_page, merge_extractions
 from .fetch import FetchResult, PoliteFetcher
@@ -385,17 +386,26 @@ def brand_city_decision(repo: Repo, brand_id: str, city_hint: str | None, brand_
                        brand_name, repo.brand_host(brand_id) or "")
 
 
-def _brand_name(pages: list[PageExtraction], entity: RegistryEntity | None) -> str:
+def _brand_name(pages: list[PageExtraction], entity: RegistryEntity | None) -> str | None:
+    """Nazwa marki ze strony; nazwy stron ("Strona główna", "Home", sama domena) pomijamy (katalog_worker/names.py).
+
+    Kolejno: og:site_name, dane strukturalne, człony tytułu strony głównej, najczęstszy człon tytułów podstron,
+    nazwa z rejestru. None, gdy firma bez rejestru nie ma żadnej dobrej nazwy (wtedy nie trafia do katalogu).
+    """
     home = pages[0]
+    host = urlsplit(home.url).hostname or ""
     candidates = [home.og_site_name]
     candidates += [str(o["name"]) for o in home.organizations if o.get("name")]
-    candidates += [re.split(r"[|]", home.title)[0].strip()]
+    candidates += title_segments(home.title)
     for name in candidates:
-        if name and 2 <= len(name) <= 80:
-            return name
+        if name and 2 <= len(name) <= 80 and not is_bad_name(name, host):
+            return name.strip()
+    from_titles = name_from_titles([p.title for p in pages], host)
+    if from_titles:
+        return from_titles
     if entity is None:
-        return urlsplit(home.url).hostname.removeprefix("www.") if urlsplit(home.url).hostname else "Biuro nieruchomości"
-    return entity.name.title()
+        return None
+    return name_from_registry(entity.name) or entity.name.title()
 
 
 def _pick_entity(entities: list[RegistryEntity], pages: list[PageExtraction]) -> RegistryEntity | None:
@@ -449,8 +459,14 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
         if entity is None and verification.status == "needs_review" and row["classification"] == "official":
             # Biuro bez potwierdzenia w rejestrze (np. brak NIP na stronie): trafia do katalogu z niższym rankingiem.
             name = _brand_name(pages, None)
+            if not name and not row.get("brand_id"):
+                counts["bad_name"] += 1  # same nazwy stron ("Strona główna") i brak rejestru: nie dodajemy
+                repo.update_domain_verification(row["id"], verification.score, "needs_review", None, None,
+                                                [*verification.reasons, "brak nazwy firmy na stronie"])
+                repo.conn.commit()
+                continue
             brand_id = row.get("brand_id") or repo.insert_unregistered_brand(name)
-            decision = city_decision(None, row["city_hint"], pages, known, name, row["host"])
+            decision = city_decision(None, row["city_hint"], pages, known, name or "", row["host"])
             if decision.city:
                 listing_id = repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(decision.city), "needs_review")
                 repo.set_listing_city_source(listing_id, decision.source)
@@ -534,7 +550,7 @@ def stage_reverify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 1
             repo.conn.commit()
             continue
         decision = city_decision(entity.city, row["city_hint"], pages, known_cities(repo.city_names()),
-                                 _brand_name(pages, entity), row["host"])
+                                 _brand_name(pages, entity) or "", row["host"])
         if decision.city and verification.status == "verified":
             listing_id = repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(decision.city), "verified")
             repo.set_listing_city_source(listing_id, decision.source)
@@ -1429,3 +1445,192 @@ def _move_listing(repo: Repo, row: dict, decision: CityDecision, counts: Counter
     repo.write_audit("pipeline", "listing.move_city", "listing", listing_id,
                      {"city": row["city_name"], "path": old_path},
                      {"city": decision.city, "source": decision.source, "target_listing": target_listing})
+
+
+# ----------------------------------------------------------------------------- nazwy i duplikaty (etap 3 planu poprawy)
+
+def _write_csv(path: Path, rows: list[dict]) -> None:
+    import csv
+
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()) if rows else ["biuro"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _published_by_brand(repo: Repo) -> dict[str, dict]:
+    brands: dict[str, dict] = {}
+    for r in repo.published_listings_overview():
+        b = brands.setdefault(str(r["brand_id"]), {**r, "listings": []})
+        b["listings"].append(r)
+    return brands
+
+
+def _reslug_listing(repo: Repo, listing: dict, new_name: str, counts: Counter) -> None:
+    """Nowy slug wpisu po zmianie nazwy; stary adres trafia do przekierowań."""
+    vertical_id, city_id = str(listing["vertical_id"]), str(listing["city_id"])
+    base = slugify(new_name) or "firma"
+    if listing["slug"] == base:
+        return
+    slug = _unique_slug(base, repo.taken_slugs(vertical_id, city_id) - {listing["slug"]})
+    if slug == listing["slug"]:
+        return
+    repo.move_listing(str(listing["id"]), city_id, slug)
+    repo.add_listing_redirect(f"/{listing['city_slug']}/{listing['slug']}", str(listing["id"]))
+    counts["reslugged"] += 1
+
+
+def stage_names_report(ctx: Context, out_dir: str, apply: bool = False) -> dict:
+    """Opublikowane firmy z nazwą, która nie jest nazwą biura, albo ze strony katalogu firm.
+
+    Raport `raport-nazwy.csv`: obecna nazwa, problem, proponowana nazwa i jej źródło, decyzja (zmiana nazwy albo
+    ukrycie). Z `apply` zmienia nazwy (nowy adres profilu, stary przekierowany) i ukrywa wpisy bez dobrej nazwy
+    (status removed, strona odpowiada kodem 410).
+    """
+    repo = ctx.repo
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    counts: Counter = Counter()
+    rows: list[dict] = []
+    for brand_id, b in _published_by_brand(repo).items():
+        host = b["host"] or ""
+        if is_catalog_host(host):
+            problem, new_name, source, verdict = "strona katalogu firm", None, "", "ukrycie"
+        elif is_bad_name(b["brand_name"], host):
+            problem = "nazwa strony zamiast nazwy firmy"
+            new_name, source = better_name(b["brand_name"], host, repo.brand_titles(brand_id),
+                                           repo.brand_description(brand_id), b["legal_name"])
+            verdict = "zmiana nazwy" if new_name else "ukrycie"
+        else:
+            continue
+        counts[verdict] += 1
+        rows.append({
+            "biuro": b["brand_name"], "domena": host, "miasta": ", ".join(x["city_name"] for x in b["listings"]),
+            "problem": problem, "nowa_nazwa": new_name or "", "zrodlo": source, "decyzja": verdict,
+            "profile": " ".join(f"/{x['city_slug']}/{x['slug']}" for x in b["listings"]),
+        })
+        if not apply:
+            continue
+        if verdict == "zmiana nazwy":
+            repo.rename_brand(brand_id, new_name)
+            for listing in b["listings"]:
+                _reslug_listing(repo, listing, new_name, counts)
+            repo.write_audit("pipeline", "brand.rename_bad_name", "brand", brand_id,
+                             {"name": b["brand_name"]}, {"name": new_name, "source": source})
+        else:
+            for listing in b["listings"]:
+                repo.set_listing_status(str(listing["id"]), "removed")
+                repo.write_audit("pipeline", "listing.hide_bad_name", "listing", str(listing["id"]),
+                                 {"status": "published", "name": b["brand_name"]}, {"status": "removed", "reason": problem})
+        repo.conn.commit()
+    _write_csv(out / "raport-nazwy.csv", rows)
+    return dict(counts)
+
+
+def stage_duplicates_report(ctx: Context, out_dir: str, apply: bool = False) -> dict:
+    """Firmy opublikowane kilka razy: ten sam NIP (podmiot z rejestru) albo ta sama domena.
+
+    Klucz scalania: NIP, a bez niego domena (bez www i subdomen). Ta sama nazwa w jednym mieście przy innym kluczu
+    trafia do raportu tylko do przeglądu ("Biuro Nieruchomości" bywa różnymi firmami). Raport `raport-duplikaty.csv`.
+    Z `apply` każdą grupę scala w profil firmy z największą liczbą danych: wpis duplikatu w mieście, w którym ta
+    firma ma już wpis, jest wycofany i przekierowany, a w pozostałych miastach przechodzi na nią.
+    """
+    repo = ctx.repo
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    brands = _published_by_brand(repo)
+    parent = {b: b for b in brands}
+
+    def find(x: str) -> str:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    reasons: dict[str, str] = {}
+    by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for brand_id, b in brands.items():
+        if b["nip"]:
+            by_key[("ten sam NIP", b["nip"])].append(brand_id)
+        if b["host"] and not is_catalog_host(b["host"]):
+            by_key[("ta sama domena", registrable_domain(b["host"]))].append(brand_id)
+    for (reason, _), ids in by_key.items():
+        for other in ids[1:]:
+            ra, rb = find(ids[0]), find(other)
+            if ra != rb:
+                parent[rb] = ra
+            reasons[other] = reasons.get(other) or reason
+            reasons[ids[0]] = reasons.get(ids[0]) or reason
+    groups: dict[str, list[str]] = defaultdict(list)
+    for brand_id in brands:
+        groups[find(brand_id)].append(brand_id)
+
+    counts: Counter = Counter()
+    rows: list[dict] = []
+    merged_ids: set[str] = set()
+    for ids in groups.values():
+        if len(ids) < 2:
+            continue
+        keep = max(ids, key=lambda i: (brands[i]["nip"] is not None, brands[i]["facts"], brands[i]["offers"],
+                                       -brands[i]["first_published"].timestamp()))
+        for brand_id in ids:
+            if brand_id == keep:
+                continue
+            merged_ids.add(brand_id)
+            b, k = brands[brand_id], brands[keep]
+            counts["merge"] += 1
+            rows.append({
+                "biuro": b["brand_name"], "domena": b["host"] or "", "nip": b["nip"] or "",
+                "miasta": ", ".join(x["city_name"] for x in b["listings"]),
+                "scal_z": k["brand_name"], "scal_z_domena": k["host"] or "", "powod": reasons.get(brand_id, ""),
+                "decyzja": "scalenie",
+                "profile": " ".join(f"/{x['city_slug']}/{x['slug']}" for x in b["listings"]),
+            })
+            if apply:
+                _merge_brand(repo, b, k, counts)
+                repo.conn.commit()
+
+    # Ta sama nazwa w tym samym mieście przy innym NIP i domenie: tylko do przeglądu.
+    same_name: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for brand_id, b in brands.items():
+        if brand_id in merged_ids:
+            continue
+        for x in b["listings"]:
+            same_name[(_fold(b["brand_name"]).strip(), str(x["city_id"]))].append(brand_id)
+    for (_, _), ids in same_name.items():
+        roots = {find(i) for i in ids}
+        if len(roots) < 2:
+            continue
+        for brand_id in ids:
+            b = brands[brand_id]
+            counts["review"] += 1
+            rows.append({
+                "biuro": b["brand_name"], "domena": b["host"] or "", "nip": b["nip"] or "",
+                "miasta": ", ".join(x["city_name"] for x in b["listings"]), "scal_z": "", "scal_z_domena": "",
+                "powod": "ta sama nazwa w tym samym mieście, inny NIP i domena", "decyzja": "do przeglądu",
+                "profile": " ".join(f"/{x['city_slug']}/{x['slug']}" for x in b["listings"]),
+            })
+    _write_csv(out / "raport-duplikaty.csv", rows)
+    return dict(counts)
+
+
+def _merge_brand(repo: Repo, dup: dict, keep: dict, counts: Counter) -> None:
+    keep_id = str(keep["brand_id"])
+    for listing in dup["listings"]:
+        vertical_id, city_id = str(listing["vertical_id"]), str(listing["city_id"])
+        old_path = f"/{listing['city_slug']}/{listing['slug']}"
+        existing = repo.brand_listing_in_city(keep_id, vertical_id, city_id)
+        if existing:
+            if existing["status"] != "published":
+                slug = existing["slug"] or _unique_slug(slugify(keep["brand_name"]) or "firma",
+                                                         repo.taken_slugs(vertical_id, city_id))
+                repo.publish_listing(str(existing["id"]), city_id, slug, None)
+            repo.set_listing_status(str(listing["id"]), "removed")
+            repo.add_listing_redirect(old_path, str(existing["id"]))
+            counts["merged_into_existing"] += 1
+        else:
+            repo.reassign_listing(str(listing["id"]), keep_id)
+            _reslug_listing(repo, {**listing, "brand_id": keep_id}, keep["brand_name"], counts)
+            counts["merged_moved"] += 1
+    repo.write_audit("pipeline", "brand.merge", "brand", str(dup["brand_id"]),
+                     {"name": dup["brand_name"]}, {"merged_into": keep_id, "name": keep["brand_name"]})

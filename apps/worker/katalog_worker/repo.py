@@ -391,6 +391,41 @@ class Repo:
             (from_path, listing_id),
         )
 
+    def published_listings_overview(self) -> list[dict]:
+        """Opublikowane wpisy z danymi marki do raportów nazw i duplikatów (etap 3 planu poprawy)."""
+        return self.conn.execute(
+            """select l.id, l.brand_id, l.vertical_id, l.city_id, l.slug, c.name as city_name, c.slug as city_slug,
+                      b.name as brand_name, le.nip, le.name as legal_name,
+                      (select d.host from domains d where d.brand_id = b.id
+                        order by d.verification_score desc nulls last limit 1) as host,
+                      (select count(*) from facts f where f.brand_id = b.id and f.is_current) as facts,
+                      (select count(*) from offers o where o.brand_id = b.id and o.is_active) as offers,
+                      (select min(coalesce(l2.published_at, l2.created_at)) from listings l2
+                        where l2.brand_id = b.id and l2.status = 'published') as first_published
+               from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
+               left join legal_entities le on le.id = b.legal_entity_id
+               where l.status = 'published' and l.slug is not null
+               order by b.id, l.published_at nulls last"""
+        ).fetchall()
+
+    def brand_titles(self, brand_id: str) -> list[str]:
+        rows = self.conn.execute(
+            "select value #>> '{}' as v from facts where brand_id = %s and is_current and type = 'site_title'",
+            (brand_id,),
+        ).fetchall()
+        return [r["v"] for r in rows if r["v"]]
+
+    def brand_description(self, brand_id: str) -> str | None:
+        row = self.conn.execute(
+            """select body from descriptions where brand_id = %s and status in ('validated', 'published')
+               order by version desc limit 1""",
+            (brand_id,),
+        ).fetchone()
+        return row["body"] if row else None
+
+    def reassign_listing(self, listing_id: str, brand_id: str) -> None:
+        self.conn.execute("update listings set brand_id = %s where id = %s", (brand_id, listing_id))
+
     def upsert_listing(self, brand_id: str, vertical_id: str, city_id: str, status: str) -> str:
         row = self.conn.execute(
             """insert into listings (brand_id, vertical_id, city_id, status) values (%s, %s, %s, %s)

@@ -9,7 +9,7 @@ on:
       report:
         description: "Który raport"
         type: choice
-        options: [miasta]
+        options: [miasta, nazwy, duplikaty]
         default: miasta
       apply:
         description: "Zapisz zmiany (tylko po zgodzie właściciela na raport)"
@@ -45,5 +45,15 @@ jobs:
         env:
           APPLY: ${{ inputs.apply && '--apply' || '' }}
         run: katalog cities-report --out queue/results/reports $APPLY
+      - name: Raport nazw
+        if: inputs.report == 'nazwy'
+        env:
+          APPLY: ${{ inputs.apply && '--apply' || '' }}
+        run: katalog names-report --out queue/results/reports $APPLY
+      - name: Raport duplikatów
+        if: inputs.report == 'duplikaty'
+        env:
+          APPLY: ${{ inputs.apply && '--apply' || '' }}
+        run: katalog duplicates-report --out queue/results/reports $APPLY
       - name: Zapis raportu w repozytorium kolejki
         run: bash scripts/queue_sync.sh push-results

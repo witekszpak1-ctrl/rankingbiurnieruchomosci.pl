@@ -168,6 +168,24 @@ def cmd_cities_report(args) -> int:
     return 0
 
 
+def cmd_names_report(args) -> int:
+    from .pipeline import stage_names_report
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        _print(stage_names_report(ctx, args.out, apply=args.apply))
+    return 0
+
+
+def cmd_duplicates_report(args) -> int:
+    from .pipeline import stage_duplicates_report
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        _print(stage_duplicates_report(ctx, args.out, apply=args.apply))
+    return 0
+
+
 def cmd_crawl_deep(args) -> int:
     from .pipeline import stage_crawl_deep
 
@@ -373,6 +391,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=50)
     p = add("reverify", cmd_reverify, "ponowna weryfikacja biur bez potwierdzenia na wszystkich podstronach")
     p.add_argument("--limit", type=int, default=100)
+    p = add("names-report", cmd_names_report, "firmy z nazwą strony zamiast nazwy biura: raport albo zapis (--apply)")
+    p.add_argument("--out", default="queue/results/reports")
+    p.add_argument("--apply", action="store_true", help="zmień nazwy i ukryj wpisy bez dobrej nazwy")
+    p = add("duplicates-report", cmd_duplicates_report, "firmy opublikowane kilka razy (NIP, domena): raport albo scalenie")
+    p.add_argument("--out", default="queue/results/reports")
+    p.add_argument("--apply", action="store_true", help="scal grupy duplikatów")
     p = add("cities-report", cmd_cities_report, "przeliczenie miast wpisów nową regułą: raport na sucho albo zapis (--apply)")
     p.add_argument("--out", default="queue/results/reports", help="katalog na raport-miasta.csv i podsumowanie")
     p.add_argument("--apply", action="store_true", help="przenieś wpisy z pewnym źródłem innego miasta")
