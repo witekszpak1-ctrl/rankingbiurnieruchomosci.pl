@@ -1081,8 +1081,10 @@ def test_bad_names_and_better_name_sources():
     assert better_name("Home", "home-estate.pl", titles) == ("Home Estate", "tytuły stron")
     assert better_name("officelist.pl", "officelist.pl", [], "Officelist.pl to serwis biur do wynajęcia") == (
         "Officelist.pl", "opis")
-    assert better_name("Strona główna", "murzynskinieruchomosci.pl", ["Strona główna"],
+    assert better_name("Strona główna", "bnhit.pl", ["Strona główna"],
                        "Strona prezentuje usługi agenta nieruchomości") == (None, "brak")
+    assert better_name("Strona główna", "murzynskinieruchomosci.pl", ["Strona główna"]) == (
+        "Murzynski Nieruchomości", "domena")
     assert name_from_registry("HOME ASSET SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ") == "Home Asset"
 
 
@@ -1130,6 +1132,7 @@ def test_names_report_renames_with_redirect_and_hides_without_name(flow, tmp_pat
     conn.execute("update facts set is_current = false where brand_id = %s and type = 'site_title'", (brand_id,))
     conn.execute("update descriptions set body = 'Strona przedstawia ofertę.' where brand_id = %s", (brand_id,))
     conn.execute("update brands set legal_entity_id = null where id = %s", (brand_id,))
+    conn.execute("update domains set host = 'bnhit.pl' where brand_id = %s", (brand_id,))  # domena bez słowa
     conn.commit()
     assert stage_names_report(ctx, str(tmp_path / "r"), apply=True) == {"ukrycie": 1}
     assert conn.execute("select status from listings where id = %s", (row["id"],)).fetchone()["status"] == "removed"
