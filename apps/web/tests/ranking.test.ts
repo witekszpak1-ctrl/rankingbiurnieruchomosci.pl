@@ -126,3 +126,19 @@ describe("firma bez potwierdzenia w rejestrze", () => {
     expect(unconfirmed).toBeLessThan(confirmed);
   });
 });
+
+describe("udziały wag w 100 punktach", () => {
+  it("sumują się do 100, a wynik liczony z udziałów jest ten sam co z wag", async () => {
+    const { PARAMETERS, weightShare, scoreListing } = await import("@/lib/ranking");
+    const total = PARAMETERS.reduce((sum, p) => sum + weightShare(p.weight), 0);
+    expect(total).toBeCloseTo(100, 10);
+    const input = {
+      startDate: "2015-01-01", hasPublicPrices: false, verificationScore: 80, registryConfirmed: true,
+      servicesCount: 3, offersCount: 12, googleRating: 4.6, googleCount: 40,
+    };
+    const { score, breakdown } = scoreListing(input, new Date("2026-11-14"));
+    const fromShares = breakdown.reduce((s, b) => s + b.value * weightShare(b.weight), 0) /
+      breakdown.reduce((s, b) => s + weightShare(b.weight), 0) * 100;
+    expect(Math.round(fromShares)).toBe(score);
+  });
+});
