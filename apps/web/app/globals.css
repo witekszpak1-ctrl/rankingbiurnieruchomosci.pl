@@ -743,3 +743,20 @@ body.mnav-lock { overflow: hidden; }
 .filter-bar button { border: 0; border-radius: 12px; background: var(--yellow); color: var(--fg); font-weight: 700; padding: 12px 20px; }
 .filter-reset { margin-right: 12px; font-weight: 600; font-size: 0.95rem; }
 .pager .note { border: 0; padding: 6px 4px; }
+
+/* gradient górnej sekcji strony głównej: ciepła żółta poświata za profilem biura, głęboki grafit u dołu;
+   jedna warstwa pod nagłówkiem i paskiem wyszukiwania, bez szwu między nimi */
+.hero-wrap {
+  position: relative;
+  background:
+    radial-gradient(55% 65% at 86% 22%, rgba(246, 205, 43, 0.2) 0%, rgba(246, 205, 43, 0.07) 38%, transparent 72%),
+    radial-gradient(45% 55% at 8% 96%, rgba(132, 104, 36, 0.24) 0%, transparent 70%),
+    radial-gradient(35% 40% at 40% 0%, rgba(255, 255, 255, 0.05) 0%, transparent 70%),
+    linear-gradient(165deg, #1d1c19 0%, #131311 42%, #0b0b0a 100%);
+}
+.hero-wrap::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(246, 205, 43, 0.45), transparent);
+}
+.hero-wrap .hero-dark, .hero-wrap .search-band { background: transparent; }
+.hero-wrap .showcase-ghost { background: rgba(28, 28, 26, 0.75); }
