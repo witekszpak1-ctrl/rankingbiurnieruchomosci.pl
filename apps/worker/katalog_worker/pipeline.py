@@ -311,7 +311,8 @@ def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
     for row, (home, fetched) in _fetch_parallel(fetcher, rows, _probe_fetch):
         if home.error == "robots_unreachable":
             # robots.txt chwilowo niedostępny: nie pobieramy strony, ale nie odrzucamy jej na stałe (próba za dobę).
-            repo.touch_domain(row["id"], ["robots.txt niedostępny (błąd sieci lub serwera), ponowna próba później"])
+            problem = home.detail or "błąd sieci lub serwera"
+            repo.touch_domain(row["id"], [f"robots.txt niedostępny ({problem}), ponowna próba później"])
             counts["robots_unreachable"] += 1
             repo.conn.commit()
             continue

@@ -83,6 +83,7 @@ def test_robots_server_error_means_disallow_and_4xx_means_allow():
     blocked = fetcher_5xx.fetch("https://firma.pl/")
     # nie pobieramy strony, ale to błąd chwilowy, a nie zakaz właściciela (można spróbować później)
     assert blocked.error == "robots_unreachable" and not blocked.ok and not blocked.robots_allowed
+    assert blocked.detail == "http_503"
     fetcher_4xx, _ = make_fetcher(lambda r: httpx.Response(403) if r.url.path == "/robots.txt" else html_response())
     assert fetcher_4xx.fetch("https://firma.pl/").ok
 
@@ -143,7 +144,8 @@ def test_network_error_and_size_cap():
 
     fetcher, _ = make_fetcher(broken)
     # robots.txt rzuca błąd sieci, więc fetch kończy się zakazem (ostrożnie), oznaczonym jako chwilowy
-    assert fetcher.fetch("https://firma.pl/").error == "robots_unreachable"
+    unreachable = fetcher.fetch("https://firma.pl/")
+    assert unreachable.error == "robots_unreachable" and unreachable.detail.startswith("ConnectError: dns")
 
     def big(request):
         if request.url.path == "/robots.txt":

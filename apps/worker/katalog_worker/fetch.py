@@ -35,6 +35,7 @@ class FetchResult:
     size: int
     robots_allowed: bool
     error: str | None = None  # robots | robots_unreachable | network:<Typ> | http_<kod> | not_html | too_many_redirects
+    detail: str | None = None  # szczegół błędu do diagnozy (np. przyczyna niedostępnego robots.txt)
 
     @property
     def ok(self) -> bool:
@@ -80,6 +81,7 @@ class PoliteFetcher:
         self._sleep = sleep
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, object] = {}
+        self._robots_problem: dict[str, str] = {}  # origin -> przyczyna niedostępnego robots.txt (do diagnozy)
 
     def clone(self) -> "PoliteFetcher":
         """Nowy fetcher z tymi samymi ustawieniami i własnym klientem HTTP (do pracy w osobnym wątku).
@@ -107,9 +109,11 @@ class PoliteFetcher:
             response = self._client.get(
                 f"{origin}/robots.txt", headers={"User-Agent": self._ua}, follow_redirects=True
             )
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
+            self._robots_problem[origin] = f"{type(exc).__name__}: {str(exc)[:120]}"
             return _UNREACHABLE
         if response.status_code >= 500:
+            self._robots_problem[origin] = f"http_{response.status_code}"
             return _UNREACHABLE
         if response.status_code != 200:
             return _ALLOW_ALL
@@ -129,6 +133,11 @@ class PoliteFetcher:
             return False
         return rules.can_fetch(self._ua, url)  # type: ignore[union-attr]
 
+    def robots_problem(self, url: str) -> str | None:
+        """Przyczyna niedostępnego robots.txt hosta (np. "ConnectError: ..." albo "http_503"), jeśli była."""
+        parts = urlsplit(url)
+        return self._robots_problem.get(f"{parts.scheme}://{parts.netloc}")
+
     def robots_unreachable(self, url: str) -> bool:
         """Czy zakaz dla adresu wynika tylko z niedostępnego robots.txt (a nie z reguł właściciela strony)."""
         parts = urlsplit(url)
@@ -141,8 +150,9 @@ class PoliteFetcher:
         headers = {"User-Agent": self._ua, "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5"}
         for _ in range(self._max_redirects + 1):
             if not self.allowed(current):
-                error = "robots_unreachable" if self.robots_unreachable(current) else "robots"
-                return FetchResult(url, current, None, "", "", 0, False, error)
+                if self.robots_unreachable(current):
+                    return FetchResult(url, current, None, "", "", 0, False, "robots_unreachable", self.robots_problem(current))
+                return FetchResult(url, current, None, "", "", 0, False, "robots")
             self._wait(urlsplit(current).netloc)
             try:
                 with self._client.stream("GET", current, headers=headers, follow_redirects=False) as response:
