@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { OfferCitySelect } from "@/components/OfferCitySelect";
+import { OfferTile } from "@/components/OfferTile";
 import { PublicShell } from "@/components/SiteChrome";
 import { listOffersPage, offerCities } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
-import { formatOfferPrice } from "@/lib/format";
 import { nBiurGen, nOfert } from "@/lib/plural";
 import { pageMetadata } from "@/lib/seo";
 
@@ -71,20 +71,9 @@ export default async function OffersPage({ searchParams }: Props) {
 
       {offers.length > 0 && (
         <ul className="offer-tiles">
-          {offers.map((o) => {
-            const price = formatOfferPrice(o.priceAmount, o.priceCurrency, o.pricePeriod);
-            return (
-              <li key={o.url}>
-                <a href={o.url} target="_blank" rel="noopener nofollow" className="offer-tile">
-                  <span className="offer-tile-price">{price ?? "cena na stronie biura"}</span>
-                  <span className="offer-tile-title">{o.title}</span>
-                  <span className="offer-tile-firm">
-                    oferta biura {o.firmName} ({o.cityName})
-                  </span>
-                </a>
-              </li>
-            );
-          })}
+          {offers.map((o) => (
+            <OfferTile key={o.url} offer={o} />
+          ))}
         </ul>
       )}
       {offers.length > 0 && (
