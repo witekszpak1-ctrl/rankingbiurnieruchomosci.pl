@@ -458,6 +458,12 @@ class Repo:
             (min_facts, limit),
         ).fetchall()
 
+    def brand_has_listing_in_city(self, brand_id: str, vertical_id: str, city_id: str, except_listing_id: str) -> bool:
+        return self.conn.execute(
+            "select 1 from listings where brand_id = %s and vertical_id = %s and city_id = %s and id <> %s",
+            (brand_id, vertical_id, city_id, except_listing_id),
+        ).fetchone() is not None
+
     def brand_fact_text(self, brand_id: str) -> str:
         rows = self.conn.execute(
             "select value #>> '{}' as v, coalesce(quote, '') as q from facts where brand_id = %s and is_current",

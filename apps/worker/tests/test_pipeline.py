@@ -781,3 +781,28 @@ def test_reverify_confirms_unconfirmed_agency_from_later_subpage(ctx):
     assert conn.execute("select count(*) as n from brands").fetchone()["n"] == 1
     # drugi raz w ciągu 30 dni tej domeny nie sprawdza
     assert stage_reverify(ctx, make_mf(), make_krs(), 50) == {"mf_requests": 0}
+
+
+def test_publish_ready_keeps_city_when_brand_already_has_listing_in_hinted_city(flow):
+    from katalog_worker.pipeline import stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    # Wyszukiwanie znalazło firmę w Oławie, fakty o niej wymieniają Oławę, a marka ma już tam osobny wpis.
+    conn.execute("update domains set city_hint = 'Oława' where brand_id = %s", (brand_id,))
+    ctx.repo.add_fact(brand_id, "address_hint", "55-200 Oława", "ul. Rynek 1, 55-200 Oława", AGENCY, "regex", 0.9)
+    listing = conn.execute("select id, vertical_id, city_id from listings where brand_id = %s", (brand_id,)).fetchone()
+    olawa = ctx.repo.ensure_city("Oława")
+    conn.execute(
+        "insert into listings (brand_id, vertical_id, city_id, status) values (%s, %s, %s, 'needs_review')",
+        (brand_id, listing["vertical_id"], olawa),
+    )
+    conn.commit()
+    counts = stage_publish_ready(ctx)  # wcześniej: UniqueViolation i przerwany krok
+    assert counts.get("city_kept_duplicate", 0) >= 1 and counts.get("published", 0) >= 1
+    kept = conn.execute("select status, city_id from listings where id = %s", (listing["id"],)).fetchone()
+    assert kept["status"] == "published" and kept["city_id"] == listing["city_id"]

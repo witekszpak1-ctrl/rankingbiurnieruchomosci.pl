@@ -1096,8 +1096,13 @@ def stage_publish_ready(ctx: Context, limit: int = 200) -> dict:
         city_id, city_name = str(row["city_id"]), row["city_name"]
         hint = row["city_hint"]
         if hint and _fold(hint) != _fold(city_name) and mentions_city(repo.brand_fact_text(str(row["brand_id"])), hint):
-            city_id, city_name = repo.ensure_city(hint), hint
-            counts["city_corrected"] += 1
+            hint_city_id = repo.ensure_city(hint)
+            if repo.brand_has_listing_in_city(str(row["brand_id"]), str(row["vertical_id"]), hint_city_id, str(row["id"])):
+                # Firma ma już osobny wpis w tamtym mieście: ten zostaje w swoim (unikalność marka + miasto).
+                counts["city_kept_duplicate"] += 1
+            else:
+                city_id, city_name = hint_city_id, hint
+                counts["city_corrected"] += 1
         slug = row["slug"] if row["slug"] and city_id == str(row["city_id"]) else None
         if not slug:
             slug = _unique_slug(slugify(row["brand_name"]) or "firma", repo.taken_slugs(str(row["vertical_id"]), city_id))
