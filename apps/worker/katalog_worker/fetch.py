@@ -2,7 +2,8 @@
 
 Zasady:
 - przed każdym pobraniem sprawdzamy robots.txt hosta (także po przekierowaniu na inny host),
-- robots.txt: 4xx = brak ograniczeń, błąd serwera lub sieci = zakaz (ostrożnie, zgodnie z RFC 9309),
+- robots.txt: 4xx = brak ograniczeń, błąd serwera lub sieci = zakaz (ostrożnie, zgodnie z RFC 9309); taki zakaz
+  jest tymczasowy (błąd "robots_unreachable"), więc stronę można sprawdzić ponownie później,
 - własny User-Agent z adresem kontaktowym, odstęp min_delay_seconds między zapytaniami do tego samego hosta,
 - nie omijamy zabezpieczeń: odpowiedź inna niż HTML kończy się błędem, a nie próbą obejścia.
 """
@@ -21,6 +22,7 @@ import httpx
 _META_CHARSET = re.compile(rb"""charset\s*=\s*["']?([\w\-]+)""", re.I)
 _ALLOW_ALL = object()
 _DISALLOW_ALL = object()
+_UNREACHABLE = object()  # robots.txt niedostępny (sieć, 5xx): nie pobieramy, ale to nie jest zakaz właściciela
 
 
 @dataclass
@@ -32,7 +34,7 @@ class FetchResult:
     text: str
     size: int
     robots_allowed: bool
-    error: str | None = None  # robots | network:<Typ> | http_<kod> | not_html | too_many_redirects
+    error: str | None = None  # robots | robots_unreachable | network:<Typ> | http_<kod> | not_html | too_many_redirects
 
     @property
     def ok(self) -> bool:
@@ -106,9 +108,9 @@ class PoliteFetcher:
                 f"{origin}/robots.txt", headers={"User-Agent": self._ua}, follow_redirects=True
             )
         except httpx.HTTPError:
-            return _DISALLOW_ALL
+            return _UNREACHABLE
         if response.status_code >= 500:
-            return _DISALLOW_ALL
+            return _UNREACHABLE
         if response.status_code != 200:
             return _ALLOW_ALL
         parser = RobotFileParser()
@@ -123,9 +125,14 @@ class PoliteFetcher:
         rules = self._robots[origin]
         if rules is _ALLOW_ALL:
             return True
-        if rules is _DISALLOW_ALL:
+        if rules is _DISALLOW_ALL or rules is _UNREACHABLE:
             return False
         return rules.can_fetch(self._ua, url)  # type: ignore[union-attr]
+
+    def robots_unreachable(self, url: str) -> bool:
+        """Czy zakaz dla adresu wynika tylko z niedostępnego robots.txt (a nie z reguł właściciela strony)."""
+        parts = urlsplit(url)
+        return self._robots.get(f"{parts.scheme}://{parts.netloc}") is _UNREACHABLE
 
     # ------------------------------------------------------------------ pobieranie
 
@@ -134,7 +141,8 @@ class PoliteFetcher:
         headers = {"User-Agent": self._ua, "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5"}
         for _ in range(self._max_redirects + 1):
             if not self.allowed(current):
-                return FetchResult(url, current, None, "", "", 0, False, "robots")
+                error = "robots_unreachable" if self.robots_unreachable(current) else "robots"
+                return FetchResult(url, current, None, "", "", 0, False, error)
             self._wait(urlsplit(current).netloc)
             try:
                 with self._client.stream("GET", current, headers=headers, follow_redirects=False) as response:
