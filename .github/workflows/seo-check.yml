@@ -1,0 +1,21 @@
+# Test SEO na stronie produkcyjnej po każdym udanym wdrożeniu z Vercela (i ręcznie).
+name: seo-check
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+jobs:
+  check:
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Test SEO
+        run: node apps/web/scripts/seo-check.mjs https://rankingbiurnieruchomosci.pl

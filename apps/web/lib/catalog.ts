@@ -66,6 +66,7 @@ export type ListingDetail = ListingCard & {
   cityName: string;
   citySlug: string;
   legalForm: string | null;
+  nip: string | null;
   services: string[];
   prices: PriceRow[];
   offers: OfferRow[];
@@ -124,8 +125,8 @@ export async function listCityListings(citySlug: string): Promise<ListingCard[]>
 }
 
 export async function getPublishedListing(citySlug: string, firmSlug: string): Promise<ListingDetail | null> {
-  const cards = await query<ListingCard & { cityName: string; citySlug: string; legalForm: string | null; brandId: string; verticalId: string }>(
-    `select card.*, c.name as "cityName", c.slug as "citySlug", le.legal_form as "legalForm", b.id as "brandId",
+  const cards = await query<ListingCard & { cityName: string; citySlug: string; legalForm: string | null; nip: string | null; brandId: string; verticalId: string }>(
+    `select card.*, c.name as "cityName", c.slug as "citySlug", le.legal_form as "legalForm", le.nip, b.id as "brandId",
             l.vertical_id as "verticalId"
      from (${CARD_SQL} where c.slug = $1 and l.slug = $2 and l.status = 'published') card
      join listings l on l.id = card."listingId"

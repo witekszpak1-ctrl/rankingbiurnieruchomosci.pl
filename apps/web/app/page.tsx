@@ -93,9 +93,10 @@ export default async function HomePage({ searchParams }: Props) {
               Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu
             </span>
             <span className="eyebrow line">Niezależny ranking biur nieruchomości</span>
-            <h1>
+            <h1>Ranking biur nieruchomości w Polsce {new Date().getFullYear()}</h1>
+            <p className="hero-sub">
               Wybierz biuro nieruchomości <em>sprawdzone w rejestrach</em>
-            </h1>
+            </p>
             <p className="hero-lead">
               Porównaj biura w swoim mieście według stażu, jawnych prowizji i liczby aktualnych ofert. Potem napisz do
               wybranego biura jednym formularzem.

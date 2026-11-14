@@ -174,7 +174,9 @@ Liczba ofert jest mnożona przez liczbę miast firmy. Do poprawy (etap 6 albo wc
   serwisów", co trzeba poprawić (decyzja z 14.11: opinie zostają, kolejne po rozwinięciu).
 - **Teksty robocze** na `/dla-firm` (`app/dla-firm/page.tsx`, około linii 148 i 150) są nadal na stronie.
 - **Przekierowania:** `www.rankingbiurnieruchomosci.pl` przekierowuje na adres bez www (kod 308, ustawienie domeny
-  w Vercelu), z http na https przekierowuje Vercel.
+  w Vercelu), z http na https przekierowuje Vercel. Adresy z ukośnikiem na końcu (`/krakow/`) Next.js przekierowuje
+  na wersję bez ukośnika (kod 308, domyślne `trailingSlash: false`). Test `apps/web/scripts/seo-check.mjs`
+  (workflow `seo-check.yml`) sprawdza to po każdym wdrożeniu.
 
 ## 8. Decyzje właściciela (14.11.2026)
 
