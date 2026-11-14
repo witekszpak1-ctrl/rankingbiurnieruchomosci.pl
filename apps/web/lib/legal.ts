@@ -54,12 +54,25 @@ export function operator(): Operator {
 /** Operator jako obiekt Organization w danych strukturalnych (te same dane co w stopce i dokumentach prawnych). */
 export function operatorJsonLd(): Record<string, unknown> {
   const op = operator();
+  // Adres domyślny w częściach; adres ze zmiennej OPERATOR_ADDRESS zostaje tekstem (nie zgadujemy podziału).
+  const address =
+    op.address === DEFAULT_OPERATOR_ADDRESS
+      ? {
+          "@type": "PostalAddress",
+          streetAddress: "11/4 Moo 4",
+          addressLocality: "Maenam, Koh Samui",
+          addressRegion: "Surat Thani",
+          postalCode: "84330",
+          addressCountry: "TH",
+        }
+      : op.address ?? undefined;
+  const id = op.regNo ?? op.nip;
   return {
     "@type": "Organization",
     name: op.name ?? undefined,
-    address: op.address ?? undefined,
+    address,
     email: op.email ?? undefined,
-    identifier: op.regNo ?? op.nip ?? undefined,
+    identifier: id ? { "@type": "PropertyValue", name: op.regNo ? "Numer rejestrowy" : "NIP", value: id } : undefined,
   };
 }
 

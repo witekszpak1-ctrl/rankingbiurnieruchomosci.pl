@@ -4,9 +4,9 @@ import Link from "next/link";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listCities } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
-import { absoluteUrl, SITE_NAME } from "@/lib/format";
+import { absoluteUrl } from "@/lib/format";
 import { nBiur, nMiast } from "@/lib/plural";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, websiteRef } from "@/lib/seo";
 import { groupByVoivodeship } from "@/lib/voivodeships";
 
 export const revalidate = 3600;
@@ -31,7 +31,8 @@ export default async function CitiesPage() {
           "@type": "CollectionPage",
           name: "Biura nieruchomości w miastach Polski",
           url: absoluteUrl("/miasta"),
-          isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },
+          inLanguage: "pl-PL",
+          isPartOf: websiteRef(),
           mainEntity: {
             "@type": "ItemList",
             numberOfItems: cities.length,

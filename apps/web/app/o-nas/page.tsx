@@ -4,8 +4,8 @@ import Link from "next/link";
 import { OperatorContact, OperatorDetails } from "@/components/LegalOperator";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { absoluteUrl, SITE_NAME } from "@/lib/format";
-import { operator, operatorJsonLd } from "@/lib/legal";
-import { pageMetadata } from "@/lib/seo";
+import { operator } from "@/lib/legal";
+import { organizationLd, pageMetadata, websiteRef } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
   title: "O nas: kto prowadzi ranking biur nieruchomości",
@@ -24,13 +24,9 @@ export default function AboutPage() {
           "@type": "AboutPage",
           name: "O nas",
           url: absoluteUrl("/o-nas"),
-          about: {
-            "@type": "Organization",
-            name: SITE_NAME,
-            url: absoluteUrl("/"),
-            email: op.email ?? undefined,
-            parentOrganization: operatorJsonLd(),
-          },
+          inLanguage: "pl-PL",
+          isPartOf: websiteRef(),
+          about: organizationLd(),
         }}
       />
       <h1>O nas</h1>

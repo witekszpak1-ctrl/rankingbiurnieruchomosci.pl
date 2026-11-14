@@ -3,9 +3,9 @@ import Link from "next/link";
 
 import { OperatorDetails } from "@/components/LegalOperator";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { absoluteUrl, SITE_NAME } from "@/lib/format";
-import { operator, operatorJsonLd } from "@/lib/legal";
-import { pageMetadata } from "@/lib/seo";
+import { absoluteUrl } from "@/lib/format";
+import { operator } from "@/lib/legal";
+import { organizationLd, pageMetadata, websiteRef } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
   title: "Kontakt z rankingiem biur nieruchomości",
@@ -24,13 +24,9 @@ export default function ContactPage() {
           "@type": "ContactPage",
           name: "Kontakt",
           url: absoluteUrl("/kontakt"),
-          about: {
-            "@type": "Organization",
-            name: SITE_NAME,
-            url: absoluteUrl("/"),
-            email: op.email ?? undefined,
-            parentOrganization: operatorJsonLd(),
-          },
+          inLanguage: "pl-PL",
+          isPartOf: websiteRef(),
+          about: organizationLd(),
         }}
       />
       <h1>Kontakt</h1>

@@ -4,9 +4,8 @@ import Link from "next/link";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { commissionReport } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
-import { absoluteUrl, SITE_NAME } from "@/lib/format";
 import { nBiurGen } from "@/lib/plural";
-import { pageMetadata } from "@/lib/seo";
+import { articleLd, pageMetadata } from "@/lib/seo";
 
 export const revalidate = 86400;
 
@@ -27,16 +26,13 @@ export default async function PublicPricesGuide() {
   return (
     <PublicShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: "Biura nieruchomości z jawnym cennikiem",
-          url: absoluteUrl(PATH),
-          datePublished: "2026-11-14",
-          dateModified: "2026-11-14",
-          inLanguage: "pl",
-          publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
-        }}
+        data={articleLd({
+            headline: "Biura nieruchomości z jawnym cennikiem",
+            path: PATH,
+            description: typeof metadata.description === "string" ? metadata.description : null,
+            datePublished: "2026-11-14",
+            dateModified: "2026-11-14",
+          })}
       />
       <p className="crumbs">
         <Link href="/">Strona główna</Link> / Poradnik

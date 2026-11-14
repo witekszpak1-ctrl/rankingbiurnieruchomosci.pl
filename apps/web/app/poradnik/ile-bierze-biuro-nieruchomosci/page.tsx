@@ -3,9 +3,9 @@ import Link from "next/link";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { commissionReport } from "@/lib/catalog";
-import { absoluteUrl, formatDate, SITE_NAME } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { nBiurGen } from "@/lib/plural";
-import { pageMetadata } from "@/lib/seo";
+import { articleLd, pageMetadata } from "@/lib/seo";
 
 export const revalidate = 86400;
 
@@ -27,16 +27,13 @@ export default async function HowMuchGuide() {
   return (
     <PublicShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: "Ile bierze biuro nieruchomości za sprzedaż mieszkania",
-          url: absoluteUrl(PATH),
-          datePublished: "2026-11-14",
-          dateModified: "2026-11-14",
-          inLanguage: "pl",
-          publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
-        }}
+        data={articleLd({
+            headline: "Ile bierze biuro nieruchomości za sprzedaż mieszkania",
+            path: PATH,
+            description: typeof metadata.description === "string" ? metadata.description : null,
+            datePublished: "2026-11-14",
+            dateModified: "2026-11-14",
+          })}
       />
       <p className="crumbs">
         <Link href="/">Strona główna</Link> / Poradnik

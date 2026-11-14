@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { absoluteUrl, SITE_NAME } from "@/lib/format";
-import { pageMetadata } from "@/lib/seo";
+
+import { articleLd, pageMetadata } from "@/lib/seo";
 
 const PATH = "/poradnik/jak-sprawdzic-biuro-nieruchomosci";
 
@@ -19,16 +19,13 @@ export default function CheckAgencyGuide() {
   return (
     <PublicShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: "Jak sprawdzić biuro nieruchomości",
-          url: absoluteUrl(PATH),
-          datePublished: "2026-11-14",
-          dateModified: "2026-11-14",
-          inLanguage: "pl",
-          publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
-        }}
+        data={articleLd({
+            headline: "Jak sprawdzić biuro nieruchomości",
+            path: PATH,
+            description: typeof metadata.description === "string" ? metadata.description : null,
+            datePublished: "2026-11-14",
+            dateModified: "2026-11-14",
+          })}
       />
       <p className="crumbs">
         <Link href="/">Strona główna</Link> / Poradnik

@@ -3,18 +3,9 @@ import Link from "next/link";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listCityListings, type ListingCard } from "@/lib/catalog";
-import { absoluteUrl, formatDate, SITE_NAME } from "@/lib/format";
-import { operatorJsonLd } from "@/lib/legal";
-import { pageMetadata } from "@/lib/seo";
-import {
-  CITY_RANKING_MIN,
-  METHODOLOGY,
-  PARAMETERS,
-  PRICE_STAT_MIN,
-  rankListings,
-  type RankingInput,
-  weightShare,
-} from "@/lib/ranking";
+import { formatDate } from "@/lib/format";
+import { articleLd, pageMetadata } from "@/lib/seo";
+import { CITY_RANKING_MIN, METHODOLOGY, PARAMETERS, PRICE_STAT_MIN, rankListings, type RankingInput, weightShare } from "@/lib/ranking";
 
 // Przykład wyliczenia korzysta z aktualnych danych, odświeżany raz na dobę.
 export const revalidate = 86400;
@@ -58,17 +49,14 @@ export default async function MethodologyPage() {
   return (
     <PublicShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: "Metodologia rankingu biur nieruchomości",
-          url: absoluteUrl("/metodologia"),
-          datePublished: METHODOLOGY.published,
-          dateModified: METHODOLOGY.modified,
-          version: METHODOLOGY.version,
-          inLanguage: "pl",
-          publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/"), parentOrganization: operatorJsonLd() },
-        }}
+        data={articleLd({
+            headline: "Metodologia rankingu biur nieruchomości",
+            path: "/metodologia",
+            description: typeof metadata.description === "string" ? metadata.description : null,
+            datePublished: METHODOLOGY.published,
+            dateModified: METHODOLOGY.modified,
+            version: METHODOLOGY.version,
+          })}
       />
       <h1>Metodologia rankingu</h1>
       <p className="note">
