@@ -286,6 +286,11 @@ export default async function CityPage({ params, searchParams }: Props) {
                       <li>Bez potwierdzenia w rejestrze</li>
                     )}
                     {row.hasPublicPrices && <li className="y">Jawny cennik</li>}
+                    {row.offersCount > 0 && (
+                      <li className="fc-mobile-only">
+                        {row.offersCount} {plural(row.offersCount, "oferta", "oferty", "ofert")}
+                      </li>
+                    )}
                     {row.servicesCount > 0 && (
                       <li>
                         {row.servicesCount} {plural(row.servicesCount, "usługa", "usługi", "usług")}
