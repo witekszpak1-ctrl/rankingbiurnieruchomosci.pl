@@ -98,3 +98,33 @@ def test_is_public_institution():
                 "https://nieruchomosci-brzeziny.pl", "https://ugoda-nieruchomosci.pl",
                 "https://twojdom.edu.pl", "https://powiatowe-centrum-nieruchomosci.info"):
         assert not is_public_institution(url), url
+
+
+def test_names_registrable_domain_treats_polish_regional_and_functional_domains_as_suffixes():
+    from katalog_worker.names import is_catalog_host
+    from katalog_worker.names import registrable_domain as names_domain
+
+    # dwa różne biura w domenie regionalnej, a nie jedna domena "katowice.pl"
+    assert names_domain("adma.katowice.pl") != names_domain("villanova.katowice.pl")
+    assert names_domain("kwadrat.nieruchomosci.pl") == "kwadrat.nieruchomosci.pl"
+    assert names_domain("www.arka.szczecin.pl") == "arka.szczecin.pl"
+    # zwykłe domeny i katalogi bez zmian
+    assert names_domain("nieruchomosci-ursus.indexfirm.pl") == "indexfirm.pl"
+    assert names_domain("sub.przyklad.com.pl") == "przyklad.com.pl"
+    assert is_catalog_host("nieruchomosci-ursus.indexfirm.pl")
+
+
+def test_guard_does_not_count_offices_in_one_regional_domain_as_duplicates():
+    from katalog_worker.guard import catalog_stats
+
+    class Repo:
+        def published_listings_overview(self):
+            row = {"city_name": "Katowice", "is_extra": False, "nip": None}
+            return [
+                {**row, "brand_id": "a", "brand_name": "ADMA", "host": "adma.katowice.pl"},
+                {**row, "brand_id": "b", "brand_name": "Villa-Nova Nieruchomości", "host": "villanova.katowice.pl"},
+                {**row, "brand_id": "c", "brand_name": "Przykład Nieruchomości", "host": "przyklad.pl"},
+                {**row, "brand_id": "d", "brand_name": "Przykład Oddział", "host": "oddzial.przyklad.pl"},
+            ]
+
+    assert catalog_stats(Repo())["duplicate_groups"] == 1  # tylko przyklad.pl

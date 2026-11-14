@@ -39,7 +39,17 @@ _LEGAL_FORMS = re.compile(
 
 
 def registrable_domain(host: str) -> str:
-    """Domena bez subdomen: "nieruchomosci-ursus.indexfirm.pl" -> "indexfirm.pl", "x.com.pl" -> "x.com.pl"."""
+    """Domena bez subdomen: "nieruchomosci-ursus.indexfirm.pl" -> "indexfirm.pl", "x.com.pl" -> "x.com.pl".
+
+    Według listy sufiksów publicznych (jak w urls.py), więc domeny regionalne i funkcjonalne ("katowice.pl",
+    "szczecin.pl", "nieruchomosci.pl") są sufiksem: "adma.katowice.pl" i "villanova.katowice.pl" to dwie różne
+    firmy, a nie jedna domena. Gdy listy nie da się użyć, zostaje proste cięcie po etykietach.
+    """
+    from .urls import registrable_domain as psl_domain
+
+    found = psl_domain(host)
+    if found:
+        return found
     labels = host.lower().removeprefix("www.").strip(".").split(".")
     if len(labels) >= 3 and labels[-2] in {"com", "net", "org", "info", "biz", "co", "waw", "krakow"}:
         return ".".join(labels[-3:])
