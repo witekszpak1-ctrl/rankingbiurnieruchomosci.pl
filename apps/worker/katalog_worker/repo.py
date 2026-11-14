@@ -594,13 +594,18 @@ class Repo:
         ).fetchall()
 
     def auto_extra_listings_all(self) -> list[dict]:
-        """Wpisy dodane przez extra-cities, z ostatnią akcją z dziennika (żeby nie przywracać wycofanych ręcznie)."""
+        """Wpisy dodane przez extra-cities, z ostatnią akcją z dziennika (żeby nie przywracać wycofanych ręcznie).
+
+        Bez wpisów z ustalonym źródłem miasta (city_source): taki wpis stał się głównym wpisem firmy (np. raport miast
+        przeniósł do niego firmę z innego miasta), więc krok miast dodatkowych nie może go wycofać.
+        """
         return self.conn.execute(
             """select l.brand_id, l.vertical_id, l.id, l.city_id, l.status, l.slug,
                       (select a.action from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
                        order by a.at desc, a.id desc limit 1) as last_action
                from listings l
-               where exists (select 1 from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
+               where l.city_source is null
+                 and exists (select 1 from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
                              and a.action = 'listing.publish_extra_city')"""
         ).fetchall()
 
