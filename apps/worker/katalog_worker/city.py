@@ -69,6 +69,12 @@ class CityDecision:
     warnings: list[str] = field(default_factory=list)
 
 
+# Skróty w adresach: "66-400 Gorzów Wlkp.", "05-825 Grodzisk Maz.".
+_ABBREVIATIONS = {"wlkp": "wielkopolski", "wielkop": "wielkopolski", "maz": "mazowiecki", "mazow": "mazowiecki",
+                  "sl": "slaski", "gd": "gdanski", "kuj": "kujawski", "pom": "pomorski", "lub": "lubelski",
+                  "opol": "opolski", "tryb": "trybunalski", "swietokrz": "swietokrzyski"}
+
+
 def office_cities(hits: Iterable[AddressHit]) -> list[list[str]]:
     """Miasta z adresów biura (jako listy tokenów), bez adresów instytucji i firm przetwarzających dane."""
     out: list[list[str]] = []
@@ -77,10 +83,10 @@ def office_cities(hits: Iterable[AddressHit]) -> list[list[str]]:
         if hit.postcode in _INSTITUTIONAL_POSTCODES or any(w in context for w in _INSTITUTIONAL_WORDS):
             continue
         city_tokens: list[str] = []
-        for tok in tokens(hit.city):
+        for i, tok in enumerate(tokens(hit.city)):
             if tok in _ADDRESS_STOP_WORDS:
                 break
-            city_tokens.append(tok)
+            city_tokens.append(_ABBREVIATIONS.get(tok, tok) if i > 0 else tok)
         if city_tokens:
             out.append(city_tokens[:3])
     return out
@@ -91,7 +97,12 @@ def _same_city(name: str | None, address_tokens: list[str]) -> bool:
     if not name:
         return False
     want = tokens(name)
-    return bool(want) and address_tokens[: len(want)] == want
+    if not want:
+        return False
+    if address_tokens[: len(want)] == want:
+        return True
+    # "Gorzów" bez drugiego członu w adresie to Gorzów Wielkopolski (gdy adres ma tylko pierwsze słowo nazwy).
+    return len(want) > 1 and address_tokens == want[:1]
 
 
 def _city_key(address_tokens: list[str], known: dict[tuple[str, ...], str]) -> tuple[str, ...]:
@@ -99,6 +110,10 @@ def _city_key(address_tokens: list[str], known: dict[tuple[str, ...], str]) -> t
     for n in range(min(3, len(address_tokens)), 0, -1):
         if tuple(address_tokens[:n]) in known:
             return tuple(address_tokens[:n])
+    # Samo pierwsze słowo pasujące do dokładnie jednej znanej nazwy wielowyrazowej ("gorzow" -> Gorzów Wielkopolski).
+    longer = [k for k in known if len(k) > 1 and k[0] == address_tokens[0]]
+    if len(address_tokens) == 1 and len(longer) == 1:
+        return longer[0]
     return tuple(address_tokens[:1])
 
 

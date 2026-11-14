@@ -586,13 +586,20 @@ def test_cities_report_dry_run_and_apply_with_redirect(flow, tmp_path):
                  (brand_id,))
     ctx.repo.add_fact(brand_id, "address_hint", "70-001 Szczecin", "Biuro: ul. Wały Chrobrego 1, 70-001 Szczecin",
                       AGENCY, "regex", 0.9)
+    # Szczecin ma już stronę w katalogu (inne biuro), więc przeniesienie jest automatyczne.
+    szczecin = ctx.repo.ensure_city("Szczecin")
+    other = ctx.repo.insert_unregistered_brand("Inne Biuro Szczecin")
+    vertical = conn.execute("select vertical_id from listings where id = %s", (row["id"],)).fetchone()["vertical_id"]
+    other_listing = ctx.repo.upsert_listing(other, str(vertical), szczecin, "verified")
+    ctx.repo.publish_listing(other_listing, szczecin, "inne-biuro", None)
     conn.commit()
     old_path = f"/szczyrk/{row['slug']}"
 
     counts = stage_cities_report(ctx, str(tmp_path / "raport"))
     assert counts.get("przeniesienie") == 1
     report = list(csv.DictReader((tmp_path / "raport" / "raport-miasta.csv").open(encoding="utf-8")))
-    assert report[0]["stare_miasto"] == "Szczyrk" and report[0]["nowe_miasto"] == "Szczecin"
+    moved_row = next(r for r in report if r["stare_miasto"] == "Szczyrk")
+    assert moved_row["nowe_miasto"] == "Szczecin" and moved_row["decyzja"] == "przeniesienie"
     assert "Szczyrk: 1 -> 0" in (tmp_path / "raport" / "raport-miasta-podsumowanie.md").read_text(encoding="utf-8")
     city_now = conn.execute("select c.name from listings l join cities c on c.id = l.city_id where l.id = %s",
                             (row["id"],)).fetchone()["name"]
@@ -1163,15 +1170,20 @@ def test_duplicates_report_merges_brands_with_the_same_nip(flow, tmp_path):
 def test_guard_compare_flags_jumps_bad_names_duplicates_and_unconfirmed_share():
     from katalog_worker.guard import compare
 
-    before = {"cities": {"Szczyrk": 6, "Kraków": 60}, "duplicate_groups": 2, "bad_names": ["Home"], "unconfirmed_pct": 40.0}
-    ok = {"cities": {"Szczyrk": 7, "Kraków": 64}, "duplicate_groups": 2, "bad_names": ["Home"], "unconfirmed_pct": 42.0}
+    def state(main, extra, dup=2, bad=("Home",), unconfirmed=40.0):
+        return {"cities_main": main, "cities_extra": extra, "duplicate_groups": dup, "bad_names": list(bad),
+                "unconfirmed_pct": unconfirmed}
+
+    before = state({"Szczyrk": 6, "Kraków": 60, "Olkusz": 5}, {"Kraków": 10})
+    # zwykły przyrost po wyszukaniu miasta i drobne zmiany miast dodatkowych nie blokują
+    ok = state({"Szczyrk": 7, "Kraków": 64, "Olkusz": 9}, {"Kraków": 12}, unconfirmed=42.0)
     assert compare(before, ok) == []
     assert compare(None, {**ok, "bad_names": ["Strona główna"]}) == []  # pierwszy przebieg zapisuje stan
-    bad = {"cities": {"Szczyrk": 86, "Kraków": 60, "Nowe Miasto": 12}, "duplicate_groups": 3,
-           "bad_names": ["Home", "Strona główna"], "unconfirmed_pct": 46.0}
+    bad = state({"Szczyrk": 6, "Kraków": 60, "Olkusz": 2}, {"Kraków": 10, "Szczyrk": 80}, dup=3,
+                bad=("Home", "Strona główna"), unconfirmed=46.0)
     problems = compare(before, bad)
-    assert any("Szczyrk: liczba biur 6 -> 86" in p for p in problems)
-    assert any("Nowe Miasto" in p for p in problems)
+    assert any("Szczyrk: biura z innych miast (miasta dodatkowe) 0 -> 80" in p for p in problems)
+    assert any("Olkusz: liczba biur spadła 5 -> 2" in p for p in problems)
     assert any("NIP-em lub domeną: 2 -> 3" in p for p in problems)
     assert any("Strona główna" in p for p in problems) and not any("Home," in p for p in problems)
     assert any("bez rejestru" in p for p in problems)
@@ -1195,3 +1207,34 @@ def test_guard_blocks_publishing_until_accepted(flow):
     assert run_guard(repo, accept=True)["accepted"]
     assert repo.setting("guard_block", None) is None
     assert "auto_publish" not in stage_publish_ready(ctx)
+
+
+def test_report_rules_abbreviations_franchise_and_catalog_only_moves():
+    from katalog_worker.city import AddressHit, decide_city, known_cities
+    from katalog_worker.pipeline import _names_alike
+
+    known = known_cities(["Gorzów Wielkopolski", "Kraków"])
+    r = decide_city(None, "Gorzów Wielkopolski", "", [AddressHit("66-400", "Gorzow Wlkp", "66-400 Gorzów Wlkp.")], known)
+    assert (r.city, r.source) == ("Gorzów Wielkopolski", "adres_wyszukiwanie")
+    cities = {"zywiec", "wroclaw", "swinoujscie"}
+    assert _names_alike("Agent Power", "AGENT POWER", cities)
+    assert _names_alike("Bedroom Nieruchomości Świnoujście", "Bedroom Nieruchomości", cities)
+    assert not _names_alike("Galeria Nieruchomości", "Columbus Nieruchomości", cities)  # sieć z NIP-em centrali
+    assert not _names_alike("Agent Nieruchomości Żywiec", "Józef Kufel Nieruchomości", cities)
+
+
+def test_cities_report_moves_only_to_catalog_cities(flow, tmp_path):
+    from katalog_worker.pipeline import stage_cities_report
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    row = _published_listing(flow)
+    conn.execute("update legal_entities set registered_address = null")
+    conn.execute("update facts set is_current = false where brand_id = %s and type in ('address', 'address_hint')",
+                 (brand_id,))
+    ctx.repo.add_fact(brand_id, "address_hint", "86-031 Osielsko", "Biuro: ul. Centralna 1, 86-031 Osielsko",
+                      AGENCY, "regex", 0.9)
+    conn.commit()
+    counts = stage_cities_report(ctx, str(tmp_path / "r"), apply=True)
+    assert counts.get("do przeglądu (miasto bez strony w katalogu)") == 1 and "moved" not in counts
+    assert conn.execute("select status from listings where id = %s", (row["id"],)).fetchone()["status"] == "published"
