@@ -874,7 +874,7 @@ def test_probe_retries_later_when_robots_txt_is_unreachable(ctx):
     class RobotsDown(FakeFetcher):
         def fetch(self, url):
             if url.startswith(AGENCY):
-                return FetchResult(url, url, None, "", "", 0, False, "robots_unreachable")
+                return FetchResult(url, url, None, "", "", 0, False, "robots_unreachable", "ConnectError: [SSL] x")
             return super().fetch(url)
 
     stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
@@ -882,7 +882,7 @@ def test_probe_retries_later_when_robots_txt_is_unreachable(ctx):
     assert counts.get("robots_unreachable") == 1
     domain = _agency_domain(ctx)
     assert (domain["classification"], domain["verification_status"]) == ("unknown", "candidate")
-    assert "niedostępny" in domain["classification_reasons"][0]
+    assert "niedostępny (ConnectError: [SSL] x)" in domain["classification_reasons"][0]
 
 
 def test_fetch_parallel_uses_clones_and_returns_every_item(monkeypatch):
