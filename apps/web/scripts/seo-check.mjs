@@ -28,7 +28,10 @@ async function checkPage(path, expect) {
   if (h1 !== 1) fail(`${path}: nagłówków h1: ${h1} (powinien być 1)`);
   const canon = canonical(html);
   if (!canon) fail(`${path}: brak canonical`);
-  else if (expect.canonical && canon !== BASE + expect.canonical) fail(`${path}: canonical ${canon}, oczekiwany ${BASE + expect.canonical}`);
+  else if (expect.canonical && canon.replace(/\/$/, "") !== (BASE + expect.canonical).replace(/\/$/, "")) {
+    fail(`${path}: canonical ${canon}, oczekiwany ${BASE + expect.canonical}`);
+  }
+  if (expect.maxKb && html.length > expect.maxKb * 1024) fail(`${path}: kod strony ${Math.round(html.length / 1024)} KB (limit ${expect.maxKb} KB)`);
   const noindex = /noindex/i.test(robots(html));
   if (expect.noindex !== undefined && noindex !== expect.noindex) {
     fail(`${path}: ${noindex ? "ma" : "nie ma"} noindex, oczekiwano ${expect.noindex ? "noindex" : "indeksowania"}`);
@@ -62,6 +65,8 @@ if (city) {
   await checkPage(`${city}?cel=wynajem`, { canonical: city, noindex: true });
 }
 if (firm) await checkPage(firm, { canonical: firm });
+// Kryterium planu poprawy: kod strony Warszawy (najwięcej biur) poniżej 200 KB.
+await checkPage("/warszawa", { canonical: "/warszawa", noindex: false, maxKb: 200 });
 await checkPage("/porownaj", { noindex: true });
 
 const host = new URL(BASE).host;
