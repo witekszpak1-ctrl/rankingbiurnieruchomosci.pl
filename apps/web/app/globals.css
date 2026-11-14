@@ -865,3 +865,16 @@ nav .chips li { background: none; border: 0; padding: 0; }
   .offer-tile-btn .arr { transition: none; }
   .offer-tile:hover { transform: none; }
 }
+
+/* wyróżnienia: ramka z odznaką w profilu biura i tabela laureatów */
+.award-box { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-start; margin-top: 18px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+.award-box img { flex: none; max-width: 100%; height: auto; }
+.award-box-text { flex: 1 1 260px; min-width: 0; }
+.award-box-text > p { margin: 2px 0 8px; }
+.award-box details summary { cursor: pointer; font-weight: 650; color: var(--fg); }
+.award-box details[open] summary { margin-bottom: 6px; }
+.copy-code { display: grid; gap: 8px; justify-items: start; }
+.copy-code label { display: block; width: 100%; margin: 0; }
+.copy-code textarea { width: 100%; font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 10px 12px; border-radius: 10px; resize: vertical; overflow-wrap: anywhere; }
+.awards-table td { vertical-align: top; }
+.awards-count { display: block; color: var(--muted); font-size: 0.82rem; }

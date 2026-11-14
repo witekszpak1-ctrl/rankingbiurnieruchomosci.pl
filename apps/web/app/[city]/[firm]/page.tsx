@@ -3,12 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FirmImage } from "@/components/FirmImage";
+import { AwardBox } from "@/components/AwardBox";
 import { LeadForm } from "@/components/LeadForm";
 import { ProfileStickyCta } from "@/components/ProfileStickyCta";
 import { ShowPhone } from "@/components/ShowPhone";
 import { TrackEvent } from "@/components/TrackEvent";
 import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
+import { AWARD } from "@/lib/awards";
 import { getPublishedListing, listCityListings, type GoogleReview, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { optimizedImage, responsiveSrcSet } from "@/lib/images";
@@ -246,6 +248,9 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 Zapytaj o ofertę
               </a>
             </div>
+            {position && cityRanked && position <= AWARD.top ? (
+              <AwardBox listingId={listing.listingId} place={position} cityName={listing.cityName} profilePath={path} />
+            ) : null}
 
             {listing.description && (
               <section className="profile-section">

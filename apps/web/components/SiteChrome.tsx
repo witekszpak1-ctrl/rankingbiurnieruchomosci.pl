@@ -63,6 +63,9 @@ export async function SiteFooter() {
               <Link href="/ranking">Najlepsze biura w Polsce</Link>
             </li>
             <li>
+              <Link href="/wyroznienia-2026">Wyróżnienia 2026</Link>
+            </li>
+            <li>
               <Link href="/oferty">Aktualne oferty biur</Link>
             </li>
             <li>

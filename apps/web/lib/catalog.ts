@@ -354,6 +354,26 @@ export async function listAllPublished(): Promise<TopListing[]> {
   );
 }
 
+/** Wszystkie opublikowane wpisy z miastem (także oddziały sieci): rankingi miast liczone naraz (wyróżnienia). */
+export async function listPublishedCards(): Promise<TopListing[]> {
+  return query<TopListing>(
+    `select card.*, c.name as "cityName", c.slug as "citySlug"
+     from (${CARD_SQL} where l.status = 'published') card
+     join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
+  );
+}
+
+/** Opublikowany wpis do odznaki: nazwa, adres profilu i miasto (null, gdy wpisu nie ma albo nie jest opublikowany). */
+export async function getBadgeListing(listingId: string): Promise<{ name: string; slug: string | null; cityName: string; citySlug: string } | null> {
+  const rows = await query<{ name: string; slug: string | null; cityName: string; citySlug: string }>(
+    `select b.name, l.slug, c.name as "cityName", c.slug as "citySlug"
+     from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
+     where l.id = $1 and l.status = 'published'`,
+    [listingId],
+  );
+  return rows[0] ?? null;
+}
+
 export type CompareCard = TopListing & { saleCommission: number | null; services: string[] };
 
 /** Biura do porównania (/porownaj): najwyżej 3 opublikowane wpisy po identyfikatorach. */
