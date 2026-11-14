@@ -472,3 +472,14 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 }
 .tracking-test-badge { position: fixed; z-index: 50; left: 12px; bottom: 12px; max-width: min(520px, calc(100% - 24px)); background: #111827; color: #fff; font-size: 0.85rem; line-height: 1.4; padding: 10px 14px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
 .tracking-test-badge a { color: #93c5fd; }
+
+/* Opinie po rozwinięciu i "Skąd ten wynik" na profilu biura */
+.reviews-more, .score-how { margin-top: 12px; }
+.reviews-more > summary, .score-how > summary {
+  cursor: pointer; display: inline-block; font-weight: 600; color: var(--accent, #1a56db);
+  padding: 6px 0; list-style: none;
+}
+.reviews-more > summary::-webkit-details-marker, .score-how > summary::-webkit-details-marker { display: none; }
+.reviews-more > summary::after, .score-how > summary::after { content: " +"; }
+.reviews-more[open] > summary::after, .score-how[open] > summary::after { content: " -"; }
+.reviews-more > summary:focus-visible, .score-how > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }

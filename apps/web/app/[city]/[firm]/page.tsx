@@ -8,7 +8,7 @@ import { ShowPhone } from "@/components/ShowPhone";
 import { TrackEvent } from "@/components/TrackEvent";
 import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { getPublishedListing, listCityListings, type ListingCard } from "@/lib/catalog";
+import { getPublishedListing, listCityListings, type GoogleReview, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { optimizedImage, responsiveSrcSet } from "@/lib/images";
 import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
@@ -17,7 +17,7 @@ import { isShownOnFirmPage, priceBasis } from "@/lib/prices";
 import { firmMeta } from "@/lib/meta-texts";
 import { firmFaq } from "@/lib/firm-faq";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
-import { CITY_RANKING_MIN, rankListings, scoreListing } from "@/lib/ranking";
+import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare } from "@/lib/ranking";
 
 export const revalidate = 300;
 
@@ -46,6 +46,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     image: listing.coverUrl ?? listing.logoUrl,
     type: "profile",
   });
+}
+
+const REVIEWS_VISIBLE = 3;
+const pts = (n: number) => n.toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+function reviewItem(r: GoogleReview, i: number) {
+  return (
+    <li key={`${r.author}-${i}`}>
+      <span className="review-avatar" aria-hidden="true">
+        {r.author.slice(0, 1).toUpperCase()}
+      </span>
+      <div>
+        <div className="review-meta">
+          <b>{r.author}</b>
+          {r.relative_time && <span>{r.relative_time}</span>}
+          <span className="review-source">Google</span>
+        </div>
+        <Stars value={r.rating} size={16} />
+        <p>{r.text}</p>
+      </div>
+    </li>
+  );
 }
 
 function rankingInput(
@@ -247,24 +269,15 @@ export default async function FirmPage({ params, searchParams }: Props) {
                     </span>
                   )}
                 </div>
-                <ul className="reviews">
-                  {listing.google.reviews.map((r, i) => (
-                    <li key={`${r.author}-${i}`}>
-                      <span className="review-avatar" aria-hidden="true">
-                        {r.author.slice(0, 1).toUpperCase()}
-                      </span>
-                      <div>
-                        <div className="review-meta">
-                          <b>{r.author}</b>
-                          {r.relative_time && <span>{r.relative_time}</span>}
-                          <span className="review-source">Google</span>
-                        </div>
-                        <Stars value={r.rating} size={16} />
-                        <p>{r.text}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <ul className="reviews">{listing.google.reviews.slice(0, REVIEWS_VISIBLE).map(reviewItem)}</ul>
+                {listing.google.reviews.length > REVIEWS_VISIBLE && (
+                  <details className="reviews-more">
+                    <summary>
+                      Pokaż więcej opinii ({listing.google.reviews.length - REVIEWS_VISIBLE})
+                    </summary>
+                    <ul className="reviews">{listing.google.reviews.slice(REVIEWS_VISIBLE).map(reviewItem)}</ul>
+                  </details>
+                )}
                 <p className="note">
                   Opinie pochodzą z Google i są wyświetlane bez zmian.{" "}
                   {listing.google.mapsUrl && (
@@ -449,6 +462,26 @@ export default async function FirmPage({ params, searchParams }: Props) {
                   </div>
                 ))}
               </div>
+              <details className="score-how">
+                <summary>Skąd ten wynik</summary>
+                <ul className="plain">
+                  {breakdown.map((item) => (
+                    <li key={item.key}>
+                      {item.label}: {Math.round(item.value * 100)}% z {pts(weightShare(item.weight))} pkt ={" "}
+                      {pts(item.value * weightShare(item.weight))} pkt
+                    </li>
+                  ))}
+                  {PARAMETERS.filter((p) => !breakdown.some((b) => b.key === p.key)).map((p) => (
+                    <li key={p.key}>
+                      {p.label}: brak danych, parametr pominięty (nie obniża wyniku)
+                    </li>
+                  ))}
+                </ul>
+                <p className="note">
+                  Wynik to zdobyte punkty podzielone przez punkty możliwe do zdobycia z uwzględnionych parametrów, razy 100.
+                  Biura bez potwierdzenia w rejestrze dostają 0 punktów za ten parametr.
+                </p>
+              </details>
               <p className="note">
                 Jak liczymy wynik: <Link href="/metodologia">metodologia rankingu</Link>. Źródła: strona biura
                 {listing.registryConfirmed ? " i rejestry publiczne (KRS, wykaz podatników VAT)" : ""}. Ostatnia
