@@ -1140,10 +1140,20 @@ def offer_mentions_city(text_tokens: list[str], city_tokens: list[str], other_ci
         word = city_tokens[k]
         if token == word:
             return True
-        if token in other_city_words or token.endswith(_ADJECTIVE_ENDINGS) or not _inflects(token, word):
-            return False  # przymiotnik ("ul. Warszawska") albo inne słowo
-        # Słowo pasujące też do dłuższej nazwy innego miasta należy do niej: "Lublińcu" to Lubliniec, nie Lublin.
-        return not any(len(w) > len(word) and _inflects(token, w) for w in other_city_words)
+        if token in other_city_words or token.endswith(_ADJECTIVE_ENDINGS):
+            return False  # nazwa innego miasta albo przymiotnik ("ul. Warszawska")
+        cut = _inflection_cut(token, word)
+        if cut is None:
+            return False
+        # Słowo pasujące do kilku nazw należy do tej, od której mniej ucięto ("Szczecinie" to Szczecin, nie Szczecinek;
+        # "Lublińcu" to Lubliniec, bo od "Lublin" nie da się utworzyć "-ńcu"), przy remisie do dłuższej nazwy.
+        for other in other_city_words:
+            if other == word:
+                continue
+            other_cut = _inflection_cut(token, other)
+            if other_cut is not None and (other_cut < cut or (other_cut == cut and len(other) > len(word))):
+                return False
+        return True
 
     return any(all(same_word(text_tokens[i + k], k) for k in range(n)) for i in range(len(text_tokens) - n + 1))
 
@@ -1156,16 +1166,34 @@ _CITY_ENDINGS = frozenset({
 })
 
 
-def _inflects(token: str, word: str) -> bool:
-    """Czy token to odmiana słowa z nazwy miasta (nie dowolne słowo zaczynające się tak samo)."""
+# Końcówki, które zastępują ucięte litery ("Wielicz-ka" -> "Wielic-ce", "Lubli-niec" -> "Lubli-ńcu", "Sopo-t" -> "Sopo-cie").
+# Nie mogą stać po pełnej nazwie ("Lublin" + "cu" to nie odmiana), a ucięcie 3 liter wymaga właśnie takiej końcówki
+# ("Kart-uzy" -> "Kart-a" to zwykłe słowo "karta", nie Kartuzy).
+_REPLACING_ENDINGS = frozenset({"ce", "cu", "ca", "cie", "niu"})
+
+
+def _inflection_cut(token: str, word: str) -> int | None:
+    """Ile liter ucięto od słowa z nazwy miasta, żeby dostać token w odmianie; None, gdy token nie jest jego odmianą."""
     if len(word) <= 4:
         # krótkie słowa ("Łódź", "Góra"): tylko końcówka odmiany ("w Łodzi", "Jeleniej Górze")
-        return len(word) >= 3 and token.startswith(word[:-1]) and len(token) <= len(word) + 2
+        ok = len(word) >= 3 and token.startswith(word[:-1]) and len(token) <= len(word) + 2
+        return (0 if token.startswith(word) else 1) if ok else None
     for cut in range(0, min(3, len(word) - 4) + 1):
         stem = word[: len(word) - cut]
-        if token.startswith(stem) and token[len(stem):] in _CITY_ENDINGS:
-            return True
-    return False
+        ending = token[len(stem):]
+        if not token.startswith(stem) or ending not in _CITY_ENDINGS:
+            continue
+        if ending in _REPLACING_ENDINGS and cut == 0:
+            continue
+        if cut == 3 and ending not in _REPLACING_ENDINGS:
+            continue
+        return cut
+    return None
+
+
+def _inflects(token: str, word: str) -> bool:
+    """Czy token to odmiana słowa z nazwy miasta (nie dowolne słowo zaczynające się tak samo)."""
+    return _inflection_cut(token, word) is not None
 
 
 def _city_prefix(word: str) -> str:

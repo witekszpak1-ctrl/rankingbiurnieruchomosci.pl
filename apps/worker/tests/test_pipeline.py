@@ -901,6 +901,24 @@ def test_offer_mentions_city_does_not_confuse_cities_sharing_a_prefix():
     assert m("Dom w Wieluniu", "Wieluń")
 
 
+def test_offer_mentions_city_picks_the_closest_city_name():
+    from katalog_worker.pipeline import _tokens, offer_mentions_city
+
+    cities = frozenset("szczecin szczecinek lublin lubliniec chelm chelmno kartuzy wieliczka wielun warszawa".split())
+
+    def m(text, city):
+        return offer_mentions_city(_tokens(text), _tokens(city), cities)
+
+    # Z produkcji: "w Szczecinie" dawało Szczecinek (a nie Szczecin), "karta" dawała Kartuzy.
+    assert m("Mieszkanie w Szczecinie", "Szczecin") and not m("Mieszkanie w Szczecinie", "Szczecinek")
+    assert m("Dom w Lublinie", "Lublin") and not m("Dom w Lublinie", "Lubliniec")
+    assert m("Dom w Lublińcu", "Lubliniec") and not m("Dom w Lublińcu", "Lublin")
+    assert m("Działka w Chełmie", "Chełm") and not m("Działka w Chełmie", "Chełmno")
+    assert m("Działka w Chełmnie", "Chełmno") and not m("Działka w Chełmnie", "Chełm")
+    assert not m("Karta oferty, mieszkanie", "Kartuzy") and m("Dom w Kartuzach", "Kartuzy")
+    assert m("Dom w Wieliczce", "Wieliczka") and not m("Dom w Wieliczce", "Wieluń")
+
+
 def test_offer_mentions_city_ignores_ordinary_words_and_own_name_in_city_set():
     from katalog_worker.pipeline import _tokens, offer_mentions_city
 
