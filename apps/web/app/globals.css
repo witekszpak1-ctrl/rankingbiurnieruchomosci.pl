@@ -733,3 +733,13 @@ body.mnav-lock { overflow: hidden; }
   .header-cta { margin-left: auto; }
 }
 @media (max-width: 360px) { .header-cta { display: none; } .mnav { margin-left: auto; } }
+
+/* lista rozwijana w stylu paska wyszukiwania (oferty, strona główna) */
+.search-field select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 30px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg) 50%), linear-gradient(135deg, var(--fg) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 55%, calc(100% - 8px) 55%; background-size: 6px 6px; background-repeat: no-repeat; }
+.filter-bar { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin: 18px 0 24px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 5px 0 0 var(--yellow); }
+.filter-bar .search-field { flex: 1 1 260px; border-right: 0; }
+.filter-bar button { border: 0; border-radius: 12px; background: var(--yellow); color: var(--fg); font-weight: 700; padding: 12px 20px; }
+.filter-reset { margin-right: 12px; font-weight: 600; font-size: 0.95rem; }
+.pager .note { border: 0; padding: 6px 4px; }
