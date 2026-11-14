@@ -1126,26 +1126,46 @@ def _tokens(text: str) -> list[str]:
     return [t for t in re.split(r"[^a-z0-9]+", _fold(text)) if t]
 
 
-def offer_mentions_city(text_tokens: list[str], city_tokens: list[str]) -> bool:
-    """Czy tekst (tokeny) wymienia miasto, także w odmianie: "Karpacz", "w Karpaczu", "Jelenia Góra", "Jeleniej Górze"."""
+def offer_mentions_city(text_tokens: list[str], city_tokens: list[str], other_city_words: frozenset[str] = frozenset()) -> bool:
+    """Czy tekst (tokeny) wymienia miasto, także w odmianie: "Karpacz", "w Karpaczu", "Jelenia Góra", "Jeleniej Górze".
+
+    other_city_words: jednowyrazowe nazwy innych miast. Słowo, które samo jest nazwą innego miasta, nie liczy się
+    jako odmiana ("Lubliniec" to nie "Lublin", "Chełmno" to nie "Chełm", "Wieliczka" to nie "Wieluń").
+    """
     n = len(city_tokens)
     if n == 0 or len(text_tokens) < n:
         return False
-    stems = [t if len(t) <= 4 else t[: max(4, len(t) - 3)] for t in city_tokens]
 
     def same_word(token: str, k: int) -> bool:
-        if token == city_tokens[k]:
-            return True
         word = city_tokens[k]
-        if len(word) <= 4:
-            # krótkie słowa ("Łódź", "Góra"): tylko końcówka odmiany ("w Łodzi", "Jeleniej Górze")
-            return len(word) >= 3 and token.startswith(word[:-1]) and len(token) <= len(word) + 2
-        if not token.startswith(stems[k]):
-            return False
-        # "ul. Warszawska", "Krakowskie Przedmieście": przymiotnik od nazwy miasta to nie to miasto
-        return not token.endswith(_ADJECTIVE_ENDINGS)
+        if token == word:
+            return True
+        if token in other_city_words or token.endswith(_ADJECTIVE_ENDINGS) or not _inflects(token, word):
+            return False  # przymiotnik ("ul. Warszawska") albo inne słowo
+        # Słowo pasujące też do dłuższej nazwy innego miasta należy do niej: "Lublińcu" to Lubliniec, nie Lublin.
+        return not any(len(w) > len(word) and _inflects(token, w) for w in other_city_words)
 
     return any(all(same_word(text_tokens[i + k], k) for k in range(n)) for i in range(len(text_tokens) - n + 1))
+
+
+# Końcówki odmiany nazw miast po odcięciu 0-3 ostatnich liter: Karpacz-u, Krakow-ie, Oław-ie, Gliwic-ach,
+# Wieliczc-e, Lublin-cu (Lubliniec), Sopo-cie, Zakopane-m.
+_CITY_ENDINGS = frozenset({
+    "", "a", "u", "e", "y", "i", "m", "ie", "iu", "em", "om", "ej", "ia", "ii", "ce", "cu", "ca", "cie", "niu",
+    "ach", "ami", "ow", "owi", "ego", "emu",
+})
+
+
+def _inflects(token: str, word: str) -> bool:
+    """Czy token to odmiana słowa z nazwy miasta (nie dowolne słowo zaczynające się tak samo)."""
+    if len(word) <= 4:
+        # krótkie słowa ("Łódź", "Góra"): tylko końcówka odmiany ("w Łodzi", "Jeleniej Górze")
+        return len(word) >= 3 and token.startswith(word[:-1]) and len(token) <= len(word) + 2
+    for cut in range(0, min(3, len(word) - 4) + 1):
+        stem = word[: len(word) - cut]
+        if token.startswith(stem) and token[len(stem):] in _CITY_ENDINGS:
+            return True
+    return False
 
 
 _ADJECTIVE_ENDINGS = ("ska", "skiej", "skie", "ski", "skim", "skich", "cka", "ckiej", "ckie", "cki", "ckim", "ckich")
@@ -1157,38 +1177,49 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
     Miasto dostaje wpis, gdy co najmniej `min_offers` aktywnych ofert firmy je wymienia (tytuł lub adres oferty)
     albo fakty o firmie podają w nim adres biura (kod pocztowy z miastem). Tylko miasta, które już mają stronę
     w katalogu. Wpis jest od razu opublikowany; strona firmy w drugim mieście wskazuje główny wpis jako kanoniczny.
+    Wpisy dodane tak wcześniej są sprawdzane przy każdym przebiegu: gdy miasto przestaje spełniać warunek
+    (np. oferty wygasły), wpis jest wycofywany, a gdy znów spełnia, wraca. Wpisów wycofanych ręcznie nie przywracamy.
     """
     repo = ctx.repo
     counts: Counter = Counter()
-    cities = [
-        (str(r["id"]), r["name"], _tokens(r["name"]))
-        for r in repo.conn.execute("select id, name from cities").fetchall()
-    ]
+    cities = [(str(r["id"]), r["name"], _tokens(r["name"])) for r in repo.conn.execute("select id, name from cities").fetchall()]
     cities = [c for c in cities if c[2] and " ".join(c[2]) not in _AMBIGUOUS_CITY_WORDS]
+    single_words = frozenset(c[2][0] for c in cities if len(c[2]) == 1)
     for brand in repo.brands_with_published_listing():
         brand_id, vertical_id = str(brand["brand_id"]), str(brand["vertical_id"])
-        have = set(repo.brand_listing_cities(brand_id, vertical_id))
+        listings = {str(r["city_id"]): r for r in repo.brand_listings(brand_id, vertical_id)}
+        auto = {str(r["city_id"]): r for r in repo.auto_extra_listings(brand_id, vertical_id)}
         offer_texts = [_tokens(f"{o['title'] or ''} {o['url'] or ''}") for o in repo.active_offer_texts(brand_id)]
         address_texts = [_tokens(t) for t in repo.brand_address_texts(brand_id)]
         scored: list[tuple[int, str, str]] = []
         for city_id, city_name, city_tokens in cities:
-            if city_id in have:
-                continue
-            hits = sum(1 for t in offer_texts if offer_mentions_city(t, city_tokens))
-            office = any(offer_mentions_city(t, city_tokens) for t in address_texts)
+            if city_id in listings and city_id not in auto:
+                continue  # wpis z wyszukiwania albo z panelu: nie ruszamy
+            others = single_words - {city_tokens[0]} if len(city_tokens) == 1 else single_words
+            hits = sum(1 for t in offer_texts if offer_mentions_city(t, city_tokens, others))
+            office = any(offer_mentions_city(t, city_tokens, others) for t in address_texts)
             if hits >= min_offers or office:
                 scored.append((hits + (1000 if office else 0), city_id, city_name))
-        for _, city_id, city_name in sorted(scored, reverse=True)[:max_extra]:
-            slug = _unique_slug(slugify(brand["brand_name"]) or "firma", repo.taken_slugs(vertical_id, city_id))
-            listing_id = repo.upsert_listing(brand_id, vertical_id, city_id, "verified")
+        keep = {city_id: city_name for _, city_id, city_name in sorted(scored, reverse=True)[:max_extra]}
+        for city_id, row in auto.items():
+            if city_id not in keep and row["status"] == "published":
+                repo.set_listing_status(str(row["id"]), "removed")
+                repo.write_audit("pipeline", "listing.remove_extra_city", "listing", str(row["id"]),
+                                 {"status": "published"}, {"status": "removed", "auto": True})
+                counts["extra_removed"] += 1
+        for city_id, city_name in keep.items():
+            row = auto.get(city_id)
+            if row and row["status"] == "published":
+                continue
+            if row and row["last_action"] != "listing.remove_extra_city":
+                continue  # wycofany ręcznie w panelu
+            slug = row["slug"] if row and row["slug"] else _unique_slug(
+                slugify(brand["brand_name"]) or "firma", repo.taken_slugs(vertical_id, city_id))
+            listing_id = str(row["id"]) if row else repo.upsert_listing(brand_id, vertical_id, city_id, "verified")
             repo.publish_listing(listing_id, city_id, slug, None)
-            repo.write_audit(
-                "pipeline", "listing.publish_extra_city", "listing", listing_id, None,
-                {"status": "published", "city": city_name, "slug": slug, "auto": True},
-            )
+            repo.write_audit("pipeline", "listing.publish_extra_city", "listing", listing_id, None,
+                             {"status": "published", "city": city_name, "slug": slug, "auto": True})
             counts["extra_listings"] += 1
-        if scored:
-            counts["brands_extended"] += 1
         repo.conn.commit()
     return dict(counts)
 

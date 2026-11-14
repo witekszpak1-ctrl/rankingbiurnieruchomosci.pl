@@ -852,3 +852,51 @@ def test_extra_cities_adds_published_listing_where_firm_has_offers(flow):
     ).fetchone()
     assert extra["status"] == "published" and extra["slug"]
     assert stage_extra_cities(ctx) == {}  # drugi raz nic
+
+
+def test_offer_mentions_city_does_not_confuse_cities_sharing_a_prefix():
+    from katalog_worker.pipeline import _tokens, offer_mentions_city
+
+    others = frozenset({"lublin", "lubliniec", "chelm", "chelmno", "wieliczka", "wielun"})
+
+    def m(text, city):
+        t = _tokens(city)
+        return offer_mentions_city(_tokens(text), t, others - {t[0]})
+
+    assert m("mieszkanie sprzedaż w lublin kośminek", "Lublin")
+    assert not m("mieszkanie sprzedaż w lublin kośminek", "Lubliniec")
+    assert not m("dom w Lublińcu", "Lublin")
+    assert not m("mieszkanie Chełm centrum", "Chełmno")
+    assert not m("mieszkanie Chełmno rynek", "Chełm")
+    assert not m("Dom w Wieliczce", "Wieluń")
+    assert m("Dom w Wieluniu", "Wieluń")
+
+
+def test_extra_cities_withdraws_listing_when_offers_disappear(flow):
+    from katalog_worker.pipeline import stage_extra_cities, stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    stage_publish_ready(ctx)
+    olawa = ctx.repo.ensure_city("Oława")
+    domain_id = conn.execute("select id from domains where brand_id = %s", (brand_id,)).fetchone()["id"]
+    for i in range(3):
+        conn.execute(
+            """insert into offers (brand_id, domain_id, url, url_key, title, position, is_active, last_seen_at)
+               values (%s, %s, %s, %s, %s, %s, true, now())""",
+            (brand_id, domain_id, f"{AGENCY}oferta/{i}", f"k{i}", f"Mieszkanie w Oławie {i}", i),
+        )
+    conn.commit()
+    assert stage_extra_cities(ctx).get("extra_listings") == 1
+    conn.execute("update offers set is_active = false where brand_id = %s", (brand_id,))
+    conn.commit()
+    assert stage_extra_cities(ctx).get("extra_removed") == 1
+    status = conn.execute("select status from listings where brand_id = %s and city_id = %s", (brand_id, olawa)).fetchone()
+    assert status["status"] == "removed"
+    conn.execute("update offers set is_active = true where brand_id = %s", (brand_id,))
+    conn.commit()
+    assert stage_extra_cities(ctx).get("extra_listings") == 1  # oferty wróciły: wpis też

@@ -471,11 +471,26 @@ class Repo:
                order by b.id, l.vertical_id"""
         ).fetchall()
 
-    def brand_listing_cities(self, brand_id: str, vertical_id: str) -> list[str]:
-        rows = self.conn.execute(
-            "select city_id from listings where brand_id = %s and vertical_id = %s", (brand_id, vertical_id)
+    def brand_listings(self, brand_id: str, vertical_id: str) -> list[dict]:
+        return self.conn.execute(
+            "select id, city_id, status from listings where brand_id = %s and vertical_id = %s", (brand_id, vertical_id)
         ).fetchall()
-        return [str(r["city_id"]) for r in rows]
+
+    def auto_extra_listings(self, brand_id: str, vertical_id: str) -> list[dict]:
+        """Wpisy dodane przez extra-cities, z ostatnią akcją z dziennika (żeby nie przywracać wycofanych ręcznie)."""
+        return self.conn.execute(
+            """select l.id, l.city_id, l.status, l.slug,
+                      (select a.action from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
+                       order by a.at desc, a.id desc limit 1) as last_action
+               from listings l
+               where l.brand_id = %s and l.vertical_id = %s
+                 and exists (select 1 from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
+                             and a.action = 'listing.publish_extra_city')""",
+            (brand_id, vertical_id),
+        ).fetchall()
+
+    def set_listing_status(self, listing_id: str, status: str) -> None:
+        self.conn.execute("update listings set status = %s where id = %s", (status, listing_id))
 
     def active_offer_texts(self, brand_id: str) -> list[dict]:
         return self.conn.execute(
