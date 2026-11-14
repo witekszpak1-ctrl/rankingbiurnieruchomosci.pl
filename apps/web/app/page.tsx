@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
 import { JsonLd, LogoMark, PublicShell } from "@/components/SiteChrome";
+import { ProfileShowcase } from "@/components/ProfileShowcase";
 import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
@@ -11,6 +12,7 @@ import { inCity } from "@/lib/cities";
 import { ORG_ID, organizationLd, pageMetadata, SITE_ID } from "@/lib/seo";
 import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
 import { rankListings, type RankingInput } from "@/lib/ranking";
+import { GOALS, type Goal } from "@/lib/city-view";
 
 export const dynamic = "force-dynamic";
 
@@ -82,17 +84,19 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <PublicShell wide>
-      <section className="hero">
+      <section className="hero-dark">
         <div className="wrap hero-grid">
           <div className="hero-copy">
-            <span className="pill">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 12.5l4.5 4.5L19 7.5" />
-              </svg>
-              Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu
-            </span>
-            <span className="eyebrow line">Niezależny ranking biur nieruchomości</span>
-            <h1>Ranking biur nieruchomości w Polsce {new Date().getFullYear()}</h1>
+            <span className="kicker">Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu</span>
+            <h1>
+              Ranking biur nieruchomości{" "}
+              <span className="swash">
+                w Polsce {new Date().getFullYear()}
+                <svg viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M4 20 C 70 6, 150 4, 296 14" />
+                </svg>
+              </span>
+            </h1>
             <p className="hero-sub">
               Wybierz biuro nieruchomości <em>sprawdzone w rejestrach</em>
             </p>
@@ -100,98 +104,92 @@ export default async function HomePage({ searchParams }: Props) {
               Porównaj biura w swoim mieście według stażu, jawnych prowizji i liczby aktualnych ofert. Potem napisz do
               wybranego biura jednym formularzem.
             </p>
-            <div className="search-card" id="szukaj">
-              <div className="search-tabs" role="tablist" aria-label="Czego szukasz">
-                <span className="search-tab active" role="tab" aria-selected="true">
-                  Biura
-                </span>
-                <Link className="search-tab" href="/oferty">
-                  Oferty
-                </Link>
-                <Link className="search-tab" href="/ranking">
-                  Ranking
-                </Link>
-                <Link className="search-tab" href="/metodologia">
-                  Jak oceniamy
-                </Link>
-              </div>
-              <form className="search" action="/szukaj" method="get" data-track="Search">
-                <label className="sr-only" htmlFor="miasto">
-                  Miasto
-                </label>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M20 20l-3.5-3.5" />
-                </svg>
-                <input id="miasto" name="miasto" list="lista-miast" placeholder="Wpisz miasto, np. Wrocław" autoComplete="off" required />
-                <datalist id="lista-miast">
-                  {cities.map((c) => (
-                    <option key={c.slug} value={c.name} />
-                  ))}
-                </datalist>
-                <button type="submit">Pokaż biura</button>
-              </form>
-            </div>
-            {missing && (
-              <p className="search-miss">
-                Nie mamy jeszcze biur w mieście „{missing}”. Wybierz jedno z miast poniżej, katalog stale się powiększa.
-              </p>
-            )}
             <ul className="checks-row">
               <li>Bezpłatnie</li>
               <li>Bez zobowiązań</li>
               <li>Bez płatnych pozycji</li>
             </ul>
           </div>
-          <div className="hero-visual">
-            <div className="mock-card">
-              <div className="mock-brand">
-                <LogoMark />
-                <span>{SITE_NAME}</span>
-              </div>
-              <p className="mock-label">Najwyżej ocenione biura</p>
-              <div className="mock-highlight">
-                <b>{nBiur(stats.firms)}</b>
-                <span>
-                  w {stats.cities} {plural(stats.cities, "mieście", "miastach", "miastach")} · {nOfert(stats.offers)} ze stron biur
-                </span>
-              </div>
-              <div className="mock-agents">
-                {top.slice(0, 3).map((f) => (
-                  <Link key={f.listingId} href={`/${f.citySlug}/${f.slug}#zapytanie`} className="mock-agent">
-                    <div className="mock-agent-head">
-                      <FirmImage src={f.logoUrl} kind="logo" name={f.name} alt={`Logo ${f.name}`} size="sm" />
-                      <div>
-                        <b>{f.name}</b>
-                        <span>
-                          {f.cityName} · {f.score}/100
-                        </span>
-                      </div>
-                    </div>
-                    <span className="mock-bar">
-                      <span style={{ width: `${f.score}%` }} />
-                    </span>
-                    <span className="mock-btn">Kontakt</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
+          <ProfileShowcase
+            firms={top.slice(0, 3).map((f) => ({
+              key: f.listingId,
+              href: `/${f.citySlug}/${f.slug}`,
+              name: f.name,
+              host: f.host,
+              cityName: f.cityName,
+              score: f.score,
+              googleRating: f.googleRating,
+              googleCount: f.googleCount,
+              offersCount: f.offersCount,
+              sinceYear: f.registryConfirmed && f.startDate ? new Date(f.startDate).getFullYear() : null,
+              registryConfirmed: f.registryConfirmed,
+              hasPublicPrices: f.hasPublicPrices,
+              servicesCount: f.servicesCount,
+              logoUrl: f.logoUrl,
+              coverUrl: f.coverUrl ?? (f.imageKind === "og" ? f.imageUrl : null),
+            }))}
+          />
         </div>
+      </section>
+
+      <section className="search-band" id="szukaj">
         <div className="wrap">
-          <div className="stat-band">
-            <div>
-              <b>{stats.firms}</b>
-              <span>{plural(stats.firms, "biuro", "biura", "biur")} w katalogu</span>
+          <form className="search-bar" action="/szukaj" method="get" data-track="Search">
+            <div className="search-field">
+              <label htmlFor="miasto">Miasto</label>
+              <input id="miasto" name="miasto" list="lista-miast" placeholder="Wpisz miasto, np. Wrocław" autoComplete="off" required />
+              <datalist id="lista-miast">
+                {cities.map((c) => (
+                  <option key={c.slug} value={c.name} />
+                ))}
+              </datalist>
             </div>
-            <div>
-              <b>{stats.offers}</b>
-              <span>{plural(stats.offers, "oferta", "oferty", "ofert")} pobranych ze stron biur</span>
+            <div className="search-field">
+              <label htmlFor="cel">Czego potrzebujesz</label>
+              <select id="cel" name="cel" defaultValue="">
+                <option value="">Wszystkie biura</option>
+                {(Object.keys(GOALS) as Goal[]).map((g) => (
+                  <option key={g} value={g}>
+                    {GOALS[g].label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <b>{stats.cities}</b>
-              <span>{plural(stats.cities, "miasto", "miasta", "miast")}, a co dzień kolejne</span>
-            </div>
+            <button type="submit">
+              Pokaż biura <span aria-hidden="true">→</span>
+            </button>
+          </form>
+          {missing && (
+            <p className="search-miss">
+              Nie mamy jeszcze biur w mieście „{missing}”. Wybierz jedno z miast poniżej, katalog stale się powiększa.
+            </p>
+          )}
+          <nav className="search-links" aria-label="Na skróty">
+            <Link href="/oferty">Aktualne oferty biur</Link>
+            <Link href="/ranking">Ranking ogólnopolski</Link>
+            <Link href="/miasta">Wszystkie miasta</Link>
+            <Link href="/metodologia">Jak oceniamy</Link>
+          </nav>
+        </div>
+      </section>
+
+      <section className="stats-row" aria-label="Katalog w liczbach">
+        <div className="wrap">
+          <div>
+            <b>{stats.firms.toLocaleString("pl-PL")}</b>
+            <span>{plural(stats.firms, "biuro", "biura", "biur")} nieruchomości w katalogu</span>
+          </div>
+          <div>
+            <b>{stats.cities.toLocaleString("pl-PL")}</b>
+            <span>{plural(stats.cities, "miasto", "miasta", "miast")}, a co dzień kolejne</span>
+          </div>
+          <div>
+            <b>{stats.offers.toLocaleString("pl-PL")}</b>
+            <span>{plural(stats.offers, "aktualna oferta", "aktualne oferty", "aktualnych ofert")} ze stron biur</span>
+          </div>
+          <div>
+            <b>0 zł</b>
+            <span>za wyszukiwanie. Płatność nie wpływa na pozycję w rankingu</span>
           </div>
         </div>
       </section>
