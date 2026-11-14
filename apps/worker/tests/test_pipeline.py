@@ -1060,3 +1060,101 @@ def test_extra_cities_withdraws_listing_when_offers_disappear(flow):
     conn.execute("update offers set is_active = true where brand_id = %s", (brand_id,))
     conn.commit()
     assert stage_extra_cities(ctx).get("extra_listings") == 1  # oferty wróciły: wpis też
+
+
+def test_bad_names_and_better_name_sources():
+    from katalog_worker.names import better_name, is_bad_name, is_catalog_host, name_from_registry
+
+    for bad in ("Strona główna", "STRONA GŁÓWNA", "Home", "Kontakt", "O nas", "officelist.pl", "Strona główna - Biuro", ""):
+        assert is_bad_name(bad), bad
+    for good in ("Home Estate", "Home Experts", "Mieszkanie.com", "GRUPA.PRO", "Lokalizacja", "Bracia Sadurscy"):
+        assert not is_bad_name(good), good
+    assert is_catalog_host("nieruchomosci-ursus.indexfirm.pl") and not is_catalog_host("homeexperts.pl")
+    titles = ["Kupuj i sprzedawaj z siłą grupy | Home", "Dołącz do nas | Home Estate", "Kariera | Home Estate"]
+    assert better_name("Home", "home-estate.pl", titles) == ("Home Estate", "tytuły stron")
+    assert better_name("officelist.pl", "officelist.pl", [], "Officelist.pl to serwis biur do wynajęcia") == (
+        "Officelist.pl", "opis")
+    assert better_name("Strona główna", "murzynskinieruchomosci.pl", ["Strona główna"],
+                       "Strona prezentuje usługi agenta nieruchomości") == (None, "brak")
+    assert name_from_registry("HOME ASSET SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ") == "Home Asset"
+
+
+def _published_listing(flow):
+    from katalog_worker.pipeline import stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    stage_publish_ready(ctx)
+    return conn.execute(
+        "select l.id, l.slug, l.vertical_id, c.slug as city_slug from listings l join cities c on c.id = l.city_id "
+        "where l.brand_id = %s and l.status = 'published'", (brand_id,)).fetchone()
+
+
+def test_names_report_renames_with_redirect_and_hides_without_name(flow, tmp_path):
+    from katalog_worker.pipeline import stage_names_report
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    row = _published_listing(flow)
+    conn.execute("update brands set name = 'Strona główna' where id = %s", (brand_id,))
+    conn.execute("update listings set slug = 'strona-glowna' where id = %s", (row["id"],))
+    for title in ("Oferty | Agencja Testowa", "Kontakt | Agencja Testowa"):
+        ctx.repo.add_fact(brand_id, "site_title", title, title, AGENCY, "meta", 0.9)
+    conn.commit()
+
+    counts = stage_names_report(ctx, str(tmp_path / "r"))
+    assert counts == {"zmiana nazwy": 1}
+    assert conn.execute("select name from brands where id = %s", (brand_id,)).fetchone()["name"] == "Strona główna"
+
+    stage_names_report(ctx, str(tmp_path / "r"), apply=True)
+    brand = conn.execute("select name from brands where id = %s", (brand_id,)).fetchone()
+    listing = conn.execute("select slug, status from listings where id = %s", (row["id"],)).fetchone()
+    assert brand["name"] == "Agencja Testowa" and listing["slug"] == "agencja-testowa"
+    redirect = conn.execute("select listing_id from listing_redirects where from_path = %s",
+                            (f"/{row['city_slug']}/strona-glowna",)).fetchone()
+    assert str(redirect["listing_id"]) == str(row["id"])
+
+    # Bez dobrej nazwy w żadnym źródle wpis jest ukrywany (strona odpowie kodem 410).
+    conn.execute("update brands set name = 'Home' where id = %s", (brand_id,))
+    conn.execute("update facts set is_current = false where brand_id = %s and type = 'site_title'", (brand_id,))
+    conn.execute("update descriptions set body = 'Strona przedstawia ofertę.' where brand_id = %s", (brand_id,))
+    conn.execute("update brands set legal_entity_id = null where id = %s", (brand_id,))
+    conn.commit()
+    assert stage_names_report(ctx, str(tmp_path / "r"), apply=True) == {"ukrycie": 1}
+    assert conn.execute("select status from listings where id = %s", (row["id"],)).fetchone()["status"] == "removed"
+
+
+def test_duplicates_report_merges_brands_with_the_same_nip(flow, tmp_path):
+    import csv
+
+    from katalog_worker.pipeline import stage_duplicates_report
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    row = _published_listing(flow)
+    entity = conn.execute("select legal_entity_id from brands where id = %s", (brand_id,)).fetchone()["legal_entity_id"]
+    # Ta sama spółka opublikowana drugi raz pod inną nazwą: w tym samym mieście i w innym.
+    dup = ctx.repo.upsert_brand(str(entity), "Agencja Duplikat")
+    same_city = conn.execute("select city_id from listings where id = %s", (row["id"],)).fetchone()["city_id"]
+    other_city = ctx.repo.ensure_city("Oława")
+    first = ctx.repo.upsert_listing(dup, str(row["vertical_id"]), str(same_city), "verified")
+    ctx.repo.publish_listing(first, str(same_city), "agencja-duplikat", None)
+    second = ctx.repo.upsert_listing(dup, str(row["vertical_id"]), other_city, "verified")
+    ctx.repo.publish_listing(second, other_city, "agencja-duplikat", None)
+    conn.commit()
+
+    counts = stage_duplicates_report(ctx, str(tmp_path / "r"))
+    assert counts == {"merge": 1}
+    report = list(csv.DictReader((tmp_path / "r" / "raport-duplikaty.csv").open(encoding="utf-8")))
+    assert report[0]["biuro"] == "Agencja Duplikat" and report[0]["powod"] == "ten sam NIP"
+
+    stage_duplicates_report(ctx, str(tmp_path / "r"), apply=True)
+    assert conn.execute("select status from listings where id = %s", (first,)).fetchone()["status"] == "removed"
+    moved = conn.execute("select brand_id, status from listings where id = %s", (second,)).fetchone()
+    assert str(moved["brand_id"]) == str(brand_id) and moved["status"] == "published"
+    redirects = {r["from_path"] for r in conn.execute("select from_path from listing_redirects").fetchall()}
+    assert f"/{row['city_slug']}/agencja-duplikat" in redirects

@@ -270,10 +270,13 @@ export async function listPublishedPaths(): Promise<SitemapEntry[]> {
 export type TopListing = ListingCard & { cityName: string; citySlug: string };
 
 /** Opublikowane biura ze wszystkich miast (do strony głównej). Ranking liczy strona, tu tylko dane. */
+/** Wszystkie firmy z katalogu, każda raz: z głównego (najwcześniej opublikowanego) wpisu. Ranking ogólnopolski. */
 export async function listAllPublished(): Promise<TopListing[]> {
   return query<TopListing>(
     `select card.*, c.name as "cityName", c.slug as "citySlug"
-     from (${CARD_SQL} where l.status = 'published') card
+     from (${CARD_SQL} where l.status = 'published' and l.id = (
+       select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
+       order by l1.published_at nulls last, l1.created_at limit 1)) card
      join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
   );
 }
