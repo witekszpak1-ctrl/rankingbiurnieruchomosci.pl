@@ -1310,8 +1310,13 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
                 scored.append((hits + (1000 if office else 0), city_id, city_name))
         keep = {city_id: city_name for _, city_id, city_name in sorted(scored, reverse=True)[:max_extra]}
         changed = False
+        # Zabezpieczenie: firma nigdy nie znika z katalogu przez ten krok (ostatni opublikowany wpis zostaje).
+        to_remove = {c for c, r in auto.items() if c not in keep and r["status"] == "published"}
+        if to_remove and not any(r["status"] == "published" and c not in to_remove for c, r in listings.items()):
+            counts["extra_kept_last"] += 1
+            to_remove = set()
         for city_id, row in auto.items():
-            if city_id not in keep and row["status"] == "published":
+            if city_id in to_remove:
                 repo.set_listing_status(str(row["id"]), "removed")
                 repo.write_audit("pipeline", "listing.remove_extra_city", "listing", str(row["id"]),
                                  {"status": "published"}, {"status": "removed", "auto": True})

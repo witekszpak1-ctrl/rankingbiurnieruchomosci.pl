@@ -1339,3 +1339,43 @@ def test_branch_names_are_not_duplicates():
     assert not _branch_names("Bedroom Nieruchomości Świnoujście", "Bedroom Nieruchomości", city_words)
     assert not _branch_names("Agent Power", "AGENT POWER", city_words)
     assert not _branch_names("Dom Kraków", "Dom Kraków Centrum", city_words)
+
+
+def test_extra_cities_never_removes_main_listing_after_city_move(flow):
+    """Wpis dodany przez miasta dodatkowe, który stał się głównym wpisem firmy (raport miast przeniósł do niego firmę),
+    nie może zniknąć, gdy oferty z tego miasta przestaną się pojawiać. Tak samo ostatni opublikowany wpis firmy."""
+    from katalog_worker.pipeline import stage_extra_cities, stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    stage_publish_ready(ctx)
+    olawa = ctx.repo.ensure_city("Oława")
+    domain_id = conn.execute("select id from domains where brand_id = %s", (brand_id,)).fetchone()["id"]
+    for i in range(3):
+        conn.execute(
+            """insert into offers (brand_id, domain_id, url, url_key, title, position, is_active, last_seen_at)
+               values (%s, %s, %s, %s, %s, %s, true, now())""",
+            (brand_id, domain_id, f"{AGENCY}oferta/{i}", f"k{i}", f"Mieszkanie w Oławie {i}", i),
+        )
+    conn.commit()
+    assert stage_extra_cities(ctx).get("extra_listings") == 1
+    extra = conn.execute("select id from listings where brand_id = %s and city_id = %s", (brand_id, olawa)).fetchone()["id"]
+
+    # 1) Wpis w Oławie stał się głównym (źródło miasta ustalone przez raport miast): oferty znikają, wpis zostaje.
+    conn.execute("update listings set city_source = 'adres' where id = %s", (extra,))
+    conn.execute("update offers set is_active = false where brand_id = %s", (brand_id,))
+    conn.commit()
+    assert "extra_removed" not in stage_extra_cities(ctx)
+    assert conn.execute("select status from listings where id = %s", (extra,)).fetchone()["status"] == "published"
+
+    # 2) Bez źródła miasta, ale to jedyny opublikowany wpis firmy (główny wycofany): też zostaje.
+    conn.execute("update listings set city_source = null where id = %s", (extra,))
+    conn.execute("update listings set status = 'removed' where brand_id = %s and id <> %s", (brand_id, extra))
+    conn.commit()
+    counts = stage_extra_cities(ctx)
+    assert "extra_removed" not in counts and counts.get("extra_kept_last") == 1
+    assert conn.execute("select status from listings where id = %s", (extra,)).fetchone()["status"] == "published"
