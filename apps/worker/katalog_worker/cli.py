@@ -150,6 +150,15 @@ def cmd_reverify(args) -> int:
     return 0
 
 
+def cmd_extra_cities(args) -> int:
+    from .pipeline import stage_extra_cities
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        _print(stage_extra_cities(ctx, args.min_offers))
+    return 0
+
+
 def cmd_crawl_deep(args) -> int:
     from .pipeline import stage_crawl_deep
 
@@ -355,6 +364,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=50)
     p = add("reverify", cmd_reverify, "ponowna weryfikacja biur bez potwierdzenia na wszystkich podstronach")
     p.add_argument("--limit", type=int, default=100)
+    p = add("extra-cities", cmd_extra_cities, "dodatkowe wpisy firm w miastach, w których mają oferty lub biuro")
+    p.add_argument("--min-offers", type=int, default=3)
     p = add("crawl-deep", cmd_crawl_deep, "S5: kolejne podstrony zweryfikowanych domen")
     p.add_argument("--limit", type=int, default=20)
     p = add("offers", cmd_offers, "najnowsze oferty (tytuł i link) ze stron opublikowanych biur")

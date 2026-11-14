@@ -806,3 +806,49 @@ def test_publish_ready_keeps_city_when_brand_already_has_listing_in_hinted_city(
     assert counts.get("city_kept_duplicate", 0) >= 1 and counts.get("published", 0) >= 1
     kept = conn.execute("select status, city_id from listings where id = %s", (listing["id"],)).fetchone()
     assert kept["status"] == "published" and kept["city_id"] == listing["city_id"]
+
+
+def test_offer_mentions_city_handles_inflection_and_skips_street_names():
+    from katalog_worker.pipeline import _tokens, offer_mentions_city
+
+    def m(text, city):
+        return offer_mentions_city(_tokens(text), _tokens(city))
+
+    assert m("Apartament na sprzedaż, Karpacz, 45 m2", "Karpacz")
+    assert m("Mieszkanie w Karpaczu z widokiem", "Karpacz")
+    assert m("Dom w Jeleniej Górze", "Jelenia Góra")
+    assert m("Działka Łódź Bałuty", "Łódź")
+    assert not m("Mieszkanie, ul. Warszawska 5, Piaseczno", "Warszawa")
+    assert not m("Lokal przy Krakowskim Przedmieściu", "Kraków")
+    assert not m("Mieszkanie w Szklarskiej Porębie", "Karpacz")
+
+
+def test_extra_cities_adds_published_listing_where_firm_has_offers(flow):
+    from katalog_worker.pipeline import stage_extra_cities, stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    stage_publish_ready(ctx)
+    olawa = ctx.repo.ensure_city("Oława")
+    ctx.repo.ensure_city("Koło")  # nazwa-słowo: "koło lasu" nie dodaje firmy do miasta Koło
+    domain_id = conn.execute("select id from domains where brand_id = %s", (brand_id,)).fetchone()["id"]
+    titles = ["Mieszkanie w Oławie, 3 pokoje", "Dom Oława, koło lasu", "Działka w Oławie", "Lokal Wrocław, koło lasu",
+              "Dom koło lasu"]
+    for i, title in enumerate(titles):
+        conn.execute(
+            """insert into offers (brand_id, domain_id, url, url_key, title, position, is_active, last_seen_at)
+               values (%s, %s, %s, %s, %s, %s, true, now())""",
+            (brand_id, domain_id, f"{AGENCY}oferta/{i}", f"k{i}", title, i),
+        )
+    conn.commit()
+    counts = stage_extra_cities(ctx)
+    assert counts.get("extra_listings") == 1
+    extra = conn.execute(
+        "select status, slug from listings where brand_id = %s and city_id = %s", (brand_id, olawa)
+    ).fetchone()
+    assert extra["status"] == "published" and extra["slug"]
+    assert stage_extra_cities(ctx) == {}  # drugi raz nic

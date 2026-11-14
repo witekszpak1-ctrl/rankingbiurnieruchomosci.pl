@@ -464,6 +464,34 @@ class Repo:
             (brand_id, vertical_id, city_id, except_listing_id),
         ).fetchone() is not None
 
+    def brands_with_published_listing(self) -> list[dict]:
+        return self.conn.execute(
+            """select distinct on (b.id, l.vertical_id) b.id as brand_id, b.name as brand_name, l.vertical_id
+               from brands b join listings l on l.brand_id = b.id and l.status = 'published'
+               order by b.id, l.vertical_id"""
+        ).fetchall()
+
+    def brand_listing_cities(self, brand_id: str, vertical_id: str) -> list[str]:
+        rows = self.conn.execute(
+            "select city_id from listings where brand_id = %s and vertical_id = %s", (brand_id, vertical_id)
+        ).fetchall()
+        return [str(r["city_id"]) for r in rows]
+
+    def active_offer_texts(self, brand_id: str) -> list[dict]:
+        return self.conn.execute(
+            """select title, url from offers where brand_id = %s and is_active
+                 and last_seen_at > now() - interval '14 days'""",
+            (brand_id,),
+        ).fetchall()
+
+    def brand_address_texts(self, brand_id: str) -> list[str]:
+        rows = self.conn.execute(
+            """select value #>> '{}' as v from facts where brand_id = %s and is_current
+                 and type in ('address', 'address_hint')""",
+            (brand_id,),
+        ).fetchall()
+        return [r["v"] for r in rows if r["v"]]
+
     def brand_fact_text(self, brand_id: str) -> str:
         rows = self.conn.execute(
             "select value #>> '{}' as v, coalesce(quote, '') as q from facts where brand_id = %s and is_current",

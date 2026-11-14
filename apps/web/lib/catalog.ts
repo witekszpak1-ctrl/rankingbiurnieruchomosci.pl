@@ -74,6 +74,8 @@ export type ListingDetail = ListingCard & {
   socials: { network: string; url: string }[];
   google: { mapsUrl: string | null; reviews: GoogleReview[] } | null;
   updatedAt: Date;
+  /** Wszystkie miasta, w których firma ma opublikowany wpis (pierwszy = główny, kanoniczny). */
+  cities: { name: string; path: string }[];
 };
 
 const CARD_SQL = `
@@ -121,8 +123,9 @@ export async function listCityListings(citySlug: string): Promise<ListingCard[]>
 }
 
 export async function getPublishedListing(citySlug: string, firmSlug: string): Promise<ListingDetail | null> {
-  const cards = await query<ListingCard & { cityName: string; citySlug: string; legalForm: string | null; brandId: string }>(
-    `select card.*, c.name as "cityName", c.slug as "citySlug", le.legal_form as "legalForm", b.id as "brandId"
+  const cards = await query<ListingCard & { cityName: string; citySlug: string; legalForm: string | null; brandId: string; verticalId: string }>(
+    `select card.*, c.name as "cityName", c.slug as "citySlug", le.legal_form as "legalForm", b.id as "brandId",
+            l.vertical_id as "verticalId"
      from (${CARD_SQL} where c.slug = $1 and l.slug = $2 and l.status = 'published') card
      join listings l on l.id = card."listingId"
      join brands b on b.id = l.brand_id
@@ -132,7 +135,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
   );
   const card = cards[0];
   if (!card) return null;
-  const [prices, services, descriptionDates, offers, offerSources, phones, addresses, socials, google] = await Promise.all([
+  const [prices, services, descriptionDates, offers, offerSources, phones, addresses, socials, google, cities] = await Promise.all([
     query<PriceRow>(
       `select service, unit, amount_min::float8 as "amountMin", amount_max::float8 as "amountMax",
               tax_mode as "taxMode", quote, source_url as "sourceUrl", observed_at as "observedAt"
@@ -177,12 +180,19 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
       `select maps_url as "mapsUrl", reviews from google_places where brand_id = $1 and status = 'ok'`,
       [card.brandId],
     ).catch(() => []),
+    query<{ name: string; path: string }>(
+      `select c.name, '/' || c.slug || '/' || l.slug as path from listings l join cities c on c.id = l.city_id
+       where l.brand_id = $1 and l.vertical_id = $2 and l.status = 'published' and l.slug is not null
+       order by l.published_at nulls last, l.created_at`,
+      [card.brandId, card.verticalId],
+    ),
   ]);
   const dates = [card.publishedAt, descriptionDates[0]?.createdAt, ...prices.map((p) => p.observedAt)]
     .filter((d): d is Date => d instanceof Date)
     .map((d) => d.getTime());
-  const { brandId: _brandId, ...rest } = card;
+  const { brandId: _brandId, verticalId: _verticalId, ...rest } = card;
   void _brandId;
+  void _verticalId;
   return {
     ...rest,
     services: services.map((s) => s.name),
@@ -194,6 +204,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
     google: google[0] ?? null,
     address: addresses[0] ? addressText(addresses[0].value) : null,
     updatedAt: new Date(Math.max(0, ...dates)),
+    cities,
   };
 }
 
@@ -232,16 +243,22 @@ export type SitemapEntry = { citySlug: string; firmSlug: string | null; lastModi
  * a nie data wygenerowania mapy; codzienne odświeżanie ofert nie zmienia lastmod.
  */
 export async function listPublishedPaths(): Promise<SitemapEntry[]> {
-  const firms = await query<{ citySlug: string; firmSlug: string; lastModified: Date | null }>(
+  const rows = await query<{ citySlug: string; firmSlug: string; lastModified: Date | null; isPrimary: boolean }>(
     `select c.slug as "citySlug", l.slug as "firmSlug",
+            l.id = (select l2.id from listings l2 where l2.brand_id = l.brand_id and l2.vertical_id = l.vertical_id
+                      and l2.status = 'published' and l2.slug is not null
+                    order by l2.published_at nulls last, l2.created_at limit 1) as "isPrimary",
             greatest(l.published_at,
                      (select max(x.created_at) from descriptions x where x.brand_id = l.brand_id and x.status in ('validated', 'published')),
                      (select max(p.observed_at) from price_items p where p.brand_id = l.brand_id and p.is_current)) as "lastModified"
      from listings l join cities c on c.id = l.city_id
      where l.status = 'published' and not l.noindex and l.slug is not null`,
   );
+  // Firma w kilku miastach: w mapie strony tylko główny wpis (pozostałe wskazują go jako kanoniczny),
+  // ale do liczby firm w mieście liczą się wszystkie wpisy.
+  const firms = rows.filter((r) => r.isPrimary).map(({ isPrimary: _p, ...f }) => f);
   const cities = new Map<string, { citySlug: string; lastModified: Date | null; cityListings: number }>();
-  for (const f of firms) {
+  for (const f of rows) {
     const c = cities.get(f.citySlug) ?? { citySlug: f.citySlug, lastModified: null, cityListings: 0 };
     c.cityListings += 1;
     if (f.lastModified && (!c.lastModified || f.lastModified > c.lastModified)) c.lastModified = f.lastModified;

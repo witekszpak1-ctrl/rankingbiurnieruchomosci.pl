@@ -41,7 +41,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
   return pageMetadata({
     ...meta,
-    path: `/${listing.citySlug}/${listing.slug}`,
+    // Firma w kilku miastach: kanoniczny jest pierwszy (główny) wpis, żeby ten sam profil nie był duplikatem.
+    path: listing.cities[0]?.path ?? `/${listing.citySlug}/${listing.slug}`,
     image: listing.coverUrl ?? listing.logoUrl,
     type: "profile",
   });
@@ -376,6 +377,19 @@ export default async function FirmPage({ params, searchParams }: Props) {
                     <b>{listing.address}</b>
                   </div>
                 )}
+                {listing.cities.length > 1 && (
+                  <div>
+                    <span>Działa w miastach</span>
+                    <b>
+                      {listing.cities.map((c, i) => (
+                        <span key={c.path}>
+                          {i > 0 && ", "}
+                          {c.path === `/${listing.citySlug}/${listing.slug}` ? c.name : <Link href={c.path}>{c.name}</Link>}
+                        </span>
+                      ))}
+                    </b>
+                  </div>
+                )}
                 {listing.phone && (
                   <div>
                     <span>Telefon</span>
@@ -526,7 +540,10 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 addressLocality: listing.cityName,
                 addressCountry: "PL",
               },
-              areaServed: { "@type": "City", name: listing.cityName },
+              areaServed: (listing.cities.length > 1 ? listing.cities.map((c) => c.name) : [listing.cityName]).map((name) => ({
+                "@type": "City",
+                name,
+              })),
               sameAs: [listing.websiteUrl, ...listing.socials.map((s) => s.url)].filter(Boolean),
             },
           ],

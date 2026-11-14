@@ -49,6 +49,10 @@ jobs:
           INPUT_LIMIT: ${{ inputs.limit || '300' }}
           INPUT_DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: katalog offers --limit "$INPUT_LIMIT" $INPUT_DRY_RUN
+      - name: Firmy w kolejnych miastach (na podstawie świeżych ofert)
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        run: katalog extra-cities
       - name: Kontakty ze stron biur (telefon, e-mail firmowy, social media)
         if: ${{ !inputs.dry_run }}
         timeout-minutes: 45
