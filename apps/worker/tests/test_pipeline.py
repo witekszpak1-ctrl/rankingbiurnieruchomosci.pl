@@ -872,6 +872,33 @@ def test_offer_mentions_city_does_not_confuse_cities_sharing_a_prefix():
     assert m("Dom w Wieluniu", "Wieluń")
 
 
+def test_offer_mentions_city_ignores_ordinary_words_and_own_name_in_city_set():
+    from katalog_worker.pipeline import _tokens, offer_mentions_city
+
+    # Z produkcji: "Szczegóły oferty" i ".../szczegoly/183" dawały Szczecin i Szczyrk, "Świdnica" dawała Świdnik.
+    cities = frozenset({"szczecin", "szczyrk", "swidnica", "swidnik", "swidwin"})
+    for text in ("Szczegóły oferty mieszkanie na sprzedaż", "https://bb-nieruchomosci.pl/mieszkania/szczegoly/183"):
+        assert not offer_mentions_city(_tokens(text), ["szczecin"], cities)
+        assert not offer_mentions_city(_tokens(text), ["szczyrk"], cities)
+    text = _tokens("IZY-MS-6599 - Mieszkanie - /Świdnica (gw) - Sprzedaż")
+    assert offer_mentions_city(text, ["swidnica"], cities)  # własna nazwa w zbiorze miast nie przeszkadza
+    assert not offer_mentions_city(text, ["swidnik"], cities)
+    assert not offer_mentions_city(text, ["swidwin"], cities)
+
+
+def test_city_prefix_is_shared_by_every_inflection():
+    from katalog_worker.pipeline import _CITY_ENDINGS, _city_prefix, _inflects
+
+    # Szybki filtr w stage_extra_cities pomija miasto, gdy żadne słowo oferty nie zaczyna się jak _city_prefix.
+    words = ["lodz", "gora", "hel", "nysa", "karpacz", "krakow", "olawa", "gliwice", "wieliczka", "sopot", "zakopane"]
+    for word in words:
+        for cut in range(0, 4):
+            for ending in _CITY_ENDINGS:
+                token = word[: len(word) - cut] + ending
+                if token and _inflects(token, word):
+                    assert token.startswith(_city_prefix(word)), (word, token)
+
+
 def test_extra_cities_withdraws_listing_when_offers_disappear(flow):
     from katalog_worker.pipeline import stage_extra_cities, stage_publish_ready
 

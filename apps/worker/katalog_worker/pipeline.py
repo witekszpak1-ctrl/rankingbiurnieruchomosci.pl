@@ -17,7 +17,7 @@ import threading
 import re
 import sys
 import unicodedata
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -1168,6 +1168,11 @@ def _inflects(token: str, word: str) -> bool:
     return False
 
 
+def _city_prefix(word: str) -> str:
+    """Początek, który musi mieć każda odmiana słowa (zob. _inflects): 3 litery, dla słów 3-literowych 2."""
+    return word[:3] if len(word) >= 4 else word[:2]
+
+
 _ADJECTIVE_ENDINGS = ("ska", "skiej", "skie", "ski", "skim", "skich", "cka", "ckiej", "ckie", "cki", "ckim", "ckich")
 
 
@@ -1185,28 +1190,45 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
     cities = [(str(r["id"]), r["name"], _tokens(r["name"])) for r in repo.conn.execute("select id, name from cities").fetchall()]
     cities = [c for c in cities if c[2] and " ".join(c[2]) not in _AMBIGUOUS_CITY_WORDS]
     single_words = frozenset(c[2][0] for c in cities if len(c[2]) == 1)
+    listings_of: dict[tuple[str, str], dict[str, dict]] = defaultdict(dict)
+    for r in repo.listings_by_brand():
+        listings_of[(str(r["brand_id"]), str(r["vertical_id"]))][str(r["city_id"])] = r
+    auto_of: dict[tuple[str, str], dict[str, dict]] = defaultdict(dict)
+    for r in repo.auto_extra_listings_all():
+        auto_of[(str(r["brand_id"]), str(r["vertical_id"]))][str(r["city_id"])] = r
+    offers_of: dict[str, list[list[str]]] = defaultdict(list)
+    for o in repo.active_offer_texts_all():
+        offers_of[str(o["brand_id"])].append(_tokens(f"{o['title'] or ''} {o['url'] or ''}"))
+    addresses_of: dict[str, list[list[str]]] = defaultdict(list)
+    for r in repo.address_texts_all():
+        addresses_of[str(r["brand_id"])].append(_tokens(r["v"]))
     for brand in repo.brands_with_published_listing():
         brand_id, vertical_id = str(brand["brand_id"]), str(brand["vertical_id"])
-        listings = {str(r["city_id"]): r for r in repo.brand_listings(brand_id, vertical_id)}
-        auto = {str(r["city_id"]): r for r in repo.auto_extra_listings(brand_id, vertical_id)}
-        offer_texts = [_tokens(f"{o['title'] or ''} {o['url'] or ''}") for o in repo.active_offer_texts(brand_id)]
-        address_texts = [_tokens(t) for t in repo.brand_address_texts(brand_id)]
+        listings = listings_of[(brand_id, vertical_id)]
+        auto = auto_of[(brand_id, vertical_id)]
+        offer_texts = offers_of[brand_id]
+        address_texts = addresses_of[brand_id]
+        prefixes = {p for t in (*offer_texts, *address_texts) for tok in t for p in (tok[:2], tok[:3])}
         scored: list[tuple[int, str, str]] = []
         for city_id, city_name, city_tokens in cities:
             if city_id in listings and city_id not in auto:
                 continue  # wpis z wyszukiwania albo z panelu: nie ruszamy
-            others = single_words - {city_tokens[0]} if len(city_tokens) == 1 else single_words
-            hits = sum(1 for t in offer_texts if offer_mentions_city(t, city_tokens, others))
-            office = any(offer_mentions_city(t, city_tokens, others) for t in address_texts)
+            if _city_prefix(city_tokens[0]) not in prefixes:
+                continue  # żadne słowo w ofertach nie zaczyna się jak nazwa miasta: szybkie pominięcie
+            # Własna nazwa miasta w zbiorze nie przeszkadza: identyczne słowo jest sprawdzane wcześniej.
+            hits = sum(1 for t in offer_texts if offer_mentions_city(t, city_tokens, single_words))
+            office = any(offer_mentions_city(t, city_tokens, single_words) for t in address_texts)
             if hits >= min_offers or office:
                 scored.append((hits + (1000 if office else 0), city_id, city_name))
         keep = {city_id: city_name for _, city_id, city_name in sorted(scored, reverse=True)[:max_extra]}
+        changed = False
         for city_id, row in auto.items():
             if city_id not in keep and row["status"] == "published":
                 repo.set_listing_status(str(row["id"]), "removed")
                 repo.write_audit("pipeline", "listing.remove_extra_city", "listing", str(row["id"]),
                                  {"status": "published"}, {"status": "removed", "auto": True})
                 counts["extra_removed"] += 1
+                changed = True
         for city_id, city_name in keep.items():
             row = auto.get(city_id)
             if row and row["status"] == "published":
@@ -1220,7 +1242,10 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
             repo.write_audit("pipeline", "listing.publish_extra_city", "listing", listing_id, None,
                              {"status": "published", "city": city_name, "slug": slug, "auto": True})
             counts["extra_listings"] += 1
-        repo.conn.commit()
+            changed = True
+        if changed:
+            repo.conn.commit()
+    repo.conn.commit()
     return dict(counts)
 
 

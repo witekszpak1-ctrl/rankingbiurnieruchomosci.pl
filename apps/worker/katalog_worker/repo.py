@@ -471,41 +471,39 @@ class Repo:
                order by b.id, l.vertical_id"""
         ).fetchall()
 
-    def brand_listings(self, brand_id: str, vertical_id: str) -> list[dict]:
+    # Dane do stage_extra_cities pobierane naraz dla wszystkich firm (zapytanie na firmę trwało przez sieć ~25 min).
+    def listings_by_brand(self) -> list[dict]:
         return self.conn.execute(
-            "select id, city_id, status from listings where brand_id = %s and vertical_id = %s", (brand_id, vertical_id)
+            """select l.brand_id, l.vertical_id, l.id, l.city_id, l.status from listings l
+               where exists (select 1 from listings p where p.brand_id = l.brand_id and p.status = 'published')"""
         ).fetchall()
 
-    def auto_extra_listings(self, brand_id: str, vertical_id: str) -> list[dict]:
+    def auto_extra_listings_all(self) -> list[dict]:
         """Wpisy dodane przez extra-cities, z ostatnią akcją z dziennika (żeby nie przywracać wycofanych ręcznie)."""
         return self.conn.execute(
-            """select l.id, l.city_id, l.status, l.slug,
+            """select l.brand_id, l.vertical_id, l.id, l.city_id, l.status, l.slug,
                       (select a.action from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
                        order by a.at desc, a.id desc limit 1) as last_action
                from listings l
-               where l.brand_id = %s and l.vertical_id = %s
-                 and exists (select 1 from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
-                             and a.action = 'listing.publish_extra_city')""",
-            (brand_id, vertical_id),
+               where exists (select 1 from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
+                             and a.action = 'listing.publish_extra_city')"""
         ).fetchall()
 
     def set_listing_status(self, listing_id: str, status: str) -> None:
         self.conn.execute("update listings set status = %s where id = %s", (status, listing_id))
 
-    def active_offer_texts(self, brand_id: str) -> list[dict]:
+    def active_offer_texts_all(self) -> list[dict]:
         return self.conn.execute(
-            """select title, url from offers where brand_id = %s and is_active
-                 and last_seen_at > now() - interval '14 days'""",
-            (brand_id,),
+            """select brand_id, title, url from offers where is_active
+                 and last_seen_at > now() - interval '14 days'"""
         ).fetchall()
 
-    def brand_address_texts(self, brand_id: str) -> list[str]:
+    def address_texts_all(self) -> list[dict]:
         rows = self.conn.execute(
-            """select value #>> '{}' as v from facts where brand_id = %s and is_current
-                 and type in ('address', 'address_hint')""",
-            (brand_id,),
+            """select brand_id, value #>> '{}' as v from facts where is_current
+                 and type in ('address', 'address_hint')"""
         ).fetchall()
-        return [r["v"] for r in rows if r["v"]]
+        return [r for r in rows if r["v"]]
 
     def brand_fact_text(self, brand_id: str) -> str:
         rows = self.conn.execute(
