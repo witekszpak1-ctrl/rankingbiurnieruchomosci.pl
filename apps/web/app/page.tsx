@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
+import { OfferTile } from "@/components/OfferTile";
 import { JsonLd, LogoMark, PublicShell } from "@/components/SiteChrome";
 import { ProfileShowcase } from "@/components/ProfileShowcase";
 import { Stars } from "@/components/Stars";
 import { homeStats, listAllPublished, listCities, listLatestOffers, type TopListing } from "@/lib/catalog";
-import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
+import { absoluteUrl, SITE_NAME } from "@/lib/format";
 import { homeMeta } from "@/lib/meta-texts";
 import { inCity } from "@/lib/cities";
 import { ORG_ID, organizationLd, pageMetadata, SITE_ID } from "@/lib/seo";
@@ -269,15 +270,7 @@ export default async function HomePage({ searchParams }: Props) {
             </div>
             <ul className="offer-tiles">
               {offers.map((o) => (
-                <li key={o.url}>
-                  <a href={o.url} target="_blank" rel="noopener nofollow" className="offer-tile">
-                    <span className="offer-tile-price">{formatOfferPrice(o.priceAmount, o.priceCurrency, o.pricePeriod)}</span>
-                    <span className="offer-tile-title">{o.title}</span>
-                    <span className="offer-tile-firm">
-                      oferta biura {o.firmName} ({o.cityName})
-                    </span>
-                  </a>
-                </li>
+                <OfferTile key={o.url} offer={o} />
               ))}
             </ul>
           </div>

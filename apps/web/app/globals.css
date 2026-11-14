@@ -817,3 +817,22 @@ nav .chips li { background: none; border: 0; padding: 0; }
   .fc-desc { grid-column: 1 / -1; grid-row: 5; margin: 0; padding: 8px 14px 12px; }
   .fc-side { grid-column: 1 / -1; grid-row: 6; }
 }
+
+/* karta oferty: cena, tytuł, biuro i przycisk "Zobacz ofertę" (rozciągnięty na całą kartę) */
+.offer-tile { position: relative; gap: 8px; padding: 22px 22px 18px; border-radius: 18px; }
+.offer-tile-price { font-family: var(--display); font-size: 1.5rem; letter-spacing: -0.02em; line-height: 1.15; }
+.offer-tile-price.none { font-family: inherit; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+.offer-tile-title { font-size: 1.05rem; line-height: 1.35; }
+.offer-tile-firm { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); line-height: 1.45; }
+.offer-tile-firm a { position: relative; z-index: 1; color: var(--fg); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.offer-tile-firm a:hover { text-decoration-color: var(--yellow); }
+.offer-tile-btn { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--fg); color: #fff; border-radius: 999px; padding: 12px 18px; font-weight: 700; font-size: 0.95rem; text-decoration: none; transition: background 0.15s, color 0.15s; }
+.offer-tile-btn::after { content: ""; position: absolute; inset: 0; border-radius: 18px; }
+.offer-tile-btn .arr { transition: transform 0.2s; }
+.offer-tile:hover .offer-tile-btn, .offer-tile-btn:focus-visible { background: var(--yellow); color: var(--fg); }
+.offer-tile:hover .offer-tile-btn .arr { transform: translate(2px, -2px); }
+.offer-tile-btn:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .offer-tile-btn .arr { transition: none; }
+  .offer-tile:hover { transform: none; }
+}
