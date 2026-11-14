@@ -166,6 +166,19 @@ def test_decode_body_handles_legacy_polish_encodings():
     assert "�" in decode_body(b"\xff\xfe\xfa", None) or decode_body(b"\xff\xfe\xfa", None) is not None
 
 
+def test_site_with_hosting_default_certificate_falls_back_to_http():
+    def handler(request):
+        if request.url.scheme == "https":
+            raise httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] Hostname mismatch, certificate is not valid for 'firma.pl'")
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return html_response()
+
+    fetcher, _ = make_fetcher(handler)
+    page = fetcher.fetch("https://firma.pl/kontakt")
+    assert page.ok and page.final_url == "http://firma.pl/kontakt"
+
+
 def test_bare_host_with_certificate_only_for_www_falls_back_to_www_and_remembers_it():
     hosts: list[str] = []
 

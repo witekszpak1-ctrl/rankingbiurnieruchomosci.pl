@@ -7,8 +7,9 @@ Zasady:
 - własny User-Agent z adresem kontaktowym, odstęp min_delay_seconds między zapytaniami do tego samego hosta,
 - nie omijamy zabezpieczeń: odpowiedź inna niż HTML kończy się błędem, a nie próbą obejścia,
 - adres bez "www" (tak zapisujemy domeny), który nie daje się połączyć (certyfikat tylko dla www, brak rekordu DNS
-  dla domeny bez www), próbujemy jeszcze z "www"; stronę bez HTTPS (połączenie odrzucone na porcie 443) przez http.
-  Błędnego certyfikatu nie pomijamy: wersja http jest tylko dla odrzuconego połączenia, nie dla błędu certyfikatu.
+  dla domeny bez www), próbujemy jeszcze z "www"; stronę bez HTTPS przez http. Brak HTTPS to odrzucone połączenie na
+  porcie 443 albo certyfikat wystawiony na inną nazwę (domyślny certyfikat hostingu), tak jak otworzy ją przeglądarka.
+  Certyfikatu wygasłego, samopodpisanego ani z niepełnym łańcuchem nie omijamy przez http.
 """
 
 from __future__ import annotations
@@ -203,7 +204,8 @@ class PoliteFetcher:
 
 def _alternative_origins(parts, result: FetchResult) -> list[str]:
     """Inne adresy hosta do sprawdzenia, gdy połączenie się nie udało (nie przy odpowiedzi serwera ani przekroczeniu
-    czasu): z www, gdy host jest bez www, oraz http, gdy port 443 odrzucił połączenie (strona bez HTTPS)."""
+    czasu): z www, gdy host jest bez www, oraz http, gdy strona nie ma HTTPS (port 443 odrzuca połączenie albo
+    certyfikat jest na inną nazwę)."""
     detail = result.detail or ""
     connect_failed = (result.error == "robots_unreachable" and detail.startswith("ConnectError")) or (
         result.error == "network:ConnectError"
@@ -214,6 +216,7 @@ def _alternative_origins(parts, result: FetchResult) -> list[str]:
     out: list[str] = []
     if not host.startswith("www."):
         out.append(urlunsplit((parts.scheme, "www." + parts.netloc, "", "", "")))
-    if parts.scheme == "https" and "Connection refused" in detail:
+    if parts.scheme == "https" and ("Connection refused" in detail or "Hostname mismatch" in detail):
+        # strona bez własnego HTTPS (port zamknięty albo domyślny certyfikat hostingu na inną nazwę)
         out.append(urlunsplit(("http", parts.netloc, "", "", "")))
     return out
