@@ -331,6 +331,66 @@ class Repo:
         ).fetchone()
         return str(row["id"])
 
+    def city_names(self) -> list[str]:
+        return [r["name"] for r in self.conn.execute("select name from cities").fetchall()]
+
+    def set_listing_city_source(self, listing_id: str, source: str) -> None:
+        self.conn.execute(
+            "update listings set city_source = %s, city_source_at = now() where id = %s", (source, listing_id)
+        )
+
+    def brand_address_facts(self, brand_id: str) -> list[dict]:
+        return self.conn.execute(
+            """select value #>> '{}' as value, coalesce(quote, '') as quote from facts
+               where brand_id = %s and is_current and type in ('address', 'address_hint')""",
+            (brand_id,),
+        ).fetchall()
+
+    def brand_registry_city(self, brand_id: str) -> str | None:
+        row = self.conn.execute(
+            """select le.registered_address ->> 'city' as city from brands b
+               join legal_entities le on le.id = b.legal_entity_id where b.id = %s""",
+            (brand_id,),
+        ).fetchone()
+        return row["city"] if row else None
+
+    def brand_host(self, brand_id: str) -> str | None:
+        row = self.conn.execute(
+            "select host from domains where brand_id = %s order by verification_score desc nulls last limit 1",
+            (brand_id,),
+        ).fetchone()
+        return row["host"] if row else None
+
+    def primary_listings_for_city_report(self) -> list[dict]:
+        """Opublikowane wpisy główne (bez wpisów z kroku miast dodatkowych) z miastem wyszukiwania."""
+        return self.conn.execute(
+            """select l.id, l.brand_id, l.vertical_id, l.slug, l.city_id, c.name as city_name, c.slug as city_slug,
+                      b.name as brand_name, l.city_source,
+                      (select d.city_hint from domains d where d.brand_id = b.id
+                        order by d.verification_score desc nulls last limit 1) as city_hint
+               from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
+               where l.status = 'published'
+                 and not exists (select 1 from audit_log a where a.entity_type = 'listing'
+                                 and a.entity_id = l.id::text and a.action = 'listing.publish_extra_city')
+               order by c.name, b.name"""
+        ).fetchall()
+
+    def brand_listing_in_city(self, brand_id: str, vertical_id: str, city_id: str) -> dict | None:
+        return self.conn.execute(
+            "select id, status, slug from listings where brand_id = %s and vertical_id = %s and city_id = %s",
+            (brand_id, vertical_id, city_id),
+        ).fetchone()
+
+    def move_listing(self, listing_id: str, city_id: str, slug: str) -> None:
+        self.conn.execute("update listings set city_id = %s, slug = %s where id = %s", (city_id, slug, listing_id))
+
+    def add_listing_redirect(self, from_path: str, listing_id: str) -> None:
+        self.conn.execute(
+            """insert into listing_redirects (from_path, listing_id) values (%s, %s)
+               on conflict (from_path) do update set listing_id = excluded.listing_id, created_at = now()""",
+            (from_path, listing_id),
+        )
+
     def upsert_listing(self, brand_id: str, vertical_id: str, city_id: str, status: str) -> str:
         row = self.conn.execute(
             """insert into listings (brand_id, vertical_id, city_id, status) values (%s, %s, %s, %s)

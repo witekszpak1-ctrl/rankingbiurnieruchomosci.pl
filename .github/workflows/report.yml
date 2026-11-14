@@ -1,0 +1,49 @@
+# Raporty planu poprawy liczone na bazie produkcyjnej i odkładane do repozytorium kolejki
+# (queue/results/reports na gałęzi queue-data), skąd czyta je sesja Claude. Uruchamiane ręcznie.
+# Bez "apply" niczego nie zmienia w bazie (raport na sucho).
+name: report
+
+on:
+  workflow_dispatch:
+    inputs:
+      report:
+        description: "Który raport"
+        type: choice
+        options: [miasta]
+        default: miasta
+      apply:
+        description: "Zapisz zmiany (tylko po zgodzie właściciela na raport)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: katalog-report
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      QUEUE_REPO_TOKEN: ${{ secrets.QUEUE_REPO_TOKEN }}
+      QUEUE_DIR: ./queue
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e apps/worker
+      - name: Migracje
+        run: katalog migrate
+      - name: Pobranie kolejki z repozytorium kolejki
+        run: bash scripts/queue_sync.sh pull
+      - name: Raport miast
+        if: inputs.report == 'miasta'
+        env:
+          APPLY: ${{ inputs.apply && '--apply' || '' }}
+        run: katalog cities-report --out queue/results/reports $APPLY
+      - name: Zapis raportu w repozytorium kolejki
+        run: bash scripts/queue_sync.sh push-results
