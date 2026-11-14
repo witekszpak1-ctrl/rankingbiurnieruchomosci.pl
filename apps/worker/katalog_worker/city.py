@@ -67,6 +67,7 @@ class CityDecision:
     city: str | None
     source: str
     warnings: list[str] = field(default_factory=list)
+    postcode: str | None = None  # kod pocztowy adresu, z którego wzięto miasto (do sprawdzenia z kodami miasta)
 
 
 # Skróty w adresach: "66-400 Gorzów Wlkp.", "05-825 Grodzisk Maz.".
@@ -75,9 +76,25 @@ _ABBREVIATIONS = {"wlkp": "wielkopolski", "wielkop": "wielkopolski", "maz": "maz
                   "opol": "opolski", "tryb": "trybunalski", "swietokrz": "swietokrzyski"}
 
 
+# Drugi człon nazwy innej miejscowości: "Brzeg Dolny" to nie Brzeg, "Góra Kalwaria" to nie Góra,
+# "Rawa Mazowiecka" to nie Rawa. Dzielnica po nazwie miasta ("Warszawa Mokotów") takim członem nie jest.
+_NAME_PARTS = frozenset({"dolny", "dolna", "dolne", "gorny", "gorna", "gorne", "wielki", "wielka", "wielkie", "maly",
+                         "mala", "male", "zdroj", "kalwaria", "slaski", "slaska", "slaskie", "kujawski", "lodzki"})
+_NAME_PART_ENDINGS = ("ski", "ska", "skie", "cki", "cka", "ckie", "dzki", "dzka")
+
+
+def _continues_name(tok: str) -> bool:
+    return tok in _NAME_PARTS or (len(tok) > 4 and tok.endswith(_NAME_PART_ENDINGS))
+
+
 def office_cities(hits: Iterable[AddressHit]) -> list[list[str]]:
     """Miasta z adresów biura (jako listy tokenów), bez adresów instytucji i firm przetwarzających dane."""
-    out: list[list[str]] = []
+    return [tokens_ for _, tokens_, _ in _offices(hits)]
+
+
+def _offices(hits: Iterable[AddressHit]) -> list[tuple[str, list[str], str]]:
+    """Jak office_cities, z kodem pocztowym i oryginalną pisownią miasta z każdego adresu."""
+    out: list[tuple[str, list[str], str]] = []
     for hit in hits:
         context = fold(hit.context)
         if hit.postcode in _INSTITUTIONAL_POSTCODES or any(w in context for w in _INSTITUTIONAL_WORDS):
@@ -88,7 +105,7 @@ def office_cities(hits: Iterable[AddressHit]) -> list[list[str]]:
                 break
             city_tokens.append(_ABBREVIATIONS.get(tok, tok) if i > 0 else tok)
         if city_tokens:
-            out.append(city_tokens[:3])
+            out.append((hit.postcode, city_tokens[:3], hit.city))
     return out
 
 
@@ -100,7 +117,8 @@ def _same_city(name: str | None, address_tokens: list[str]) -> bool:
     if not want:
         return False
     if address_tokens[: len(want)] == want:
-        return True
+        # "Brzeg" nie pasuje do adresu "Brzeg Dolny": dalszy człon nazwy oznacza inną miejscowość.
+        return not (len(address_tokens) > len(want) and _continues_name(address_tokens[len(want)]))
     # "Gorzów" bez drugiego członu w adresie to Gorzów Wielkopolski (gdy adres ma tylko pierwsze słowo nazwy).
     return len(want) > 1 and address_tokens == want[:1]
 
@@ -109,7 +127,11 @@ def _city_key(address_tokens: list[str], known: dict[tuple[str, ...], str]) -> t
     """Najdłuższa znana nazwa miasta na początku adresu, inaczej pierwsze słowo."""
     for n in range(min(3, len(address_tokens)), 0, -1):
         if tuple(address_tokens[:n]) in known:
+            if n < len(address_tokens) and _continues_name(address_tokens[n]):
+                break  # "Brzeg Dolny" przy znanym tylko "Brzeg": inna miejscowość, spoza listy znanych
             return tuple(address_tokens[:n])
+    if len(address_tokens) > 1 and _continues_name(address_tokens[1]):
+        return tuple(address_tokens[:2])
     # Samo pierwsze słowo pasujące do dokładnie jednej znanej nazwy wielowyrazowej ("gorzow" -> Gorzów Wielkopolski).
     longer = [k for k in known if len(k) > 1 and k[0] == address_tokens[0]]
     if len(address_tokens) == 1 and len(longer) == 1:
@@ -119,10 +141,15 @@ def _city_key(address_tokens: list[str], known: dict[tuple[str, ...], str]) -> t
 
 def _display_name(address_tokens: list[str], known: dict[tuple[str, ...], str]) -> str:
     """Nazwa miasta z adresu: najdłuższa znana nazwa pasująca do początku adresu, inaczej pierwsze słowo."""
+    name = known.get(tuple(address_tokens))
+    if name:
+        return name
     for n in range(min(3, len(address_tokens)), 0, -1):
         name = known.get(tuple(address_tokens[:n]))
-        if name:
+        if name and not (n < len(address_tokens) and _continues_name(address_tokens[n])):
             return name
+    if len(address_tokens) > 1 and _continues_name(address_tokens[1]):
+        return " ".join(t.capitalize() for t in address_tokens[:2])  # spoza listy znanych: trafi do przeglądu
     return address_tokens[0].capitalize()
 
 
@@ -162,20 +189,29 @@ def decide_city(
     from .pipeline import offer_mentions_city  # dokładne dopasowanie z odmianą (w Karpaczu, w Lublinie)
 
     known = known or {}
-    offices = office_cities(address_hits)
+    with_codes = _offices(address_hits)
+    offices = [o for _, o, _ in with_codes]
     registry = registry_city.strip().title() if registry_city and registry_city.strip() else None
     hint = city_hint.strip() if city_hint and city_hint.strip() else None
 
+    def code_for(name: str) -> str | None:
+        return next((code for code, o, _ in with_codes if _same_city(name, o)), None)
+
     if hint and any(_same_city(hint, o) for o in offices):
-        decision = CityDecision(hint, SOURCE_ADDRESS_SEARCH)
+        decision = CityDecision(hint, SOURCE_ADDRESS_SEARCH, postcode=code_for(hint))
     elif registry and any(_same_city(registry, o) for o in offices):
-        decision = CityDecision(registry, SOURCE_REGISTRY_ADDRESS)
+        decision = CityDecision(registry, SOURCE_REGISTRY_ADDRESS, postcode=code_for(registry))
     elif registry:
         decision = CityDecision(registry, SOURCE_REGISTRY)
     elif offices:
         counts = Counter(_city_key(o, known) for o in offices)
         best = max(counts.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
-        decision = CityDecision(_display_name(list(best), known), SOURCE_ADDRESS)
+        code, raw = next(((c, r) for c, o, r in with_codes if _city_key(o, known) == best), (None, ""))
+        name = _display_name(list(best), known)
+        words = re.split(r"[\s,]+", raw.strip())
+        if tuple(best) not in known and len(words) >= len(best):
+            name = " ".join(w[:1].upper() + w[1:] for w in words[: len(best)])  # pisownia z adresu, z polskimi znakami
+        decision = CityDecision(name, SOURCE_ADDRESS, postcode=code)
     elif hint and offer_mentions_city(tokens(page_text), tokens(hint)):
         decision = CityDecision(hint, SOURCE_MENTION, ["miasto tylko z wzmianki na stronie"])
     else:
