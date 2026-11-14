@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/"), lastModified: newest },
     // Ranking ogólnopolski jest indeksowany od 10 biur (app/ranking/page.tsx); lista ofert ma noindex.
     ...(entries.filter((e) => e.firmSlug).length >= 10 ? [{ url: absoluteUrl("/ranking"), lastModified: newest }] : []),
-    ...["/metodologia", "/o-nas", "/kontakt", "/dla-firm", "/reklama", "/bot"].map((path) => ({ url: absoluteUrl(path) })),
+    ...["/miasta", "/metodologia", "/o-nas", "/kontakt", "/dla-firm", "/reklama", "/bot"].map((path) => ({ url: absoluteUrl(path) })),
   ];
   const dynamicPages = entries
     // strony miast z mniejszą liczbą firm niż próg są noindex, więc nie trafiają do mapy strony

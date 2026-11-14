@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CompareBar, CompareToggle } from "@/components/Compare";
 import { FirmImage } from "@/components/FirmImage";
 import { TopThree } from "@/components/TopThree";
 import { notFound } from "next/navigation";
@@ -8,16 +9,27 @@ import { notFound } from "next/navigation";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { cityCommissionStats, cityPriceExamples, cityServices, getCity, listCities, listCityListings, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
-import { choosingGuide, cityFaq, cityH1, cityIntro, commissionSection, topThree, type CityData } from "@/lib/city-content";
+import {
+  brandServiceGroups,
+  choosingGuide,
+  cityFaq,
+  cityH1,
+  cityIntro,
+  commissionSection,
+  topThree,
+  type CityData,
+} from "@/lib/city-content";
 import { SITE_NAME, absoluteUrl, formatDate, formatYear } from "@/lib/format";
 import { nBiur, nBiurGen, plural } from "@/lib/plural";
 import { cityMeta } from "@/lib/meta-texts";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
+import { FILTERS, GOALS, PER_PAGE, parseView, viewHref, type Filter, type Goal, type SearchParams } from "@/lib/city-view";
 import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } from "@/lib/ranking";
 
 export const revalidate = 300;
 
-type Props = { params: Promise<{ city: string }> };
+type Props = { params: Promise<{ city: string }>; searchParams: Promise<SearchParams> };
+
 
 const toInput = (l: ListingCard): RankingInput => ({
   startDate: l.startDate,
@@ -46,24 +58,53 @@ async function load(slug: string) {
   return { city, listings, stats, ranked, updatedAt, prices, services, cities };
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { city: slug } = await params;
   const data = await load(slug);
   if (!data) return { title: "Nie znaleziono", robots: { index: false } };
+  const view = parseView(await searchParams);
   const year = new Date().getFullYear();
   const withPrices = data.listings.filter((l) => l.hasPublicPrices).length;
   const meta = cityMeta(data.city.name, year, data.listings.length, Boolean(data.ranked), withPrices);
+  const filtered = Boolean(view.goal) || view.filters.length > 0;
+  if (filtered) {
+    // Widoki z filtrami: canonical na stronę miasta bez parametrów i bez indeksowania.
+    return pageMetadata({ ...meta, path: `/${data.city.slug}`, noindex: true });
+  }
+  if (view.page > 1) {
+    // Kolejne strony listy: własny canonical, dopuszczone do indeksowania (gdy miasto ma ranking).
+    return pageMetadata({
+      ...meta,
+      title: `${meta.title} (strona ${view.page})`,
+      path: viewHref(data.city.slug, view),
+      noindex: !data.ranked,
+    });
+  }
   // Miasto poniżej progu rankingu to krótka lista: widoczna dla ludzi, ale bez indeksowania (cienka treść).
   return pageMetadata({ ...meta, path: `/${data.city.slug}`, noindex: !data.ranked });
 }
 
-export default async function CityPage({ params }: Props) {
+export default async function CityPage({ params, searchParams }: Props) {
   const { city: slug } = await params;
   const data = await load(slug);
   if (!data) notFound();
+  const view = parseView(await searchParams);
   const { city, listings, stats, ranked, updatedAt, prices, services, cities } = data;
   const withPrices = listings.filter((l) => l.hasPublicPrices).length;
   const rows = ranked ?? listings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] }));
+  // Filtry: pozycje zostają z pełnego rankingu miasta, lista pokazuje tylko pasujące biura.
+  const groups = brandServiceGroups(services);
+  const goalGroup = view.goal ? GOALS[view.goal].group : null;
+  const matching = rows.filter(
+    (r) =>
+      (!goalGroup || groups.get(r.brandId)?.has(goalGroup)) &&
+      view.filters.every((f) => (f === "cennik" ? r.hasPublicPrices : groups.get(r.brandId)?.has(FILTERS[f].group ?? ""))),
+  );
+  const pages = Math.max(1, Math.ceil(matching.length / PER_PAGE));
+  if (view.page > pages) notFound();
+  const pageRows = matching.slice((view.page - 1) * PER_PAGE, view.page * PER_PAGE);
+  const filtered = Boolean(view.goal) || view.filters.length > 0;
+  const firstView = view.page === 1 && !filtered;
   const year = new Date().getFullYear();
   const where = inCity(city.name);
   const content: CityData = {
@@ -117,7 +158,28 @@ export default async function CityPage({ params }: Props) {
           .split(/\n\s*\n/)
           .map((para, i) => <p key={i}>{para.trim()}</p>)}
 
-      {top.length > 0 && (
+      <ul className="city-stats" aria-label={`Biura nieruchomości ${where} w liczbach`}>
+        <li>
+          <b>{listings.length}</b>
+          <span>{plural(listings.length, "biuro", "biura", "biur")} w katalogu</span>
+        </li>
+        <li>
+          <b>{confirmed}</b>
+          <span>{plural(confirmed, "potwierdzone", "potwierdzone", "potwierdzonych")} w rejestrze</span>
+        </li>
+        <li>
+          <b>{withPrices}</b>
+          <span>z jawnym cennikiem</span>
+        </li>
+        {stats.n >= PRICE_STAT_MIN && stats.median != null && (
+          <li>
+            <b>{stats.median.toLocaleString("pl-PL")}%</b>
+            <span>mediana prowizji od sprzedaży ({nBiurGen(stats.n)})</span>
+          </li>
+        )}
+      </ul>
+
+      {firstView && top.length > 0 && (
         <>
           <h2>Najlepsze biura nieruchomości {where}</h2>
           <TopThree
@@ -145,55 +207,140 @@ export default async function CityPage({ params }: Props) {
         </>
       )}
 
-      <h2>{ranked ? `Porównanie biur nieruchomości ${where}` : `Lista biur nieruchomości ${where} (alfabetycznie)`}</h2>
+      <h2 id="lista">{ranked ? `Porównanie biur nieruchomości ${where}` : `Lista biur nieruchomości ${where} (alfabetycznie)`}</h2>
+      <nav aria-label="Czego szukasz">
+        <ul className="chips">
+          <li>
+            <a href={viewHref(city.slug, { page: 1, goal: null, filters: view.filters }) + "#lista"} aria-current={view.goal === null}>
+              Wszystkie biura
+            </a>
+          </li>
+          {(Object.keys(GOALS) as Goal[]).map((g) => (
+            <li key={g}>
+              <a href={viewHref(city.slug, { page: 1, goal: g, filters: view.filters }) + "#lista"} aria-current={view.goal === g}>
+                {GOALS[g].label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <nav aria-label="Filtry">
+        <ul className="chips">
+          {(Object.keys(FILTERS) as Filter[]).map((f) => {
+            const on = view.filters.includes(f);
+            const next = on ? view.filters.filter((x) => x !== f) : [...view.filters, f];
+            return (
+              <li key={f}>
+                <a href={viewHref(city.slug, { page: 1, goal: view.goal, filters: next }) + "#lista"} aria-current={on}>
+                  {on ? "✓ " : ""}
+                  {FILTERS[f].label}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      {filtered && (
+        <p className="note">
+          Pasujące biura: {matching.length} z {nBiurGen(listings.length)}. Filtry działają na usługach i cenach, które
+          biura podają na swoich stronach.
+        </p>
+      )}
       {!ranked && (
         <p className="note">
           Ranking publikujemy od {CITY_RANKING_MIN} biur w mieście, żeby pozycje miały sens. Do tego czasu pokazujemy listę.
         </p>
       )}
-      <div className="tablewrap">
-        <table>
-          <thead>
-            <tr>
-              {ranked && <th className="num">#</th>}
-              <th>Biuro</th>
-              {ranked && <th>Wynik</th>}
-              <th>Cennik</th>
-              <th>W rejestrze od</th>
-              <th className="num">Usługi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.listingId}>
-                {ranked && <td className="num">{row.position}</td>}
-                <td>
-                  <Link href={`/${city.slug}/${row.slug}`} className="firm-cell">
-                    <FirmImage src={row.logoUrl} kind="logo" name={row.name} size="sm" />
-                    <span>{row.name}</span>
-                  </Link>
-                </td>
-                {ranked && (
-                  <td>
-                    <span className="bar-track" aria-hidden="true">
-                      <span className="bar" style={{ width: `${row.score}%` }} />
-                    </span>
-                    {row.score}/100
-                  </td>
-                )}
-                <td>{row.hasPublicPrices ? <span className="badge ok">jawny</span> : <span className="badge">brak</span>}</td>
-                <td>{row.registryConfirmed ? formatYear(row.startDate) : <span className="note">bez potwierdzenia</span>}</td>
-                <td className="num">{row.servicesCount}</td>
+      {pageRows.length === 0 ? (
+        <p>
+          Żadne biuro {where} nie spełnia tych warunków.{" "}
+          <a href={viewHref(city.slug, { page: 1, goal: null, filters: [] }) + "#lista"}>Pokaż wszystkie biura</a>.
+        </p>
+      ) : (
+        <div className="tablewrap">
+          <table className="city-table">
+            <thead>
+              <tr>
+                {ranked && <th className="num">#</th>}
+                <th>Biuro</th>
+                {ranked && <th>Wynik</th>}
+                <th>Cennik</th>
+                <th>W rejestrze od</th>
+                <th className="num">Usługi</th>
+                <th>
+                  <span className="sr-only">Porównaj</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {pageRows.map((row) => (
+                <tr key={row.listingId}>
+                  {ranked && <td className="num">{row.position}.</td>}
+                  <td className="firm">
+                    <Link href={`/${city.slug}/${row.slug}`} className="firm-cell">
+                      <FirmImage src={row.logoUrl} kind="logo" name={row.name} alt={`Logo ${row.name}`} size="sm" />
+                      <span>{row.name}</span>
+                    </Link>
+                  </td>
+                  {ranked && (
+                    <td data-label="Wynik">
+                      <span className="bar-track" aria-hidden="true">
+                        <span className="bar" style={{ width: `${row.score}%` }} />
+                      </span>
+                      {row.score}/100
+                    </td>
+                  )}
+                  <td data-label="Cennik">
+                    {row.hasPublicPrices ? <span className="badge ok">jawny</span> : <span className="badge">brak</span>}
+                  </td>
+                  <td data-label="W rejestrze od">
+                    {row.registryConfirmed ? formatYear(row.startDate) : <span className="note">bez potwierdzenia</span>}
+                  </td>
+                  <td className="num" data-label="Usługi">
+                    {row.servicesCount}
+                  </td>
+                  <td>
+                    <CompareToggle id={row.listingId} name={row.name} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {pages > 1 && (
+        <nav className="pager" aria-label="Strony listy biur">
+          {view.page > 1 && (
+            <Link href={viewHref(city.slug, { ...view, page: view.page - 1 })} rel="prev">
+              Poprzednia
+            </Link>
+          )}
+          {Array.from({ length: pages }, (_, i) => i + 1).map((n) =>
+            n === view.page ? (
+              <span key={n} aria-current="page">
+                {n}
+              </span>
+            ) : (
+              <Link key={n} href={viewHref(city.slug, { ...view, page: n })}>
+                {n}
+              </Link>
+            ),
+          )}
+          {view.page < pages && (
+            <Link href={viewHref(city.slug, { ...view, page: view.page + 1 })} rel="next">
+              Następna
+            </Link>
+          )}
+        </nav>
+      )}
+      <CompareBar />
       <p className="note">
         Wynik liczymy według <Link href="/metodologia">publicznej metodologii</Link>. Płatność nie wpływa na pozycję.
         Dane aktualne na dzień {formatDate(updatedAt)}.
       </p>
 
+      {firstView && (
+        <>
       <h2>Ile wynosi prowizja biura nieruchomości {where}?</h2>
       <p>{commission.summary}</p>
       {commission.examples.length > 0 && (
@@ -222,6 +369,9 @@ export default async function CityPage({ params }: Props) {
         ))}
       </div>
 
+        </>
+      )}
+
       {otherCities.length > 0 && (
         <>
           <h2>Biura nieruchomości w innych miastach</h2>
@@ -235,9 +385,13 @@ export default async function CityPage({ params }: Props) {
               </li>
             ))}
           </ul>
+          <p>
+            <Link href="/miasta">Wszystkie miasta według województw</Link>
+          </p>
         </>
       )}
 
+      {firstView && (
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -245,6 +399,7 @@ export default async function CityPage({ params }: Props) {
           mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
         }}
       />
+      )}
 
       <JsonLd
         data={{
@@ -261,7 +416,7 @@ export default async function CityPage({ params }: Props) {
             name: ranked ? `Ranking biur nieruchomości ${city.name}` : `Biura nieruchomości ${city.name}`,
             itemListOrder: ranked ? "https://schema.org/ItemListOrderDescending" : "https://schema.org/ItemListOrderAscending",
             numberOfItems: listings.length,
-            itemListElement: rows.map((row) => ({
+            itemListElement: pageRows.map((row) => ({
               "@type": "ListItem",
               position: row.position,
               name: row.name,

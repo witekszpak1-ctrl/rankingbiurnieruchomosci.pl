@@ -114,7 +114,7 @@ export default async function NationalRankingPage() {
                 <td className="num">{row.position}</td>
                 <td>
                   <Link href={`/${row.citySlug}/${row.slug}`} className="firm-cell">
-                    <FirmImage src={row.logoUrl} kind="logo" name={row.name} size="sm" />
+                    <FirmImage src={row.logoUrl} kind="logo" name={row.name} alt={`Logo ${row.name}`} size="sm" />
                     <span>{row.name}</span>
                   </Link>
                 </td>

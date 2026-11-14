@@ -22,6 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = { searchParams?: Promise<Record<string, string | string[] | undefined>> };
 
+// Na stronie głównej największe miasta, pełna lista na /miasta.
+const HOME_CITIES = 30;
+
 const toInput = (l: TopListing): RankingInput => ({
   startDate: l.startDate,
   hasPublicPrices: l.hasPublicPrices,
@@ -157,7 +160,7 @@ export default async function HomePage({ searchParams }: Props) {
                 {top.slice(0, 3).map((f) => (
                   <Link key={f.listingId} href={`/${f.citySlug}/${f.slug}#zapytanie`} className="mock-agent">
                     <div className="mock-agent-head">
-                      <FirmImage src={f.logoUrl} kind="logo" name={f.name} size="sm" />
+                      <FirmImage src={f.logoUrl} kind="logo" name={f.name} alt={`Logo ${f.name}`} size="sm" />
                       <div>
                         <b>{f.name}</b>
                         <span>
@@ -291,16 +294,23 @@ export default async function HomePage({ searchParams }: Props) {
           {cities.length === 0 ? (
             <p className="note">Katalog jest w budowie.</p>
           ) : (
-            <ul className="city-grid">
-              {cities.map((c) => (
-                <li key={c.slug}>
-                  <Link href={`/${c.slug}`} title={`Biura nieruchomości ${inCity(c.name)}`}>
-                    <b>{c.name}</b>
-                    <span>{nBiur(c.listings)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="city-grid">
+                {cities.slice(0, HOME_CITIES).map((c) => (
+                  <li key={c.slug}>
+                    <Link href={`/${c.slug}`} title={`Biura nieruchomości ${inCity(c.name)}`}>
+                      <b>{c.name}</b>
+                      <span>{nBiur(c.listings)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {cities.length > HOME_CITIES && (
+                <p>
+                  <Link href="/miasta">Wszystkie miasta ({cities.length}) według województw</Link>
+                </p>
+              )}
+            </>
           )}
         </div>
       </section>

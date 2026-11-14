@@ -16,7 +16,7 @@ export function SiteHeader() {
           <Logo />
         </Link>
         <nav className="nav" aria-label="Główna nawigacja">
-          <Link href="/#miasta">Miasta</Link>
+          <Link href="/miasta">Miasta</Link>
           <Link href="/ranking">Ranking</Link>
           <Link href="/metodologia">Jak oceniamy</Link>
           <Link href="/dla-firm">Dla biur</Link>
