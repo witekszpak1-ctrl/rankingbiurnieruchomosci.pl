@@ -69,3 +69,11 @@ export function addressText(value: unknown): string | null {
   }
   return null;
 }
+
+/** Tekst skrócony do granicy słowa (karty na listach pokazują i tak 2 linie; pełny opis jest na profilu). */
+export function shortText(text: string, max: number): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
+  return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[,;:.\s-]+$/, "")}…`;
+}

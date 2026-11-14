@@ -707,3 +707,9 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .firm-card, .fc-thumb .firm-img img, .fc-see .arr { transition: none; }
   .firm-card:hover, .firm-card:focus-within { transform: none; }
 }
+.stars-mini { position: relative; display: inline-block; font-size: 15px; line-height: 1; letter-spacing: 1px; color: #dcd9d1; }
+.stars-mini::before { content: "★★★★★"; }
+.stars-mini > span { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: #e8a800; white-space: nowrap; }
+.stars-mini > span::before { content: "★★★★★"; }
+.fc-thumb .firm-img.md.logo { background: #fff; color: var(--fg); }
+.fc-thumb .firm-img.logo img { padding: 14%; }
