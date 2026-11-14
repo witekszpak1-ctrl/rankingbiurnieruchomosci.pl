@@ -527,6 +527,18 @@ class Repo:
             (name, brand_id, name, name),
         )
 
+    def set_setting(self, key: str, value) -> None:
+        import json
+
+        if value is None:
+            self.conn.execute("delete from settings where key = %s", (key,))
+            return
+        self.conn.execute(
+            """insert into settings (key, value) values (%s, %s::jsonb)
+               on conflict (key) do update set value = excluded.value""",
+            (key, json.dumps(value, ensure_ascii=False)),
+        )
+
     def setting(self, key: str, default):
         row = self.conn.execute("select value from settings where key = %s", (key,)).fetchone()
         return row["value"] if row else default

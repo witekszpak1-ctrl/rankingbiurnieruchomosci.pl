@@ -1158,3 +1158,40 @@ def test_duplicates_report_merges_brands_with_the_same_nip(flow, tmp_path):
     assert str(moved["brand_id"]) == str(brand_id) and moved["status"] == "published"
     redirects = {r["from_path"] for r in conn.execute("select from_path from listing_redirects").fetchall()}
     assert f"/{row['city_slug']}/agencja-duplikat" in redirects
+
+
+def test_guard_compare_flags_jumps_bad_names_duplicates_and_unconfirmed_share():
+    from katalog_worker.guard import compare
+
+    before = {"cities": {"Szczyrk": 6, "Kraków": 60}, "duplicate_groups": 2, "bad_names": ["Home"], "unconfirmed_pct": 40.0}
+    ok = {"cities": {"Szczyrk": 7, "Kraków": 64}, "duplicate_groups": 2, "bad_names": ["Home"], "unconfirmed_pct": 42.0}
+    assert compare(before, ok) == []
+    assert compare(None, {**ok, "bad_names": ["Strona główna"]}) == []  # pierwszy przebieg zapisuje stan
+    bad = {"cities": {"Szczyrk": 86, "Kraków": 60, "Nowe Miasto": 12}, "duplicate_groups": 3,
+           "bad_names": ["Home", "Strona główna"], "unconfirmed_pct": 46.0}
+    problems = compare(before, bad)
+    assert any("Szczyrk: liczba biur 6 -> 86" in p for p in problems)
+    assert any("Nowe Miasto" in p for p in problems)
+    assert any("NIP-em lub domeną: 2 -> 3" in p for p in problems)
+    assert any("Strona główna" in p for p in problems) and not any("Home," in p for p in problems)
+    assert any("bez rejestru" in p for p in problems)
+
+
+def test_guard_blocks_publishing_until_accepted(flow):
+    from katalog_worker.guard import run_guard
+    from katalog_worker.pipeline import stage_extra_cities, stage_publish_ready
+
+    ctx = flow["ctx"]
+    repo = ctx.repo
+    _published_listing(flow)
+    assert run_guard(repo)["ok"]  # stan wyjściowy
+    snapshot = repo.setting("guard_snapshot", None)
+    repo.set_setting("guard_snapshot", {**snapshot, "duplicate_groups": -1})  # udajemy nową grupę duplikatów
+    repo.conn.commit()
+    result = run_guard(repo)
+    assert not result["ok"] and result["problems"]
+    assert stage_publish_ready(ctx) == {"auto_publish": "wstrzymane przez kontrolę (katalog guard)"}
+    assert stage_extra_cities(ctx) == {"extra_cities": "wstrzymane przez kontrolę (katalog guard)"}
+    assert run_guard(repo, accept=True)["accepted"]
+    assert repo.setting("guard_block", None) is None
+    assert "auto_publish" not in stage_publish_ready(ctx)

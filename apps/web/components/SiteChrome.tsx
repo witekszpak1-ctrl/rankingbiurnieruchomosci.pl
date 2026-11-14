@@ -66,6 +66,12 @@ export async function SiteFooter() {
             <li>
               <Link href="/metodologia">Jak powstaje ranking</Link>
             </li>
+            <li>
+              <Link href="/raporty/prowizje-biur-nieruchomosci-2026">Prowizje biur 2026</Link>
+            </li>
+            <li>
+              <Link href="/poradnik/jak-sprawdzic-biuro-nieruchomosci">Jak sprawdzić biuro</Link>
+            </li>
           </ul>
         </div>
         <div>

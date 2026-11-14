@@ -9,7 +9,7 @@ on:
       report:
         description: "Który raport"
         type: choice
-        options: [miasta, nazwy, duplikaty]
+        options: [miasta, nazwy, duplikaty, kontrola-akceptuj]
         default: miasta
       apply:
         description: "Zapisz zmiany (tylko po zgodzie właściciela na raport)"
@@ -55,5 +55,8 @@ jobs:
         env:
           APPLY: ${{ inputs.apply && '--apply' || '' }}
         run: katalog duplicates-report --out queue/results/reports $APPLY
+      - name: Zatwierdzenie stanu katalogu po zapisie albo na życzenie
+        if: inputs.apply || inputs.report == 'kontrola-akceptuj'
+        run: katalog guard --accept
       - name: Zapis raportu w repozytorium kolejki
         run: bash scripts/queue_sync.sh push-results
