@@ -30,6 +30,9 @@
 }
 
 * { box-sizing: border-box; }
+/* bez przewijania w bok na telefonie (np. gdy animowana karta na chwilę wyjedzie za krawędź). Tylko na body:
+   przeglądarka przenosi to na całe okno, więc przyklejony pasek u góry i blokada przewijania pod menu działają */
+body { overflow-x: clip; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -686,7 +689,9 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 
 @media (max-width: 900px) {
   .hero-grid { grid-template-columns: minmax(0, 1fr); }
-  .showcase { min-height: 450px; }
+  /* karta przy zmianie profilu przesuwa się i obraca: na wąskim ekranie przycinamy ją w poziomie, żeby nie
+     wyjeżdżała za krawędź (Safari na iPhonie pozwalał wtedy przesuwać stronę w bok) */
+  .showcase { min-height: 450px; overflow-x: clip; overflow-clip-margin: 12px; }
   .showcase-card, .showcase-ghost { right: 50%; transform: translateX(50%); }
   .showcase-ghost.g1 { transform: translateX(50%) translate(-26px, 18px) rotate(-5deg); }
   .showcase-ghost.g2 { transform: translateX(50%) translate(-50px, 34px) rotate(-10deg); }
