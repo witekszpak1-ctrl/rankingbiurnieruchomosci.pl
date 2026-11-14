@@ -319,10 +319,12 @@ export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
 
 export async function homeStats(): Promise<{ firms: number; cities: number; offers: number; withPrices: number }> {
   const rows = await query<{ firms: number; cities: number; offers: number; withPrices: number }>(
-    `select (select count(*)::int from listings where status = 'published') as firms,
+    // Firma z wpisami w kilku miastach liczy się raz, a jej oferty nie są mnożone przez liczbę miast.
+    `select (select count(distinct brand_id)::int from listings where status = 'published') as firms,
             (select count(distinct city_id)::int from listings where status = 'published') as cities,
-            (select count(*)::int from offers o join listings l on l.brand_id = o.brand_id and l.status = 'published'
-              where o.is_active and o.last_seen_at > now() - interval '14 days') as offers,
+            (select count(*)::int from offers o
+              where o.is_active and o.last_seen_at > now() - interval '14 days'
+                and exists (select 1 from listings l where l.brand_id = o.brand_id and l.status = 'published')) as offers,
             (select count(distinct p.brand_id)::int from price_items p
               join listings l on l.brand_id = p.brand_id and l.status = 'published' where p.is_current) as "withPrices"`,
   );
