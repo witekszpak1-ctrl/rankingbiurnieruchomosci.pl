@@ -5,7 +5,7 @@ import { operator, SERVICE_HOST } from "@/lib/legal";
 /** Dane operatora serwisu w dokumentach prawnych. Pokazuje tylko pola uzupełnione w konfiguracji. */
 export function OperatorDetails() {
   const op = operator();
-  const ids = [op.nip && `NIP ${op.nip}`, op.regon && `REGON ${op.regon}`, op.krs && `KRS ${op.krs}`].filter(Boolean);
+  const ids = [op.nip && `NIP ${op.nip}`, op.regon && `REGON ${op.regon}`, op.krs && `KRS ${op.krs}`, op.regNo && `nr rej. ${op.regNo}`].filter(Boolean);
   return (
     <>
       {op.name ? <strong>{op.name}</strong> : <strong>operator serwisu {SERVICE_HOST}</strong>}

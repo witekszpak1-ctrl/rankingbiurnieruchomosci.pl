@@ -376,6 +376,10 @@ export default async function PrivacyPolicyPage() {
 
         <h2 id="poza-eog">4. Przekazywanie danych poza Europejski Obszar Gospodarczy</h2>
         <p>
+          Administrator ma siedzibę w Tajlandii, czyli poza EOG. Dane przechowujemy na serwerach dostawców wymienionych
+          wyżej, a administrator ma do nich dostęp z Tajlandii.
+        </p>
+        <p>
           Część dostawców ma siedzibę w USA. Przekazanie danych do USA odbywa się na podstawie decyzji Komisji Europejskiej
           stwierdzającej odpowiedni stopień ochrony (EU-US Data Privacy Framework) w przypadku firm, które przystąpiły do tego
           programu, albo na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską (art. 46 ust. 2

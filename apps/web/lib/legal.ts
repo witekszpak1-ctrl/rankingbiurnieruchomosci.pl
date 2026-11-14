@@ -5,6 +5,7 @@
  *   OPERATOR_NAME     pełna nazwa (firma albo imię i nazwisko z nazwą działalności)
  *   OPERATOR_ADDRESS  adres siedziby lub miejsca wykonywania działalności
  *   OPERATOR_NIP      NIP (nieobowiązkowo), OPERATOR_REGON (nieobowiązkowo), OPERATOR_KRS (nieobowiązkowo)
+ *   OPERATOR_REG_NO   numer w rejestrze firm poza Polską (nieobowiązkowo)
  *   NEXT_PUBLIC_CONTACT_EMAIL  adres e-mail do kontaktu (także w sprawach danych osobowych)
  */
 
@@ -23,6 +24,7 @@ export type Operator = {
   nip: string | null;
   regon: string | null;
   krs: string | null;
+  regNo: string | null;
   email: string | null;
 };
 
@@ -33,15 +35,18 @@ function env(key: string): string | null {
 
 /** Domyślne dane administratora serwisu, gdy w Vercelu nie ustawiono zmiennych OPERATOR_*. */
 export const DEFAULT_OPERATOR_NAME = "Luk Chok";
+export const DEFAULT_OPERATOR_ADDRESS = "11/4 Moo 4, Maenam, Koh Samui, Surat Thani 84330, Tajlandia";
+export const DEFAULT_OPERATOR_REG_NO = "0845568016111";
 export const DEFAULT_CONTACT_EMAIL = "info@rankingbiurnieruchomosci.pl";
 
 export function operator(): Operator {
   return {
     name: env("OPERATOR_NAME") ?? DEFAULT_OPERATOR_NAME,
-    address: env("OPERATOR_ADDRESS"),
+    address: env("OPERATOR_ADDRESS") ?? DEFAULT_OPERATOR_ADDRESS,
     nip: env("OPERATOR_NIP"),
     regon: env("OPERATOR_REGON"),
     krs: env("OPERATOR_KRS"),
+    regNo: env("OPERATOR_REG_NO") ?? DEFAULT_OPERATOR_REG_NO,
     email: CONTACT_EMAIL || DEFAULT_CONTACT_EMAIL,
   };
 }

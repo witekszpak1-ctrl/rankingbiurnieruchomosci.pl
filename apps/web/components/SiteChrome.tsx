@@ -88,6 +88,7 @@ export async function SiteFooter() {
           © {new Date().getFullYear()} {SITE_NAME}. Administrator serwisu: {op.name}
           {op.address && <>, {op.address}</>}
           {op.nip && <>, NIP {op.nip}</>}
+          {op.regNo && <>, nr rej. {op.regNo}</>}
           {op.email && (
             <>
               , <a href={`mailto:${op.email}`}>{op.email}</a>
