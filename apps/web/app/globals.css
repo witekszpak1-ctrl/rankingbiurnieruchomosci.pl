@@ -713,3 +713,23 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .stars-mini > span::before { content: "★★★★★"; }
 .fc-thumb .firm-img.md.logo { background: #fff; color: var(--fg); }
 .fc-thumb .firm-img.logo img { padding: 14%; }
+
+/* menu na telefonie */
+.mnav { display: none; }
+.mnav-btn { display: inline-flex; flex-direction: column; justify-content: center; gap: 5px; width: 44px; height: 44px; padding: 0 11px; border: 1px solid var(--night-line); border-radius: 12px; background: transparent; cursor: pointer; }
+.mnav-btn span { display: block; height: 2px; border-radius: 1px; background: #fff; transition: transform 0.2s, opacity 0.2s; }
+.mnav-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.mnav-btn.open span:nth-child(2) { opacity: 0; }
+.mnav-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.mnav-panel { position: fixed; left: 0; right: 0; top: 60px; bottom: 0; z-index: 30; overflow-y: auto; background: var(--night); border-top: 1px solid var(--night-line); padding: 10px max(16px, env(safe-area-inset-left, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)); }
+.mnav-panel[hidden] { display: none; }
+.mnav-panel ul { list-style: none; margin: 0; padding: 0; }
+.mnav-panel li a { display: block; padding: 14px 4px; border-bottom: 1px solid var(--night-line); color: #fff; text-decoration: none; font-family: var(--display); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.01em; }
+.mnav-panel li a[aria-current="page"] { color: var(--yellow); }
+.mnav-cta { display: flex; justify-content: center; gap: 8px; margin-top: 22px; padding: 14px; border-radius: 999px; background: var(--yellow); color: var(--fg); font-weight: 700; text-decoration: none; }
+body.mnav-lock { overflow: hidden; }
+@media (max-width: 640px) {
+  .mnav { display: block; }
+  .header-cta { margin-left: auto; }
+}
+@media (max-width: 360px) { .header-cta { display: none; } .mnav { margin-left: auto; } }

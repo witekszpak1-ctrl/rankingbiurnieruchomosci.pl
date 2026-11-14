@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CookieSettingsLink } from "@/components/CookieConsent";
 import { Logo, LogoMark } from "@/components/Logo";
+import { MobileNav } from "@/components/MobileNav";
 import { listCities } from "@/lib/catalog";
 import { operator } from "@/lib/legal";
 import { SITE_NAME } from "@/lib/format";
@@ -24,6 +25,7 @@ export function SiteHeader() {
         <Link className="header-cta" href="/#szukaj">
           Znajdź biuro
         </Link>
+        <MobileNav />
       </div>
     </header>
   );
