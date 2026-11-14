@@ -523,8 +523,8 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .agency-card, .offer-tile, .steps li, .why-list li, .faq details, .city-grid a, .top3-card, .city-stats li, .info-grid > div, .lead, .claim-form {
   background: var(--card); box-shadow: none;
 }
-.agency-card:hover, a.top3-card:hover, .city-grid a:hover, .offer-tile:hover, .mock-agent:hover {
-  border-color: var(--fg); transform: translate(-2px, -2px); box-shadow: 5px 5px 0 0 var(--yellow);
+.agency-card:hover, a.top3-card:hover, .city-grid a:hover, .offer-tile:hover {
+  border-color: var(--yellow); transform: translateY(-2px); box-shadow: 0 0 0 3px rgba(246, 205, 43, 0.2), 0 14px 30px -12px rgba(246, 205, 43, 0.65);
 }
 .section.soft, .band { background: var(--paper-2); }
 .top3-rank { background: var(--paper-2); color: var(--fg); }
@@ -615,8 +615,8 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 /* lista biur na stronie miasta: karty z podświetleniem po najechaniu */
 .firm-list { list-style: none; padding: 0; margin: 18px 0; display: flex; flex-direction: column; gap: 14px; }
 .firm-card { position: relative; display: grid; grid-template-columns: 190px minmax(0, 1fr) 210px; background: var(--card); border: 1.5px solid transparent; border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 0 var(--line); transition: transform 0.2s cubic-bezier(0.3, 0.7, 0.2, 1), box-shadow 0.2s, border-color 0.2s, opacity 0.25s; }
-.firm-card:hover, .firm-card:focus-within { border-color: var(--fg); transform: translate(-3px, -3px); box-shadow: 6px 6px 0 0 var(--yellow); }
-@media (hover: hover) { .firm-list:hover .firm-card:not(:hover) { opacity: 0.62; } }
+.firm-card:hover, .firm-card:focus-within { border-color: var(--yellow); transform: translateY(-2px); box-shadow: 0 0 0 3px rgba(246, 205, 43, 0.2), 0 14px 30px -12px rgba(246, 205, 43, 0.65); }
+@media (hover: hover) { .firm-list:hover .firm-card:not(:hover) { opacity: 0.72; } }
 .fc-thumb { position: relative; background: var(--paper-2); min-height: 150px; }
 .fc-thumb .firm-img.md { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 0; font-size: 2.2rem; background: var(--fg); color: var(--yellow); font-family: var(--display); }
 .fc-thumb .firm-img img { transition: transform 0.4s cubic-bezier(0.3, 0.7, 0.2, 1); }

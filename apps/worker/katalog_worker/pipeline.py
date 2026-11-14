@@ -1623,6 +1623,17 @@ def stage_duplicates_report(ctx: Context, out_dir: str, apply: bool = False) -> 
                 continue
             b, k = brands[brand_id], brands[keep]
             same_city = bool({x["city_id"] for x in b["listings"]} & {x["city_id"] for x in k["listings"]})
+            if _branch_names(b["brand_name"], k["brand_name"], city_words):
+                # "Metrohouse Białogard" i "Metrohouse Szczecinek": ten sam NIP, ale osobne biura z własnymi stronami.
+                counts["review"] += 1
+                rows.append({
+                    "biuro": b["brand_name"], "domena": b["host"] or "", "nip": b["nip"] or "",
+                    "miasta": ", ".join(x["city_name"] for x in b["listings"]),
+                    "scal_z": k["brand_name"], "scal_z_domena": k["host"] or "", "powod": reasons.get(brand_id, ""),
+                    "decyzja": "do przeglądu (oddziały w różnych miastach)",
+                    "profile": " ".join(f"/{x['city_slug']}/{x['slug']}" for x in b["listings"]),
+                })
+                continue
             if not (_names_alike(b["brand_name"], k["brand_name"], city_words) or same_city):
                 # Ten sam NIP przy zupełnie innych nazwach w innych miastach: często sieć franczyzowa z NIP-em centrali.
                 counts["review"] += 1
@@ -1680,6 +1691,14 @@ def _names_alike(a: str, b: str, city_words: set[str]) -> bool:
     def significant(name: str) -> set[str]:
         return {t for t in _tokens(name) if len(t) > 2 and t not in _NAME_FILLER and t not in city_words}
     return bool(significant(a) & significant(b))
+
+
+def _branch_names(a: str, b: str, city_words: set[str]) -> bool:
+    """Czy nazwy wskazują dwa oddziały: każda zawiera nazwę innego miasta ("Metrohouse Białogard", "Metrohouse Szczecinek")."""
+    def cities(name: str) -> set[str]:
+        return {t for t in _tokens(name) if len(t) >= 4 and t in city_words and t not in _NAME_FILLER}
+    ca, cb = cities(a), cities(b)
+    return bool(ca) and bool(cb) and not (ca & cb)
 
 
 def _merge_brand(repo: Repo, dup: dict, keep: dict, counts: Counter) -> None:
