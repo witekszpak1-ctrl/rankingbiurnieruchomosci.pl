@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { OfferCitySelect } from "@/components/OfferCitySelect";
 import { PublicShell } from "@/components/SiteChrome";
 import { listOffersPage, offerCities } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
@@ -52,16 +53,20 @@ export default async function OffersPage({ searchParams }: Props) {
       </p>
 
       {cities.length > 1 && (
-        <p className="chips-inline">
-          <b>Biura z miasta: </b>
-          {citySlug ? <Link href="/oferty">wszystkie</Link> : <b>wszystkie</b>}
-          {cities.map((c) => (
-            <span key={c.slug}>
-              {" · "}
-              {c.slug === citySlug ? <b>{c.name}</b> : <Link href={`/oferty?miasto=${c.slug}`}>{c.name}</Link>} ({c.n})
-            </span>
-          ))}
-        </p>
+        <form className="filter-bar" action="/oferty" method="get">
+          <div className="search-field">
+            <label htmlFor="miasto">Biura z miasta</label>
+            <OfferCitySelect cities={cities} value={citySlug} />
+          </div>
+          <noscript>
+            <button type="submit">Pokaż oferty</button>
+          </noscript>
+          {city && (
+            <Link className="filter-reset" href="/oferty">
+              Wszystkie miasta
+            </Link>
+          )}
+        </form>
       )}
 
       {offers.length > 0 && (
