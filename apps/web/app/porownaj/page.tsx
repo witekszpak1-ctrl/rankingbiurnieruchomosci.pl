@@ -100,7 +100,7 @@ export default async function ComparePage({ searchParams }: Props) {
                 {cards.map((c) => (
                   <td key={c.listingId}>
                     <Link className="compare-go" href={`/${c.citySlug}/${c.slug}#zapytanie`}>
-                      Zapytaj bezpłatnie
+                      Zapytaj o ofertę
                     </Link>
                   </td>
                 ))}

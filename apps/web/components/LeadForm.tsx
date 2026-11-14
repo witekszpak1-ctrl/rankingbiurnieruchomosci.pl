@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { submitLeadAction } from "@/app/[city]/[firm]/actions";
+import { LeadTopicMessage } from "@/components/LeadTopicMessage";
 import { TrackEvent } from "@/components/TrackEvent";
+import { leadMessage } from "@/lib/lead-message";
 import { operator } from "@/lib/legal";
 import { LEAD_TOPICS, TOPIC_LABEL } from "@/lib/leads";
 import { RETENTION_MONTHS } from "@/lib/legal";
@@ -20,6 +22,8 @@ const ERRORS: Record<string, string> = {
 type Props = {
   listingId: string;
   firmName: string;
+  /** Miasto z przyimkiem ("w Krakowie") do gotowej wiadomości. */
+  where: string;
   path: string;
   sent: boolean;
   eventId?: string;
@@ -27,13 +31,15 @@ type Props = {
   imageSlot?: React.ReactNode;
 };
 
-export function LeadForm({ listingId, firmName, path, sent, eventId, error, imageSlot }: Props) {
+export function LeadForm({ listingId, firmName, where, path, sent, eventId, error, imageSlot }: Props) {
+  const messages: Record<string, string> = { "": leadMessage("", where) };
+  for (const t of LEAD_TOPICS) messages[t] = leadMessage(t, where);
   return (
     <section id="zapytanie" className="lead">
       <div className="lead-head">
         {imageSlot}
         <div>
-          <span className="lead-kicker">Napisz do biura</span>
+          <span className="lead-kicker">Zapytaj o ofertę</span>
           <h2>{firmName}</h2>
         </div>
       </div>
@@ -51,41 +57,27 @@ export function LeadForm({ listingId, firmName, path, sent, eventId, error, imag
             <label htmlFor="website">Strona</label>
             <input id="website" name="website" tabIndex={-1} autoComplete="off" />
           </div>
-          <div className="lead-field full">
-            <label htmlFor="topic">W jakiej sprawie</label>
-            <select id="topic" name="topic" required defaultValue="">
-              <option value="" disabled>
-                wybierz
-              </option>
-              {LEAD_TOPICS.map((t) => (
-                <option key={t} value={t}>
-                  {TOPIC_LABEL[t]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="lead-field">
-            <label htmlFor="name">Imię</label>
-            <input id="name" name="name" autoComplete="given-name" required maxLength={100} />
-          </div>
-          <div className="lead-field">
-            <label htmlFor="email">E-mail</label>
-            <input id="email" name="email" type="email" autoComplete="email" required maxLength={254} />
-          </div>
-          <div className="lead-field full">
-            <label htmlFor="phone">Telefon (opcjonalnie)</label>
-            <input id="phone" name="phone" type="tel" autoComplete="tel" maxLength={30} />
-          </div>
-          <div className="lead-field full">
-            <label htmlFor="message">Wiadomość</label>
-            <textarea id="message" name="message" rows={5} required minLength={10} maxLength={2000} />
-          </div>
+          <p className="lead-intro full">Bezpłatnie i bez zobowiązań. Wiadomość jest już wpisana: wybierz sprawę i podaj kontakt.</p>
+          <LeadTopicMessage topics={LEAD_TOPICS.map((t): [string, string] => [t, TOPIC_LABEL[t]])} messages={messages}>
+            <div className="lead-field">
+              <label htmlFor="name">Imię</label>
+              <input id="name" name="name" autoComplete="given-name" required maxLength={100} />
+            </div>
+            <div className="lead-field">
+              <label htmlFor="email">E-mail</label>
+              <input id="email" name="email" type="email" autoComplete="email" required maxLength={254} />
+            </div>
+            <div className="lead-field full">
+              <label htmlFor="phone">Telefon (opcjonalnie)</label>
+              <input id="phone" name="phone" type="tel" autoComplete="tel" maxLength={30} />
+            </div>
+          </LeadTopicMessage>
           <label className="lead-consent full">
             <input type="checkbox" name="consent" required /> Zgadzam się na przekazanie moich danych z tego formularza do
             biura {firmName} w celu odpowiedzi na zapytanie.
           </label>
           <button className="lead-submit" type="submit">
-            Zapytaj bezpłatnie
+            Zapytaj o ofertę
           </button>
           <p className="lead-note full">
             Dane przekażemy tylko temu biuru, w celu odpowiedzi na zapytanie, a z naszej bazy usuniemy je automatycznie po{" "}

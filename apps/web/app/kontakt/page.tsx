@@ -53,7 +53,7 @@ export default function ContactPage() {
           e-mail. Szczegóły w <Link href="/polityka-prywatnosci#prawa">polityce prywatności</Link>.
         </li>
         <li>
-          <b>Zapytanie do konkretnego biura:</b> formularz „Zapytaj bezpłatnie” na profilu tego biura. Wiadomość trafia
+          <b>Zapytanie do konkretnego biura:</b> formularz „Zapytaj o ofertę” na profilu tego biura. Wiadomość trafia
           prosto do biura.
         </li>
         <li>

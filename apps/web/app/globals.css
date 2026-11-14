@@ -330,7 +330,27 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4
 .lead-field input, .lead-field select, .lead-field textarea { border: 1px solid #dcdfe6; background: #fff; font: inherit; }
 .lead-submit { width: 100%; justify-self: stretch; padding: 14px 20px; font-size: 1.05rem; background: var(--green); }
 .lead-note { margin: 0; color: var(--muted); font-size: 0.8rem; }
+.lead-intro { grid-column: 1 / -1; margin: -6px 0 2px; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .lead-note.full { grid-column: 1 / -1; }
+/* skok do formularza nie chowa jego początku pod przyklejonym paskiem u góry */
+.lead { scroll-margin-top: 80px; }
+/* przyklejony przycisk zapytania w profilu firmy: tylko w jednej kolumnie, gdy formularz nie stoi obok treści */
+.sticky-cta { display: none; }
+@media (max-width: 960px) {
+  .sticky-cta {
+    display: block; position: fixed; z-index: 25; left: 0; right: 0; bottom: 0;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgba(250, 249, 246, 0.96); border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(16, 23, 51, 0.08);
+    transition: transform 0.25s, visibility 0.25s;
+  }
+  .sticky-cta[data-hidden="true"] { transform: translateY(110%); visibility: hidden; }
+  .sticky-cta .btn-green { width: 100%; justify-content: center; padding: 14px 20px; font-size: 1.05rem; }
+  /* miejsce na przycisk pod stopką, żeby nie zasłaniał jej końca */
+  body:has(.sticky-cta) { padding-bottom: 76px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticky-cta { transition: none; }
+}
 @media (max-width: 960px) {
   .profile-grid { grid-template-columns: 1fr; }
   .profile-aside { position: static; margin-top: 10px; }
