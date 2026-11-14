@@ -1378,6 +1378,9 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
     for r, d in zip(rows, decisions):
         if d.postcode and d.city and _fold(d.city) == _fold(r["city_name"]):
             city_codes.setdefault(_fold(d.city), Counter())[d.postcode[:2]] += 1
+    # Firma z wpisami głównymi w kilku miastach (sieć, oddziały z jednym NIP-em po scaleniu duplikatów): jedna
+    # siedziba z rejestru nie oznacza, że biuro w drugim mieście nie istnieje, więc takie przeniesienia do przeglądu.
+    listings_per_brand = Counter(str(r["brand_id"]) for r in rows)
     for row, decision in zip(rows, decisions):
         listing_id, brand_id = str(row["id"]), str(row["brand_id"])
         current = row["city_name"]
@@ -1401,6 +1404,9 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
             after[current] += 1
         elif names_current:
             verdict = "do przeglądu (nazwa lub domena biura wskazuje obecne miasto)"
+            after[current] += 1
+        elif listings_per_brand[brand_id] > 1:
+            verdict = "do przeglądu (firma ma wpisy w kilku miastach)"
             after[current] += 1
         elif decision.postcode and sum(codes.values()) >= 2 and decision.postcode[:2] not in codes:
             verdict = "do przeglądu (kod pocztowy nie pasuje do miasta)"
