@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CookieSettingsLink } from "@/components/CookieConsent";
 import { Logo, LogoMark } from "@/components/Logo";
 import { listCities } from "@/lib/catalog";
+import { operator } from "@/lib/legal";
 import { SITE_NAME } from "@/lib/format";
 
 export { Logo, LogoMark };
@@ -30,6 +31,7 @@ export function SiteHeader() {
 
 export async function SiteFooter() {
   const cities = await listCities().catch(() => []);
+  const op = operator();
   return (
     <footer className="site-footer">
       <div className="wrap footer-grid">
@@ -83,7 +85,14 @@ export async function SiteFooter() {
       </div>
       <div className="wrap footer-bottom">
         <span>
-          © {new Date().getFullYear()} {SITE_NAME}
+          © {new Date().getFullYear()} {SITE_NAME}. Administrator serwisu: {op.name}
+          {op.address && <>, {op.address}</>}
+          {op.nip && <>, NIP {op.nip}</>}
+          {op.email && (
+            <>
+              , <a href={`mailto:${op.email}`}>{op.email}</a>
+            </>
+          )}
         </span>
         <nav className="footer-legal" aria-label="Informacje prawne">
           <Link href="/regulamin">Regulamin</Link>

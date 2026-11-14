@@ -31,14 +31,18 @@ function env(key: string): string | null {
   return value ? value : null;
 }
 
+/** Domyślne dane administratora serwisu, gdy w Vercelu nie ustawiono zmiennych OPERATOR_*. */
+export const DEFAULT_OPERATOR_NAME = "Luk Chok";
+export const DEFAULT_CONTACT_EMAIL = "info@rankingbiurnieruchomosci.pl";
+
 export function operator(): Operator {
   return {
-    name: env("OPERATOR_NAME"),
+    name: env("OPERATOR_NAME") ?? DEFAULT_OPERATOR_NAME,
     address: env("OPERATOR_ADDRESS"),
     nip: env("OPERATOR_NIP"),
     regon: env("OPERATOR_REGON"),
     krs: env("OPERATOR_KRS"),
-    email: CONTACT_EMAIL || null,
+    email: CONTACT_EMAIL || DEFAULT_CONTACT_EMAIL,
   };
 }
 

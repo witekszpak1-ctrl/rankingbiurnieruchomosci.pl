@@ -2,7 +2,7 @@ import type { PriceRow } from "./catalog";
 
 export const SITE_URL = (process.env.SITE_URL ?? "https://rankingbiurnieruchomosci.pl").replace(/\/+$/, "");
 export const SITE_NAME = "Ranking biur nieruchomości";
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "";
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "info@rankingbiurnieruchomosci.pl";
 
 export function formatDate(value: Date | string | null | undefined): string {
   if (!value) return "brak danych";
