@@ -23,7 +23,7 @@ export function TopThree({ firms }: { firms: TopFirm[] }) {
         const body = (
           <>
             <span className={`top3-rank r${f.position}`}>{MEDAL[f.position - 1] ?? `${f.position}. miejsce`}</span>
-            <FirmImage src={f.logoUrl} kind="logo" name={f.name} size="sm" />
+            <FirmImage src={f.logoUrl} kind="logo" name={f.name} alt={`Logo ${f.name}`} size="sm" />
             <b className="top3-name">{f.name}</b>
             {f.sub && <span className="top3-sub">{f.sub}</span>}
             <span className="top3-score">

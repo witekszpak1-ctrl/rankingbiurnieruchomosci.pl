@@ -537,7 +537,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
               sent={sp.sent === "1"}
               eventId={typeof sp.eid === "string" ? sp.eid : undefined}
               error={typeof sp.error === "string" ? sp.error : null}
-              imageSlot={<FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="sm" />}
+              imageSlot={<FirmImage src={listing.logoUrl} kind="logo" name={listing.name} alt={`Logo ${listing.name}`} size="sm" />}
             />
           </aside>
         </div>

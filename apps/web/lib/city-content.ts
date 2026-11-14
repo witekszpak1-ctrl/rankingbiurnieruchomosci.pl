@@ -42,6 +42,21 @@ const SERVICE_GROUPS: { key: string; label: string; re: RegExp }[] = [
   { key: "valuation", label: "wycena nieruchomości", re: /wycen/i },
 ];
 
+/** Grupy usług każdej firmy (sale, rent, management, ...), do filtrów na stronie miasta. */
+export function brandServiceGroups(services: CityData["services"]): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const s of services) {
+    for (const g of SERVICE_GROUPS) {
+      if (g.re.test(s.service)) {
+        const set = out.get(s.brandId) ?? new Set<string>();
+        set.add(g.key);
+        out.set(s.brandId, set);
+      }
+    }
+  }
+  return out;
+}
+
 /** Ile biur deklaruje usługi z danej grupy (najczęstsze najpierw). */
 export function serviceGroups(services: CityData["services"]): { label: string; count: number }[] {
   return SERVICE_GROUPS.map((g) => ({
@@ -103,7 +118,7 @@ export function commissionSection(d: CityData): CommissionSection {
     );
   } else {
     sentences.push(
-      `${withPrices} z ${nBiur(n)} ${where} ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług, a ${saleFirms} ${plural(saleFirms, "podaje", "podają", "podaje")} procentową prowizję od sprzedaży, którą da się porównać.`,
+      `${withPrices} z ${nBiurGen(n)} ${where} ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług, a ${saleFirms} ${plural(saleFirms, "podaje", "podają", "podaje")} procentową prowizję od sprzedaży, którą da się porównać.`,
     );
     if (d.median != null && d.medianN >= PRICE_STAT_MIN) {
       sentences.push(
@@ -149,7 +164,7 @@ export function choosingGuide(d: CityData): string[] {
     }`,
     `Zapytaj o prowizję i o to, co obejmuje: sesję zdjęciową, publikację ogłoszeń, prezentacje, negocjacje, pomoc przy dokumentach i kredycie. ${
       withPrices > 0
-        ? `Cennik publikuje ${withPrices} z ${nBiur(n)}, u pozostałych stawkę poznasz dopiero w rozmowie.`
+        ? `Cennik publikuje ${withPrices} z ${nBiurGen(n)}, u pozostałych stawkę poznasz dopiero w rozmowie.`
         : "Biura w tym mieście nie publikują cenników, więc poproś o stawkę na piśmie przed podpisaniem umowy."
     } Sprawdź, czy kwota jest netto, brutto czy powiększona o VAT.`,
     `Przeczytaj umowę pośrednictwa przed podpisaniem: czy jest na wyłączność, na jak długo, z jakim okresem wypowiedzenia i kiedy należy się wynagrodzenie. Umowa na wyłączność bywa korzystna, ale tylko wtedy, gdy biuro jasno opisuje, co w zamian zrobi.`,
@@ -157,7 +172,7 @@ export function choosingGuide(d: CityData): string[] {
     `Na koniec sprawdź firmę w rejestrze. ${
       confirmed === n
         ? `Wszystkie biura z tej listy potwierdziliśmy numerem NIP w rejestrach publicznych.`
-        : `${confirmed} z ${nBiur(n)} ${where} potwierdziliśmy numerem NIP w rejestrach; przy pozostałych poproś o NIP i sprawdź go w wykazie podatników VAT.`
+        : `${confirmed} z ${nBiurGen(n)} ${where} potwierdziliśmy numerem NIP w rejestrach; przy pozostałych poproś o NIP i sprawdź go w wykazie podatników VAT.`
     }`,
   ];
   return paragraphs;
@@ -195,15 +210,15 @@ export function cityFaq(d: CityData): FaqItem[] {
     q: `Czy wszystkie biura nieruchomości ${where} publikują cenniki?`,
     a:
       withPrices === 0
-        ? `Nie. Żadne z ${nBiur(n)} w naszym katalogu nie podaje stawek na stronie.`
+        ? `Nie. Żadne z ${nBiurGen(n)} w naszym katalogu nie podaje stawek na stronie.`
         : withPrices === n
           ? `Tak, wszystkie ${nBiur(n)} w naszym katalogu podają ceny usług na swoich stronach.`
-          : `Nie. Ceny usług na swojej stronie podaje ${withPrices} z ${nBiur(n)} w naszym katalogu. Jawny cennik jest jednym z parametrów rankingu.`,
+          : `Nie. Ceny usług na swojej stronie podaje ${withPrices} z ${nBiurGen(n)} w naszym katalogu. Jawny cennik jest jednym z parametrów rankingu.`,
   });
   faq.push({
     q: "Jak sprawdzić wiarygodność biura nieruchomości?",
     a: `Poproś o NIP i sprawdź go w wykazie podatników VAT lub w KRS, przeczytaj umowę pośrednictwa i zapytaj o ubezpieczenie OC. W naszym katalogu ${
-      confirmed === n ? "wszystkie biura z tego miasta mają" : `${confirmed} z ${nBiur(n)} ${where} ma`
+      confirmed === n ? "wszystkie biura z tego miasta mają" : `${confirmed} z ${nBiurGen(n)} ${where} ma`
     } potwierdzenie w rejestrze, oznaczone na profilu.`,
   });
   faq.push({

@@ -9,6 +9,7 @@ export type CityRow = { slug: string; name: string; listings: number };
 
 export type ListingCard = {
   listingId: string;
+  brandId: string;
   slug: string;
   name: string;
   host: string | null;
@@ -79,7 +80,7 @@ export type ListingDetail = ListingCard & {
 };
 
 const CARD_SQL = `
-  select l.id as "listingId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl", b.image_kind as "imageKind",
+  select l.id as "listingId", b.id as "brandId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl", b.image_kind as "imageKind",
     coalesce(b.logo_url, case when b.image_kind <> 'og' then b.image_url end, b.image_url) as "logoUrl",
     b.cover_url as "coverUrl",
     (select g.rating::float8 from google_places g where g.brand_id = b.id and g.status = 'ok') as "googleRating",
@@ -190,8 +191,7 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
   const dates = [card.publishedAt, descriptionDates[0]?.createdAt, ...prices.map((p) => p.observedAt)]
     .filter((d): d is Date => d instanceof Date)
     .map((d) => d.getTime());
-  const { brandId: _brandId, verticalId: _verticalId, ...rest } = card;
-  void _brandId;
+  const { verticalId: _verticalId, ...rest } = card;
   void _verticalId;
   return {
     ...rest,
@@ -269,7 +269,6 @@ export async function listPublishedPaths(): Promise<SitemapEntry[]> {
 
 export type TopListing = ListingCard & { cityName: string; citySlug: string };
 
-/** Opublikowane biura ze wszystkich miast (do strony głównej). Ranking liczy strona, tu tylko dane. */
 /** Wszystkie firmy z katalogu, każda raz: z głównego (najwcześniej opublikowanego) wpisu. Ranking ogólnopolski. */
 export async function listAllPublished(): Promise<TopListing[]> {
   return query<TopListing>(
@@ -278,6 +277,23 @@ export async function listAllPublished(): Promise<TopListing[]> {
        select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
        order by l1.published_at nulls last, l1.created_at limit 1)) card
      join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
+  );
+}
+
+export type CompareCard = TopListing & { saleCommission: number | null; services: string[] };
+
+/** Biura do porównania (/porownaj): najwyżej 3 opublikowane wpisy po identyfikatorach. */
+export async function compareCards(ids: string[]): Promise<CompareCard[]> {
+  if (ids.length === 0) return [];
+  return query<CompareCard>(
+    `select card.*, c.name as "cityName", c.slug as "citySlug",
+            (select min(p.amount_min)::float8 from price_items p where p.brand_id = l.brand_id and p.is_current
+               and p.unit = 'percent' and p.service ~* 'sprzeda|kupn' and p.amount_min between 0.5 and 10) as "saleCommission",
+            coalesce((select array_agg(distinct f.value #>> '{}') from facts f
+               where f.brand_id = l.brand_id and f.type = 'service' and f.is_current), '{}') as services
+     from (${CARD_SQL} where l.status = 'published' and l.id = any($1::uuid[])) card
+     join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
+    [ids],
   );
 }
 
