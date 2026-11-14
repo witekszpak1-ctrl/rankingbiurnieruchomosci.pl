@@ -753,3 +753,31 @@ def test_fetch_parallel_uses_clones_and_returns_every_item(monkeypatch):
     Fake.clones = 0
     assert [i for i, _ in _fetch_parallel(Fake(), items, lambda f, i: i)] == items
     assert Fake.clones == 0
+
+
+def test_reverify_confirms_unconfirmed_agency_from_later_subpage(ctx):
+    from katalog_worker.pipeline import stage_reverify
+
+    pages = _agency_without_nip_pages()
+    pages[AGENCY + "polityka-prywatnosci"] = "<html><body><h1>Polityka prywatności</h1><p>Dane są bezpieczne.</p></body></html>"
+    # NIP jest dopiero na podstronie "O nas", którą pobiera crawl-deep, a nie pierwsza weryfikacja.
+    pages[AGENCY + "o-nas/"] = (
+        "<html><head><title>O nas</title></head><body><h1>O nas</h1><p>Przykład Nieruchomości Sp. z o.o., "
+        "pośrednictwo w obrocie nieruchomościami we Wrocławiu. NIP: 123-456-32-18.</p></body></html>"
+    )
+    fetcher = FakeFetcher(pages)
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    assert stage_verify(ctx, make_mf(), make_krs(), 50).get("needs_review") == 1
+    stage_crawl_deep(ctx, fetcher, 10)
+    conn = ctx.repo.conn
+    brand_before = conn.execute("select id, legal_entity_id from brands").fetchone()
+    assert brand_before["legal_entity_id"] is None
+
+    counts = stage_reverify(ctx, make_mf(), make_krs(), 50)
+    assert sum(v for k, v in counts.items() if k.startswith("confirmed_")) == 1
+    brand = conn.execute("select id, legal_entity_id from brands").fetchone()
+    assert brand["id"] == brand_before["id"] and brand["legal_entity_id"] is not None  # ta sama marka, z podmiotem
+    assert conn.execute("select count(*) as n from brands").fetchone()["n"] == 1
+    # drugi raz w ciągu 30 dni tej domeny nie sprawdza
+    assert stage_reverify(ctx, make_mf(), make_krs(), 50) == {"mf_requests": 0}

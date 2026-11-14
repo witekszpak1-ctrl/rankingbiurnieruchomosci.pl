@@ -197,6 +197,32 @@ class Repo:
             (limit,),
         ).fetchall()
 
+    def domains_to_reverify(self, limit: int) -> list[dict]:
+        """Biura bez potwierdzenia w rejestrze (z marką), sprawdzane ponownie najwyżej raz na 30 dni."""
+        return self.conn.execute(
+            """select d.id, d.host, d.canonical_url, d.city_hint, d.classification, d.brand_id from domains d
+               where d.verification_status = 'needs_review' and d.brand_id is not null
+                 and d.classification = 'official'
+                 and (d.reverified_at is null or d.reverified_at < now() - interval '30 days')
+                 and exists (select 1 from crawl_pages p where p.domain_id = d.id)
+               order by d.reverified_at nulls first, d.first_seen_at limit %s""",
+            (limit,),
+        ).fetchall()
+
+    def mark_reverified(self, domain_id: str) -> None:
+        self.conn.execute("update domains set reverified_at = now() where id = %s", (domain_id,))
+
+    def attach_brand_to_entity(self, brand_id: str, legal_entity_id: str) -> bool:
+        """Łączy markę bez podmiotu z podmiotem z rejestru. Nie łączy, gdy podmiot ma już markę o tej nazwie."""
+        row = self.conn.execute(
+            """update brands b set legal_entity_id = %s
+               where b.id = %s and b.legal_entity_id is null
+                 and not exists (select 1 from brands o where o.legal_entity_id = %s and o.name = b.name and o.id <> b.id)
+               returning b.id""",
+            (legal_entity_id, brand_id, legal_entity_id),
+        ).fetchone()
+        return row is not None
+
     def update_domain_verification(
         self, domain_id: str, score: int, status: str, legal_entity_id: str | None, brand_id: str | None,
         reasons: list[str] | None = None,

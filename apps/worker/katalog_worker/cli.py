@@ -136,6 +136,20 @@ def cmd_verify(args) -> int:
     return 0
 
 
+def cmd_reverify(args) -> int:
+    from .pipeline import stage_reverify
+    from .registry import KrsClient, MfVatClient
+    from .repo import DbCache
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        cache = DbCache(conn)
+        mf = MfVatClient(settings.mf_vat_base_url, cache=cache)
+        krs = KrsClient(settings.krs_base_url, cache=cache)
+        _print(stage_reverify(ctx, mf, krs, args.limit))
+    return 0
+
+
 def cmd_crawl_deep(args) -> int:
     from .pipeline import stage_crawl_deep
 
@@ -339,6 +353,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=50)
     p = add("verify", cmd_verify, "S4: NIP -> rejestry -> weryfikacja domeny")
     p.add_argument("--limit", type=int, default=50)
+    p = add("reverify", cmd_reverify, "ponowna weryfikacja biur bez potwierdzenia na wszystkich podstronach")
+    p.add_argument("--limit", type=int, default=100)
     p = add("crawl-deep", cmd_crawl_deep, "S5: kolejne podstrony zweryfikowanych domen")
     p.add_argument("--limit", type=int, default=20)
     p = add("offers", cmd_offers, "najnowsze oferty (tytuł i link) ze stron opublikowanych biur")

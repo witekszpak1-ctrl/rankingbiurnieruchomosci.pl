@@ -450,6 +450,74 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
     return dict(counts)
 
 
+def stage_reverify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 100) -> dict:
+    """Ponowna weryfikacja biur bez potwierdzenia, na wszystkich pobranych podstronach.
+
+    Pierwsza weryfikacja (stage_verify) widzi tylko stronę główną, kontakt i stronę prawną. Podstrony dobrane
+    później (crawl-deep) często podają NIP. Gdy NIP jest w wykazie VAT, marka dostaje podmiot z rejestru,
+    a wpis status zweryfikowanego (opublikowany wpis zostaje opublikowany). Każda domena raz na 30 dni.
+    """
+    repo = ctx.repo
+    vertical_id = repo.ensure_vertical(ctx.vertical)
+    counts: Counter = Counter()
+    loaded: list[tuple[dict, list[PageExtraction], PageExtraction]] = []
+    for row in repo.domains_to_reverify(limit):
+        pages = _load_pages(ctx, row["id"])
+        if not pages:
+            counts["no_snapshots"] += 1  # zrzuty z innego runnera: spróbujemy przy kolejnym przebiegu
+            continue
+        loaded.append((row, pages, merge_extractions(pages)))
+    all_nips = sorted({hit.value for _, _, merged in loaded for hit in merged.nips})
+    lookups = mf.lookup(all_nips) if all_nips else {}
+
+    for row, pages, merged in loaded:
+        domain_id, brand_id = str(row["id"]), str(row["brand_id"])
+        entities = [lookups[h.value].entity for h in merged.nips if h.value in lookups and lookups[h.value].entity]
+        entity = _pick_entity(entities, pages)
+        if entity is None:
+            counts["no_nip" if not merged.nips else "nip_not_in_vat_list"] += 1
+            repo.mark_reverified(domain_id)
+            repo.conn.commit()
+            continue
+        if entity.krs:
+            try:
+                enriched = krs.fetch(entity.krs)
+            except RegistryError:
+                enriched = None
+            if enriched:
+                entity.pkd_codes = enriched.pkd_codes
+                entity.legal_form = enriched.legal_form
+                entity.website = enriched.website
+                entity.start_date = enriched.start_date or entity.start_date
+                entity.source = "krs"
+        verification = verify_domain(
+            entity.to_view(), pages, Classification(row["classification"], 0.5, []), ctx.keywords,
+            ctx.vertical.registry.expected_pkd,
+        )
+        if verification.status == "rejected":
+            counts["rejected_by_registry"] += 1  # np. podmiot z innej branży; zostaje bez potwierdzenia
+            repo.mark_reverified(domain_id)
+            repo.conn.commit()
+            continue
+        legal_entity_id = repo.upsert_legal_entity(entity)
+        if not repo.attach_brand_to_entity(brand_id, legal_entity_id):
+            counts["brand_name_taken"] += 1
+            repo.mark_reverified(domain_id)
+            repo.conn.commit()
+            continue
+        city_name = listing_city(entity.city, row["city_hint"], " ".join(p.text for p in pages))
+        if city_name and verification.status == "verified":
+            repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), "verified")
+        repo.update_domain_verification(
+            domain_id, verification.score, verification.status, legal_entity_id, brand_id, verification.reasons
+        )
+        repo.mark_reverified(domain_id)
+        counts[f"confirmed_{verification.status}"] += 1
+        repo.conn.commit()
+    counts["mf_requests"] = mf.requests_made
+    return dict(counts)
+
+
 # ----------------------------------------------------------------------------- S5
 
 

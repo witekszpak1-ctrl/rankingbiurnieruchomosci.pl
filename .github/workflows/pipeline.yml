@@ -110,6 +110,8 @@ jobs:
           timeout 30m katalog probe --limit "$INPUT_LIMIT" || echo "probe: limit czasu, reszta w następnym przebiegu"
           timeout 15m katalog verify --limit "$((INPUT_LIMIT * 2))" || echo "verify: limit czasu"
           timeout 35m katalog crawl-deep --limit "$((INPUT_LIMIT / 3))" || echo "crawl-deep: limit czasu, reszta w następnym przebiegu"
+          # Biura bez potwierdzenia: ponowne szukanie NIP na wszystkich pobranych podstronach (każde raz na 30 dni).
+          timeout 10m katalog reverify --limit 150 || echo "reverify: limit czasu"
           katalog bundle --limit "$INPUT_LIMIT" > bundle-result.json
           cat bundle-result.json
           katalog status
