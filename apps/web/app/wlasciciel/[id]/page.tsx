@@ -63,7 +63,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
           {sp.sent === "1" ? (
             <>
               <div className="alert ok">
-                Dziękujemy, zgłoszenie zostało wysłane. Odezwiemy się w ciągu kilku dni roboczych.{" "}
+                Dziękujemy, zgłoszenie zostało wysłane. Odezwiemy się w ciągu kilku dni.{" "}
                 <Link href={firm.path}>Wróć do profilu firmy</Link>
               </div>
               <TrackEvent name="SubmitApplication" params={{ content_name: firm.name }} />

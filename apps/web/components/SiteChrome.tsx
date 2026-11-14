@@ -96,6 +96,8 @@ export async function SiteFooter() {
           )}
         </span>
         <nav className="footer-legal" aria-label="Informacje prawne">
+          <Link href="/o-nas">O nas</Link>
+          <Link href="/kontakt">Kontakt</Link>
           <Link href="/regulamin">Regulamin</Link>
           <Link href="/polityka-prywatnosci">Polityka prywatności</Link>
           <CookieSettingsLink />

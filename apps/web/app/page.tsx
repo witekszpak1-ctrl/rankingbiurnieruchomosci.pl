@@ -10,7 +10,7 @@ import { homeMeta } from "@/lib/meta-texts";
 import { inCity } from "@/lib/cities";
 import { pageMetadata } from "@/lib/seo";
 import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
-import { operator } from "@/lib/legal";
+import { operator, operatorJsonLd } from "@/lib/legal";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 
 export const dynamic = "force-dynamic";
@@ -390,7 +390,7 @@ export default async function HomePage({ searchParams }: Props) {
           url: absoluteUrl("/"),
           logo: absoluteUrl("/opengraph-image"),
           email: operator().email ?? undefined,
-          founder: { "@type": "Person", name: operator().name ?? undefined },
+          parentOrganization: operatorJsonLd(),
           description:
             "Niezależny katalog i ranking biur nieruchomości w Polsce oparty na danych z rejestrów publicznych i stron biur.",
         }}

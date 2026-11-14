@@ -51,4 +51,16 @@ export function operator(): Operator {
   };
 }
 
+/** Operator jako obiekt Organization w danych strukturalnych (te same dane co w stopce i dokumentach prawnych). */
+export function operatorJsonLd(): Record<string, unknown> {
+  const op = operator();
+  return {
+    "@type": "Organization",
+    name: op.name ?? undefined,
+    address: op.address ?? undefined,
+    email: op.email ?? undefined,
+    identifier: op.regNo ?? op.nip ?? undefined,
+  };
+}
+
 export const SERVICE_HOST = SITE_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");

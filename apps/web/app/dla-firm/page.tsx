@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { OperatorContact, OperatorDetails } from "@/components/LegalOperator";
+
 import { PublicShell } from "@/components/SiteChrome";
 import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/format";
@@ -144,10 +146,10 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
 
       <h2>Twoje prawa</h2>
       <p>
-        Masz prawo do sprostowania danych, sprzeciwu wobec ich przetwarzania i usunięcia wpisu. Pełna informacja o
-        administratorze danych i podstawie prawnej przetwarzania zostanie opublikowana przed startem serwisu.
+        Administratorem danych jest <OperatorDetails />. Masz prawo do sprostowania danych, sprzeciwu wobec ich
+        przetwarzania i usunięcia wpisu. Podstawy prawne przetwarzania i sposób skorzystania z praw opisuje{" "}
+        <Link href="/polityka-prywatnosci#dane-firm">polityka prywatności</Link>. Kontakt: <OperatorContact />.
       </p>
-      <p className="note">Wersja robocza strony: treść prawna wymaga weryfikacji przed publicznym uruchomieniem.</p>
     </PublicShell>
   );
 }
