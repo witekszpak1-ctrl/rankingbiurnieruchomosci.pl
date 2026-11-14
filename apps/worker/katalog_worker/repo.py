@@ -331,6 +331,12 @@ class Repo:
         ).fetchone()
         return str(row["id"])
 
+    def catalog_city_names(self) -> list[str]:
+        """Miasta z co najmniej jednym opublikowanym wpisem (mają stronę w katalogu)."""
+        return [r["name"] for r in self.conn.execute(
+            "select c.name from cities c where exists (select 1 from listings l where l.city_id = c.id and l.status = 'published')"
+        ).fetchall()]
+
     def city_names(self) -> list[str]:
         return [r["name"] for r in self.conn.execute("select name from cities").fetchall()]
 
@@ -401,7 +407,9 @@ class Repo:
                       (select count(*) from facts f where f.brand_id = b.id and f.is_current) as facts,
                       (select count(*) from offers o where o.brand_id = b.id and o.is_active) as offers,
                       (select min(coalesce(l2.published_at, l2.created_at)) from listings l2
-                        where l2.brand_id = b.id and l2.status = 'published') as first_published
+                        where l2.brand_id = b.id and l2.status = 'published') as first_published,
+                      exists (select 1 from audit_log a where a.entity_type = 'listing' and a.entity_id = l.id::text
+                              and a.action = 'listing.publish_extra_city') as is_extra
                from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
                left join legal_entities le on le.id = b.legal_entity_id
                where l.status = 'published' and l.slug is not null

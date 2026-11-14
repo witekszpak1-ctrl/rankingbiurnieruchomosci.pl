@@ -1361,6 +1361,9 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
 
     repo = ctx.repo
     known = known_cities(repo.city_names())
+    # Miasta, które mają już stronę w katalogu: tylko do nich przenosimy automatycznie (wieś pod miastem bez strony
+    # zabrałaby biuro z rankingu miasta, w którym działa).
+    catalog = {tuple(_tokens(n)) for n in repo.catalog_city_names()}
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     counts: Counter = Counter()
@@ -1377,6 +1380,15 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
             after[current] += 1
         elif _fold(decision.city) == _fold(current):
             verdict = "bez zmian"
+            after[current] += 1
+        elif decision.source not in STRONG_CITY_SOURCES:
+            verdict = "bez zmian (słaby dowód)"
+            after[current] += 1
+        elif tuple(_tokens(decision.city)) not in catalog:
+            verdict = "do przeglądu (miasto bez strony w katalogu)"
+            after[current] += 1
+        elif decision.source == "rejestr" and mentions_city(repo.brand_fact_text(brand_id), current):
+            verdict = "do przeglądu (rejestr podaje inne miasto niż strona biura)"
             after[current] += 1
         elif decision.source in STRONG_CITY_SOURCES:
             verdict = "przeniesienie"
@@ -1576,6 +1588,7 @@ def stage_duplicates_report(ctx: Context, out_dir: str, apply: bool = False) -> 
     counts: Counter = Counter()
     rows: list[dict] = []
     merged_ids: set[str] = set()
+    city_words = {t for n in repo.city_names() for t in _tokens(n)}
     for ids in groups.values():
         if len(ids) < 2:
             continue
@@ -1584,8 +1597,20 @@ def stage_duplicates_report(ctx: Context, out_dir: str, apply: bool = False) -> 
         for brand_id in ids:
             if brand_id == keep:
                 continue
-            merged_ids.add(brand_id)
             b, k = brands[brand_id], brands[keep]
+            same_city = bool({x["city_id"] for x in b["listings"]} & {x["city_id"] for x in k["listings"]})
+            if not (_names_alike(b["brand_name"], k["brand_name"], city_words) or same_city):
+                # Ten sam NIP przy zupełnie innych nazwach w innych miastach: często sieć franczyzowa z NIP-em centrali.
+                counts["review"] += 1
+                rows.append({
+                    "biuro": b["brand_name"], "domena": b["host"] or "", "nip": b["nip"] or "",
+                    "miasta": ", ".join(x["city_name"] for x in b["listings"]),
+                    "scal_z": k["brand_name"], "scal_z_domena": k["host"] or "", "powod": reasons.get(brand_id, ""),
+                    "decyzja": "do przeglądu (różne nazwy, możliwa sieć franczyzowa)",
+                    "profile": " ".join(f"/{x['city_slug']}/{x['slug']}" for x in b["listings"]),
+                })
+                continue
+            merged_ids.add(brand_id)
             counts["merge"] += 1
             rows.append({
                 "biuro": b["brand_name"], "domena": b["host"] or "", "nip": b["nip"] or "",
@@ -1620,6 +1645,17 @@ def stage_duplicates_report(ctx: Context, out_dir: str, apply: bool = False) -> 
             })
     _write_csv(out / "raport-duplikaty.csv", rows)
     return dict(counts)
+
+
+_NAME_FILLER = frozenset({"nieruchomosci", "nieruchomosc", "biuro", "biura", "agencja", "agent", "posrednictwo",
+                          "pl", "com", "net", "eu", "sp", "z", "o", "i", "w", "na", "s", "c", "group", "grupa"})
+
+
+def _names_alike(a: str, b: str, city_words: set[str]) -> bool:
+    """Czy dwie nazwy mają wspólne znaczące słowo (bez słów branżowych i nazw miast): "Agent Power" i "AGENT POWER"."""
+    def significant(name: str) -> set[str]:
+        return {t for t in _tokens(name) if len(t) > 2 and t not in _NAME_FILLER and t not in city_words}
+    return bool(significant(a) & significant(b))
 
 
 def _merge_brand(repo: Repo, dup: dict, keep: dict, counts: Counter) -> None:

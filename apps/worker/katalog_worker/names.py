@@ -99,6 +99,52 @@ def name_from_registry(name: str | None) -> str | None:
     return None if is_bad_name(pretty) else pretty
 
 
+# Słowa rozpoznawane w adresie domeny ("pasjanieruchomosci.pl" -> "Pasja Nieruchomości").
+_DOMAIN_WORDS = {
+    "nieruchomosci": "Nieruchomości", "nieruchomosc": "Nieruchomość", "immo": "Immo", "estate": "Estate",
+    "invest": "Invest", "home": "Home", "house": "House", "dom": "Dom", "domy": "Domy", "biuro": "Biuro",
+    "agencja": "Agencja", "partner": "Partner", "partners": "Partners", "group": "Group", "grupa": "Grupa",
+    "mieszkania": "Mieszkania", "posrednictwo": "Pośrednictwo", "realestate": "Real Estate",
+}
+
+
+def name_from_domain(host: str | None) -> str | None:
+    """Nazwa z domeny, gdy zawiera rozpoznawalne słowo: "hegesnieruchomosci.pl" -> "Heges Nieruchomości".
+
+    Bez rozpoznanego słowa (np. "bnhit.pl") zwraca None, bo nie da się podzielić nazwy na słowa.
+    """
+    if not host:
+        return None
+    label = registrable_domain(host).split(".")[0]
+    parts: list[str] = []
+    for chunk in re.split(r"[-_]+", label):
+        rest = chunk
+        words: list[str] = []
+        while rest:
+            hit = next(((w, rest.index(w)) for w in sorted(_DOMAIN_WORDS, key=len, reverse=True) if w in rest), None)
+            if not hit:
+                words.append(rest)
+                break
+            word, at = hit
+            if at:
+                words.append(rest[:at])
+            words.append(_DOMAIN_WORDS[word])
+            rest = rest[at + len(word):]
+        parts.extend(words)
+    if not any(p in _DOMAIN_WORDS.values() for p in parts) or len(parts) < 2:
+        return None
+    pretty: list[str] = []
+    for i, p in enumerate(parts):
+        if p in _DOMAIN_WORDS.values():
+            pretty.append(p)
+        elif i > 0 and p.startswith("w") and len(p) > 5 and parts[i - 1] in _DOMAIN_WORDS.values():
+            pretty.append("w " + p[1:].capitalize())  # "nieruchomosciwbeskidach" -> "Nieruchomości w Beskidach"
+        else:
+            pretty.append(p.upper() if len(p) <= 3 and p.isalpha() else p.capitalize())
+    name = " ".join(x for x in pretty if x)
+    return None if is_bad_name(name) else name
+
+
 def better_name(
     current: str | None,
     host: str | None,
@@ -111,6 +157,7 @@ def better_name(
         ("tytuły stron", name_from_titles(titles, host)),
         ("opis", name_from_description(description, host)),
         ("rejestr", name_from_registry(registry_name)),
+        ("domena", name_from_domain(host)),
     ):
         if candidate and candidate != (current or "").strip():  # "officelist.pl" -> "Officelist.pl" to też poprawa
             return candidate, source

@@ -7,7 +7,7 @@ const failures = [];
 const fail = (msg) => failures.push(msg);
 
 async function get(path) {
-  const res = await fetch(BASE + path, { redirect: "manual", headers: { "user-agent": "SeoCheck/1.0 (+test po wdrożeniu)" } });
+  const res = await fetch(BASE + path, { redirect: "manual", headers: { "user-agent": "SeoCheck/1.0 (+post-deploy test)" } });
   return { status: res.status, html: res.status === 200 ? await res.text() : "", location: res.headers.get("location") };
 }
 
