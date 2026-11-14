@@ -11,12 +11,12 @@ import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { getPublishedListing, listCityListings, type GoogleReview, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { optimizedImage, responsiveSrcSet } from "@/lib/images";
-import { SITE_NAME, absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
+import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
 import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel, plural } from "@/lib/plural";
 import { isShownOnFirmPage, priceBasis } from "@/lib/prices";
 import { firmMeta } from "@/lib/meta-texts";
 import { firmFaq } from "@/lib/firm-faq";
-import { breadcrumbLd, pageMetadata } from "@/lib/seo";
+import { breadcrumbLd, pageMetadata, postalAddressLd, websiteRef } from "@/lib/seo";
 import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare } from "@/lib/ranking";
 
 export const revalidate = 300;
@@ -561,7 +561,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
               inLanguage: "pl-PL",
               dateModified: new Date(listing.updatedAt).toISOString(),
               about: { "@id": `${absoluteUrl(path)}#biuro` },
-              isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },
+              isPartOf: websiteRef(),
             },
             {
               "@type": "RealEstateAgent",
@@ -575,12 +575,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
               description: listing.description ?? undefined,
               // NIP tylko dla biur potwierdzonych w rejestrze; bez aggregateRating (opinie są z Google, nie nasze).
               taxID: listing.registryConfirmed && listing.nip ? listing.nip : undefined,
-              address: {
-                "@type": "PostalAddress",
-                streetAddress: listing.address ?? undefined,
-                addressLocality: listing.cityName,
-                addressCountry: "PL",
-              },
+              address: postalAddressLd(listing.address, listing.cityName),
+              hasMap: listing.google?.mapsUrl ?? undefined,
               areaServed: (listing.cities.length > 1 ? listing.cities.map((c) => c.name) : [listing.cityName]).map((name) => ({
                 "@type": "City",
                 name,

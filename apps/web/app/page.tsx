@@ -8,9 +8,8 @@ import { homeStats, listAllPublished, listCities, listLatestOffers, type TopList
 import { absoluteUrl, formatOfferPrice, SITE_NAME } from "@/lib/format";
 import { homeMeta } from "@/lib/meta-texts";
 import { inCity } from "@/lib/cities";
-import { pageMetadata } from "@/lib/seo";
+import { ORG_ID, organizationLd, pageMetadata, SITE_ID } from "@/lib/seo";
 import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
-import { operator, operatorJsonLd } from "@/lib/legal";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 
 export const dynamic = "force-dynamic";
@@ -384,8 +383,11 @@ export default async function HomePage({ searchParams }: Props) {
         data={{
           "@context": "https://schema.org",
           "@type": "WebSite",
+          "@id": SITE_ID,
           name: SITE_NAME,
           url: absoluteUrl("/"),
+          inLanguage: "pl-PL",
+          publisher: { "@id": ORG_ID },
           potentialAction: {
             "@type": "SearchAction",
             target: `${absoluteUrl("/szukaj")}?miasto={miasto}`,
@@ -394,17 +396,7 @@ export default async function HomePage({ searchParams }: Props) {
         }}
       />
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          name: SITE_NAME,
-          url: absoluteUrl("/"),
-          logo: absoluteUrl("/opengraph-image"),
-          email: operator().email ?? undefined,
-          parentOrganization: operatorJsonLd(),
-          description:
-            "Niezależny katalog i ranking biur nieruchomości w Polsce oparty na danych z rejestrów publicznych i stron biur.",
-        }}
+        data={{ "@context": "https://schema.org", ...organizationLd() }}
       />
       <JsonLd
         data={{

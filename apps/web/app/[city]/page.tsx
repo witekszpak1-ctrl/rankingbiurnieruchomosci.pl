@@ -10,20 +10,11 @@ import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { unstable_cache } from "next/cache";
 import { cityCommissionStats, commissionReport, cityPriceExamples, cityServices, getCity, listCities, listCityListings, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
-import {
-  brandServiceGroups,
-  choosingGuide,
-  cityFaq,
-  cityH1,
-  cityIntro,
-  commissionSection,
-  topThree,
-  type CityData,
-} from "@/lib/city-content";
-import { SITE_NAME, absoluteUrl, formatDate, formatYear } from "@/lib/format";
+import { brandServiceGroups, choosingGuide, cityFaq, cityH1, cityIntro, commissionSection, topThree, type CityData } from "@/lib/city-content";
+import { absoluteUrl, formatDate, formatYear } from "@/lib/format";
 import { nBiur, nBiurGen, plural } from "@/lib/plural";
 import { cityMeta } from "@/lib/meta-texts";
-import { breadcrumbLd, pageMetadata } from "@/lib/seo";
+import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
 import { FILTERS, GOALS, PER_PAGE, parseView, viewHref, type Filter, type Goal, type SearchParams } from "@/lib/city-view";
 import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } from "@/lib/ranking";
 
@@ -40,7 +31,6 @@ const nationalCommission = unstable_cache(
 );
 
 type Props = { params: Promise<{ city: string }>; searchParams: Promise<SearchParams> };
-
 
 const toInput = (l: ListingCard): RankingInput => ({
   startDate: l.startDate,
@@ -433,7 +423,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           name: `Biura nieruchomości ${city.name}`,
           inLanguage: "pl-PL",
           dateModified: updatedAt.toISOString(),
-          isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },
+          isPartOf: websiteRef(),
           mainEntity: {
             "@type": "ItemList",
             name: ranked ? `Ranking biur nieruchomości ${city.name}` : `Biura nieruchomości ${city.name}`,

@@ -3,15 +3,15 @@ import Link from "next/link";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { commissionReport } from "@/lib/catalog";
-import { absoluteUrl, formatDate, SITE_NAME } from "@/lib/format";
-import { operatorJsonLd } from "@/lib/legal";
+import { absoluteUrl, formatDate } from "@/lib/format";
 import { nBiur, nBiurGen } from "@/lib/plural";
 import { PRICE_STAT_MIN } from "@/lib/ranking";
-import { pageMetadata } from "@/lib/seo";
+import { articleLd, organizationLd, pageMetadata } from "@/lib/seo";
 
 export const revalidate = 86400;
 
 const PATH = "/raporty/prowizje-biur-nieruchomosci-2026";
+const maxDate = (a: string, b: string) => (b > a ? b : a);
 const pct = (v: number | null) => (v == null ? "-" : `${v.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}%`);
 
 export const metadata: Metadata = pageMetadata({
@@ -30,16 +30,13 @@ export default async function CommissionReportPage() {
   return (
     <PublicShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: "Prowizje biur nieruchomości 2026",
-          url: absoluteUrl(PATH),
-          datePublished: "2026-11-14",
-          dateModified: (r?.observedAt ?? new Date()).toISOString().slice(0, 10),
-          inLanguage: "pl",
-          publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/"), parentOrganization: operatorJsonLd() },
-        }}
+        data={articleLd({
+            headline: "Prowizje biur nieruchomości 2026",
+            path: PATH,
+            description: typeof metadata.description === "string" ? metadata.description : null,
+            datePublished: "2026-11-14",
+            dateModified: (r?.observedAt ?? new Date()).toISOString().slice(0, 10),
+          })}
       />
       <JsonLd
         data={{
@@ -49,9 +46,13 @@ export default async function CommissionReportPage() {
           description:
             "Mediana najniższej procentowej prowizji za sprzedaż nieruchomości deklarowanej przez biura na ich stronach, według miast.",
           url: absoluteUrl(PATH),
-          creator: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
-          dateModified: (r?.observedAt ?? new Date()).toISOString().slice(0, 10),
-          spatialCoverage: "Polska",
+          creator: organizationLd(),
+          datePublished: "2026-11-14",
+          dateModified: maxDate("2026-11-14", (r?.observedAt ?? new Date()).toISOString().slice(0, 10)),
+          inLanguage: "pl-PL",
+          isAccessibleForFree: true,
+          keywords: ["prowizja biura nieruchomości", "cennik biura nieruchomości", "rynek nieruchomości", "Polska"],
+          spatialCoverage: { "@type": "Country", name: "Polska" },
           temporalCoverage: "2026",
           variableMeasured: ["mediana prowizji za sprzedaż (%)", "liczba biur w próbie", "udział biur z jawnym cennikiem"],
         }}

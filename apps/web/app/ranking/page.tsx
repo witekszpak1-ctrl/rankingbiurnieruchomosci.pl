@@ -6,10 +6,10 @@ import { TopThree } from "@/components/TopThree";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listAllPublished, type TopListing } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
-import { SITE_NAME, absoluteUrl, formatDate } from "@/lib/format";
+import { absoluteUrl, formatDate } from "@/lib/format";
 import { nBiur, plural } from "@/lib/plural";
 import { rankListings, type RankingInput } from "@/lib/ranking";
-import { breadcrumbLd, pageMetadata } from "@/lib/seo";
+import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
 
 // Dane z bazy przy każdym wejściu (bez prerenderu w czasie budowania, kiedy baza jest niedostępna).
 export const dynamic = "force-dynamic";
@@ -156,7 +156,7 @@ export default async function NationalRankingPage() {
           name: `Najlepsze biura nieruchomości w Polsce ${year}`,
           inLanguage: "pl-PL",
           dateModified: updated.toISOString(),
-          isPartOf: { "@type": "WebSite", name: SITE_NAME, url: absoluteUrl("/") },
+          isPartOf: websiteRef(),
           mainEntity: {
             "@type": "ItemList",
             itemListOrder: "https://schema.org/ItemListOrderDescending",
