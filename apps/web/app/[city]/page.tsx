@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { CompareBar, CompareToggle } from "@/components/Compare";
 import { FirmImage } from "@/components/FirmImage";
-import { Stars } from "@/components/Stars";
+import { StarsMini } from "@/components/Stars";
 import { TopThree } from "@/components/TopThree";
 import { notFound } from "next/navigation";
 
@@ -12,7 +12,7 @@ import { unstable_cache } from "next/cache";
 import { cityCommissionStats, commissionReport, cityPriceExamples, cityServices, getCity, listCities, listCityListings, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { brandServiceGroups, choosingGuide, cityFaq, cityH1, cityIntro, commissionSection, topThree, type CityData } from "@/lib/city-content";
-import { absoluteUrl, formatDate, formatYear } from "@/lib/format";
+import { absoluteUrl, formatDate, formatYear, shortText } from "@/lib/format";
 import { nBiur, nBiurGen, nOpinii, plural } from "@/lib/plural";
 import { cityMeta } from "@/lib/meta-texts";
 import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
@@ -266,17 +266,11 @@ export default async function CityPage({ params, searchParams }: Props) {
           {pageRows.map((row) => {
             const href = `/${city.slug}/${row.slug}`;
             const since = row.registryConfirmed && row.startDate ? formatYear(row.startDate) : null;
-            const picture = row.coverUrl ?? (row.imageKind === "og" ? row.imageUrl : null) ?? row.logoUrl;
+
             return (
               <li key={row.listingId} className="firm-card">
                 <div className="fc-thumb">
-                  <FirmImage
-                    src={picture}
-                    kind={picture === row.logoUrl ? "logo" : "og"}
-                    name={row.name}
-                    alt={`Logo ${row.name}`}
-                    size="md"
-                  />
+                  <FirmImage src={row.logoUrl} kind="logo" name={row.name} alt={`Logo ${row.name}`} size="md" />
                   {ranked && <span className="fc-pos">{row.position}.</span>}
                   {row.offersCount > 0 && (
                     <span className="fc-count">
@@ -304,7 +298,7 @@ export default async function CityPage({ params, searchParams }: Props) {
                     </Link>
                   </h3>
                   {row.host && <p className="fc-meta">{row.host}</p>}
-                  {row.description && <p className="fc-desc">{row.description}</p>}
+                  {row.description && <p className="fc-desc">{shortText(row.description, 150)}</p>}
                 </div>
                 <div className="fc-side">
                   {ranked ? (
@@ -316,7 +310,7 @@ export default async function CityPage({ params, searchParams }: Props) {
                   ) : null}
                   {row.googleRating != null && row.googleCount ? (
                     <div className="fc-google">
-                      <Stars value={row.googleRating} size={15} />
+                      <StarsMini value={row.googleRating} />
                       <span>
                         {row.googleRating.toFixed(1).replace(".", ",")} · {nOpinii(row.googleCount)} w Google
                       </span>

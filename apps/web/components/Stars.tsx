@@ -23,3 +23,12 @@ export function Stars({ value, size = 18 }: { value: number; size?: number }) {
     </span>
   );
 }
+
+/** Lekkie gwiazdki do długich list (karta biura): jeden element zamiast pięciu obrazków SVG, żeby strona miasta była lekka. */
+export function StarsMini({ value }: { value: number }) {
+  return (
+    <span className="stars-mini" role="img" aria-label={`Ocena ${value.toFixed(1)} na 5`}>
+      <span style={{ width: `${Math.max(0, Math.min(100, (value / 5) * 100))}%` }} />
+    </span>
+  );
+}
