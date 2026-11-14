@@ -292,6 +292,14 @@ export type LatestOffer = {
 };
 
 /** Najnowsze aktywne oferty z ceną z biur w katalogu, po jednej-dwóch z każdego biura. */
+/**
+ * Główny wpis firmy (najwcześniej opublikowany), ten sam co kanoniczny na stronie firmy i w mapie strony.
+ * Oferty biorą z niego miasto, żeby firma z kilkoma miastami nie pokazywała tej samej oferty kilka razy.
+ */
+const PRIMARY_LISTING = `select l1.id, l1.slug, l1.city_id from listings l1
+  where l1.brand_id = b.id and l1.status = 'published' and l1.slug is not null
+  order by l1.published_at nulls last, l1.created_at limit 1`;
+
 export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
   return query<LatestOffer>(
     `select * from (
@@ -301,7 +309,7 @@ export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
               row_number() over (partition by o.brand_id order by o.position) as rn
        from offers o
        join brands b on b.id = o.brand_id
-       join listings l on l.brand_id = b.id and l.status = 'published'
+       join lateral (${PRIMARY_LISTING}) l on true
        join cities c on c.id = l.city_id
        where o.is_active and o.price_amount is not null and o.last_seen_at > now() - interval '14 days'
      ) x where rn <= 2 order by first_seen_at desc limit $1`,
@@ -331,7 +339,7 @@ export async function listOffersPage(opts: { citySlug?: string; page: number; pe
   }
   const base = `from offers o
      join brands b on b.id = o.brand_id
-     join listings l on l.brand_id = b.id and l.status = 'published'
+     join lateral (${PRIMARY_LISTING}) l on true
      join cities c on c.id = l.city_id
      where o.is_active and o.last_seen_at > now() - interval '14 days' ${cond}`;
   const [offers, total] = await Promise.all([
