@@ -515,3 +515,7 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .city-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
   .city-table td.firm { grid-column: 1 / -1; }
 }
+
+/* Podtytuł pod nagłówkiem strony głównej (dawne hasło) */
+.hero-sub { font-size: clamp(1.3rem, 2.6vw, 1.8rem); font-weight: 700; line-height: 1.2; margin: -6px 0 14px; }
+.hero-sub em { font-style: normal; color: var(--accent); }

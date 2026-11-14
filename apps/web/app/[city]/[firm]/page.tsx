@@ -567,6 +567,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
               logo: listing.logoUrl ?? undefined,
               telephone: listing.phone ?? undefined,
               description: listing.description ?? undefined,
+              // NIP tylko dla biur potwierdzonych w rejestrze; bez aggregateRating (opinie są z Google, nie nasze).
+              taxID: listing.registryConfirmed && listing.nip ? listing.nip : undefined,
               address: {
                 "@type": "PostalAddress",
                 streetAddress: listing.address ?? undefined,

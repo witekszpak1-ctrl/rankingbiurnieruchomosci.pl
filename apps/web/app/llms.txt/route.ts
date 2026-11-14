@@ -1,6 +1,7 @@
 import { listCities } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { SITE_NAME, absoluteUrl } from "@/lib/format";
+import { operator } from "@/lib/legal";
 import { nBiur } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
@@ -9,16 +10,20 @@ export const dynamic = "force-dynamic";
 // ale koszt jest znikomy.
 export async function GET() {
   const cities = await listCities();
+  const op = operator();
   const lines = [
     `# ${SITE_NAME}`,
     "",
-    "> Niezależny katalog i ranking biur nieruchomości w Polsce, podzielony na miasta. Dane z rejestrów publicznych (KRS, wykaz VAT) i oficjalnych stron biur, jawna metodologia rankingu, płatność nie wpływa na pozycję. Biura potwierdzone w rejestrze są oznaczone; biura bez potwierdzenia są w katalogu niżej w rankingu.",
+    "> Niezależny katalog i ranking biur nieruchomości w Polsce, podzielony na miasta. Dane z rejestrów publicznych (KRS, wykaz VAT) i oficjalnych stron biur, jawna metodologia rankingu (wynik w rankingu 0-100, punkty za potwierdzenie w rejestrze, staż, cennik, spójność danych, usługi, opinie w Google i aktualne oferty), płatność nie wpływa na pozycję. Biura potwierdzone w rejestrze są oznaczone; biura bez potwierdzenia są w katalogu niżej w rankingu.",
     "",
     "## Zasady",
     `- [Ranking ogólnopolski](${absoluteUrl("/ranking")}): najwyżej ocenione biura w całym katalogu`,
     `- [Metodologia rankingu](${absoluteUrl("/metodologia")}): źródła danych, parametry, wagi, progi publikacji`,
     `- [Reklama i niezależność](${absoluteUrl("/reklama")})`,
     `- [Dla biur nieruchomości](${absoluteUrl("/dla-firm")}): jakie dane publikujemy, korekta i usunięcie wpisu`,
+    `- [Lista miast według województw](${absoluteUrl("/miasta")})`,
+    `- [O nas](${absoluteUrl("/o-nas")}): kto prowadzi serwis (${op.name ?? "operator serwisu"}), skąd są dane i jak często je odświeżamy`,
+    `- [Kontakt](${absoluteUrl("/kontakt")})${op.email ? `: ${op.email}` : ""}`,
     "",
     "## Miasta",
     ...cities.map((c) => `- [Biura nieruchomości ${c.name}](${absoluteUrl(`/${c.slug}`)}): ${nBiur(c.listings)} ${inCity(c.name)}`),
