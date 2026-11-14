@@ -1,6 +1,7 @@
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
 import { reportHit } from "./lib/analytics-edge";
+import { GONE_HTML, isCandidatePath, pathStatus } from "./lib/path-status";
 import { reportBot } from "./lib/pulse-bots";
 import { SESSION_COOKIE, verifySession } from "./lib/session";
 
@@ -11,6 +12,18 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
   if (pathname !== "/admin" && !pathname.startsWith("/admin/")) {
     reportBot(request, event);
+    // Przeniesione i scalone profile: przekierowanie stałe; wycofane wpisy i puste miasta: 410 (plan poprawy, etap 2-3).
+    if (isCandidatePath(pathname)) {
+      const status = await pathStatus(pathname, request.nextUrl.origin, (p) => event.waitUntil(p));
+      if (status?.kind === "redirect") {
+        const url = request.nextUrl.clone();
+        url.pathname = status.to;
+        return NextResponse.redirect(url, 301);
+      }
+      if (status?.kind === "gone") {
+        return new NextResponse(GONE_HTML, { status: 410, headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+    }
     reportHit(request, event);
     return NextResponse.next();
   }

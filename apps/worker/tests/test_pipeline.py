@@ -515,10 +515,96 @@ def test_mentions_city_handles_polish_inflection_and_listing_city_rule():
     assert mentions_city("Mieszkania w Krakowie", "Kraków")
     assert mentions_city("Oferty z Łodzi", "Łódź")
     assert not mentions_city("Oferty z Poznania", "Wrocław")
-    # siedziba w rejestrze we wsi pod miastem, strona wymienia miasto z wyszukiwania
-    assert listing_city("KIEŁCZÓW", "Wrocław", "Biuro nieruchomości we Wrocławiu") == "Wrocław"
+    # całe słowa, nie początek nazwy (etap 2 planu poprawy)
+    assert not mentions_city("Biuro przy ul. Warszawskiej", "Warszawa")
+    assert not mentions_city("Oddział w Lublińcu", "Lublin")
+    assert not mentions_city("Apartament ze szczytem", "Szczyrk")
+    from katalog_worker.city import AddressHit
+
+    office = [AddressHit("50-001", "Wrocław", "Biuro: ul. Rynek 1, 50-001 Wrocław")]
+    # siedziba w rejestrze we wsi pod miastem, adres biura na stronie w mieście z wyszukiwania
+    assert listing_city("KIEŁCZÓW", "Wrocław", "Biuro nieruchomości we Wrocławiu", office) == "Wrocław"
+    # bez adresu biura na stronie wygrywa rejestr (sama wzmianka nie wystarcza)
+    assert listing_city("KIEŁCZÓW", "Wrocław", "Biuro nieruchomości we Wrocławiu") == "Kiełczów"
     assert listing_city("ŻAGAŃ", "Wrocław", "Oferty w Żaganiu") == "Żagań"
-    assert listing_city(None, "Wrocław", "") == "Wrocław"
+    # bez rejestru i adresu: miasto z wyszukiwania tylko, gdy strona je wymienia
+    assert listing_city(None, "Wrocław", "Działamy we Wrocławiu") == "Wrocław"
+    assert listing_city(None, "Wrocław", "") is None
+
+
+def test_decide_city_on_audit_examples():
+    from katalog_worker.city import AddressHit, decide_city, known_cities
+
+    known = known_cities(["Kraków", "Warszawa", "Jasło", "Elbląg", "Szczyrk", "Szczecin", "Olkusz"])
+
+    def d(registry, hint, text, hits, name="", host=""):
+        return decide_city(registry, hint, text, hits, known, name, host)
+
+    # Krakowski Metraż: adres biura w Krakowie (miasto wyszukiwania), właściciel serwisu w Warszawie
+    r = d("WARSZAWA", "Kraków", "", [AddressHit("30-102", "Kraków Polska E-mail", "ul. Morawskiego 5/127 30-102 Kraków"),
+                                     AddressHit("00-511", "Warszawa", "właścicielem serwisu jest INFINITI ESTATE")])
+    assert (r.city, r.source) == ("Kraków", "adres_wyszukiwanie")
+    # Biuro z Jasła wyszukane w Warszawie: adres firmy przetwarzającej dane i "ul. Warszawska" nie dają Warszawy
+    r = d("JASŁO", "Warszawa", "ul. Warszawska 5",
+          [AddressHit("00-382", "Warszawa", "danych przetwarzanych przez CBJ sp z.o.o., ul. Solec 81B, 00-382 Warszawa"),
+           AddressHit("38-200", "Jasło", "Siedziba ul. Lwowska 24J 38-200 Jasło")])
+    assert (r.city, r.source) == ("Jasło", "rejestr_adres")
+    # Firma ze Szczecina wyszukana w Szczyrku: adres w Szczecinie
+    r = d(None, "Szczyrk", "szczyt formy", [AddressHit("70-001", "Szczecin", "biuro: ul. X, 70-001 Szczecin")])
+    assert (r.city, r.source) == ("Szczecin", "adres")
+    # Sam adres UODO z polityki prywatności nie jest adresem biura
+    r = d(None, "Warszawa", "", [AddressHit("00-193", "Warszawa", "Prezes UODO, ul. Stawki 2, 00-193 Warszawa")])
+    assert r.city is None and r.source == "brak"
+    # Sygnały do przeglądu: inne miasto w nazwie biura lub domenie, zagraniczna domena
+    r = d("WARSZAWA", "Warszawa", "", [], name="WGN Nieruchomości Elbląg", host="nieruchomosci-olkusz.pl")
+    assert any("Elbląg" in w for w in r.warnings) and any("Olkusz" in w for w in r.warnings)
+    r = d("WARSZAWA", "Warszawa", "", [], name="Immobi", host="immobi.co.za")
+    assert any("zagraniczna domena" in w for w in r.warnings)
+
+
+def test_cities_report_dry_run_and_apply_with_redirect(flow, tmp_path):
+    import csv
+
+    from katalog_worker.pipeline import stage_cities_report, stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    stage_publish_ready(ctx)
+    row = conn.execute(
+        "select l.id, l.slug, c.slug as city_slug, c.name as city from listings l join cities c on c.id = l.city_id "
+        "where l.brand_id = %s and l.status = 'published'", (brand_id,)).fetchone()
+    # Wpis stoi w złym mieście (jak biura ze Szczecina w Szczyrku), a strona podaje adres biura w Szczecinie.
+    wrong = ctx.repo.ensure_city("Szczyrk")
+    conn.execute("update listings set city_id = %s where id = %s", (wrong, row["id"]))
+    conn.execute("update legal_entities set registered_address = null")
+    conn.execute("update domains set city_hint = 'Szczyrk' where brand_id = %s", (brand_id,))
+    conn.execute("update facts set is_current = false where brand_id = %s and type in ('address', 'address_hint')",
+                 (brand_id,))
+    ctx.repo.add_fact(brand_id, "address_hint", "70-001 Szczecin", "Biuro: ul. Wały Chrobrego 1, 70-001 Szczecin",
+                      AGENCY, "regex", 0.9)
+    conn.commit()
+    old_path = f"/szczyrk/{row['slug']}"
+
+    counts = stage_cities_report(ctx, str(tmp_path / "raport"))
+    assert counts.get("przeniesienie") == 1
+    report = list(csv.DictReader((tmp_path / "raport" / "raport-miasta.csv").open(encoding="utf-8")))
+    assert report[0]["stare_miasto"] == "Szczyrk" and report[0]["nowe_miasto"] == "Szczecin"
+    assert "Szczyrk: 1 -> 0" in (tmp_path / "raport" / "raport-miasta-podsumowanie.md").read_text(encoding="utf-8")
+    city_now = conn.execute("select c.name from listings l join cities c on c.id = l.city_id where l.id = %s",
+                            (row["id"],)).fetchone()["name"]
+    assert city_now == "Szczyrk"  # na sucho nic się nie zmienia
+
+    counts = stage_cities_report(ctx, str(tmp_path / "raport"), apply=True)
+    assert counts.get("moved") == 1
+    moved = conn.execute("select c.name, l.city_source from listings l join cities c on c.id = l.city_id where l.id = %s",
+                         (row["id"],)).fetchone()
+    assert moved["name"] == "Szczecin" and moved["city_source"] == "adres"
+    redirect = conn.execute("select listing_id from listing_redirects where from_path = %s", (old_path,)).fetchone()
+    assert str(redirect["listing_id"]) == str(row["id"])
 
 
 def test_import_applies_brand_name_from_result(flow):

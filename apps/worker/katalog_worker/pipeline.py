@@ -28,6 +28,7 @@ from urllib.parse import urljoin, urlsplit
 from .bundle import ContactLeakError, Fact, build_classify_bundle, build_describe_bundle, facts_from_pages, write_bundle
 from .classify import DEFAULT_BLOCKLIST, Classification, classify_page
 from .discovery import discover
+from .city import SOURCE_LABEL, AddressHit, CityDecision, decide_city, known_cities, parse_address_fact
 from .extract import PageExtraction, _e164, extract_page, merge_extractions
 from .fetch import FetchResult, PoliteFetcher
 from .offers import scan_offers
@@ -346,24 +347,42 @@ def _fold(text: str) -> str:
 
 
 def mentions_city(text: str, city: str) -> bool:
-    """Czy tekst wymienia miasto, także w odmianie (Wrocław, we Wrocławiu, Kraków, w Krakowie)."""
-    folded = _fold(city).strip()
-    if not folded:
-        return False
-    stem = folded[: max(4, len(folded) - 2)]
-    return stem in _fold(text)
+    """Czy tekst wymienia miasto, także w odmianie (Wrocław, we Wrocławiu, Kraków, w Krakowie).
 
-
-def listing_city(registry_city: str | None, city_hint: str | None, pages_text: str) -> str | None:
-    """Miasto wpisu: miasto z wyszukiwania, jeśli strona firmy je wymienia, w przeciwnym razie siedziba z rejestru.
-
-    Jednoosobowe firmy często są zarejestrowane w miejscu zamieszkania (np. wieś pod miastem), a biuro prowadzą w mieście.
+    Całe słowa, nie początek nazwy: "ul. Warszawska" to nie Warszawa, "Lubliniec" to nie Lublin.
     """
-    if city_hint and mentions_city(pages_text, city_hint):
-        return city_hint
-    if registry_city:
-        return registry_city.title()
-    return city_hint
+    return offer_mentions_city(_tokens(text), _tokens(city))
+
+
+def city_decision(
+    registry_city: str | None,
+    city_hint: str | None,
+    pages: list[PageExtraction],
+    known: dict[tuple[str, ...], str] | None = None,
+    brand_name: str = "",
+    host: str = "",
+) -> CityDecision:
+    """Miasto wpisu z dowodów na stronach firmy i w rejestrze (kolejność źródeł: katalog_worker/city.py)."""
+    hits = [AddressHit(h.postcode, h.city, h.context) for p in pages for h in p.postcodes]
+    return decide_city(registry_city, city_hint, " ".join(p.text for p in pages), hits, known, brand_name, host)
+
+
+def listing_city(registry_city: str | None, city_hint: str | None, pages_text: str,
+                 address_hits: list[AddressHit] | None = None) -> str | None:
+    """Samo miasto z city_decision (dla testów i prostych wywołań)."""
+    return decide_city(registry_city, city_hint, pages_text, address_hits or []).city
+
+
+# Źródła, na podstawie których automat może przenieść wpis do innego miasta (sama wzmianka nie wystarcza).
+STRONG_CITY_SOURCES = frozenset({"adres_wyszukiwanie", "rejestr_adres", "rejestr", "adres"})
+
+
+def brand_city_decision(repo: Repo, brand_id: str, city_hint: str | None, brand_name: str,
+                        known: dict[tuple[str, ...], str]) -> CityDecision:
+    """city_decision z danych zapisanych w bazie: adresy z faktów, siedziba z rejestru, tekst faktów."""
+    hits = [h for h in (parse_address_fact(r["value"], r["quote"]) for r in repo.brand_address_facts(brand_id)) if h]
+    return decide_city(repo.brand_registry_city(brand_id), city_hint, repo.brand_fact_text(brand_id), hits, known,
+                       brand_name, repo.brand_host(brand_id) or "")
 
 
 def _brand_name(pages: list[PageExtraction], entity: RegistryEntity | None) -> str:
@@ -402,6 +421,7 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
             loaded.append((row, pages, merge_extractions(pages)))
     all_nips = sorted({hit.value for _, _, merged in loaded for hit in merged.nips})
     lookups = mf.lookup(all_nips) if all_nips else {}
+    known = known_cities(repo.city_names())
 
     for row, pages, merged in loaded:
         entities = [lookups[h.value].entity for h in merged.nips if h.value in lookups and lookups[h.value].entity]
@@ -428,17 +448,25 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
         legal_entity_id = brand_id = None
         if entity is None and verification.status == "needs_review" and row["classification"] == "official":
             # Biuro bez potwierdzenia w rejestrze (np. brak NIP na stronie): trafia do katalogu z niższym rankingiem.
-            brand_id = row.get("brand_id") or repo.insert_unregistered_brand(_brand_name(pages, None))
-            city_name = listing_city(None, row["city_hint"], " ".join(p.text for p in pages))
-            if city_name:
-                repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), "needs_review")
+            name = _brand_name(pages, None)
+            brand_id = row.get("brand_id") or repo.insert_unregistered_brand(name)
+            decision = city_decision(None, row["city_hint"], pages, known, name, row["host"])
+            if decision.city:
+                listing_id = repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(decision.city), "needs_review")
+                repo.set_listing_city_source(listing_id, decision.source)
+            else:
+                counts["city_unconfirmed"] += 1
         elif entity and verification.status != "rejected":
             legal_entity_id = repo.upsert_legal_entity(entity)
-            brand_id = repo.upsert_brand(legal_entity_id, _brand_name(pages, entity))
-            city_name = listing_city(entity.city, row["city_hint"], " ".join(p.text for p in pages))
-            if city_name:
+            name = _brand_name(pages, entity)
+            brand_id = repo.upsert_brand(legal_entity_id, name)
+            decision = city_decision(entity.city, row["city_hint"], pages, known, name, row["host"])
+            if decision.city:
                 listing_status = "verified" if verification.status == "verified" else "needs_review"
-                repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), listing_status)
+                listing_id = repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(decision.city), listing_status)
+                repo.set_listing_city_source(listing_id, decision.source)
+            else:
+                counts["city_unconfirmed"] += 1
         repo.update_domain_verification(
             row["id"], verification.score, verification.status, legal_entity_id, brand_id, verification.reasons
         )
@@ -505,9 +533,11 @@ def stage_reverify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 1
             repo.mark_reverified(domain_id)
             repo.conn.commit()
             continue
-        city_name = listing_city(entity.city, row["city_hint"], " ".join(p.text for p in pages))
-        if city_name and verification.status == "verified":
-            repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(city_name), "verified")
+        decision = city_decision(entity.city, row["city_hint"], pages, known_cities(repo.city_names()),
+                                 _brand_name(pages, entity), row["host"])
+        if decision.city and verification.status == "verified":
+            listing_id = repo.upsert_listing(brand_id, vertical_id, repo.ensure_city(decision.city), "verified")
+            repo.set_listing_city_source(listing_id, decision.source)
         repo.update_domain_verification(
             domain_id, verification.score, verification.status, legal_entity_id, brand_id, verification.reasons
         )
@@ -1092,17 +1122,21 @@ def stage_publish_ready(ctx: Context, limit: int = 200) -> dict:
         return {"auto_publish": "wyłączone"}
     min_facts = int(repo.setting("publish_min_facts", 6))
     counts: Counter = Counter()
+    known = known_cities(repo.city_names())
     for row in repo.listings_ready_to_publish(min_facts, limit):
         city_id, city_name = str(row["city_id"]), row["city_name"]
-        hint = row["city_hint"]
-        if hint and _fold(hint) != _fold(city_name) and mentions_city(repo.brand_fact_text(str(row["brand_id"])), hint):
-            hint_city_id = repo.ensure_city(hint)
-            if repo.brand_has_listing_in_city(str(row["brand_id"]), str(row["vertical_id"]), hint_city_id, str(row["id"])):
+        decision = brand_city_decision(repo, str(row["brand_id"]), row["city_hint"], row["brand_name"], known)
+        target = decision.city if decision.source in STRONG_CITY_SOURCES else None
+        if target and _fold(target) != _fold(city_name):
+            target_id = repo.ensure_city(target)
+            if repo.brand_has_listing_in_city(str(row["brand_id"]), str(row["vertical_id"]), target_id, str(row["id"])):
                 # Firma ma już osobny wpis w tamtym mieście: ten zostaje w swoim (unikalność marka + miasto).
                 counts["city_kept_duplicate"] += 1
             else:
-                city_id, city_name = hint_city_id, hint
+                city_id, city_name = target_id, target
                 counts["city_corrected"] += 1
+        if decision.city and _fold(decision.city) == _fold(city_name):
+            repo.set_listing_city_source(str(row["id"]), decision.source)
         slug = row["slug"] if row["slug"] and city_id == str(row["city_id"]) else None
         if not slug:
             slug = _unique_slug(slugify(row["brand_name"]) or "firma", repo.taken_slugs(str(row["vertical_id"]), city_id))
@@ -1286,3 +1320,112 @@ def _unique_slug(base: str, taken: set[str]) -> str:
     while f"{base}-{n}" in taken:
         n += 1
     return f"{base}-{n}"
+
+
+# ----------------------------------------------------------------------------- raport miast (etap 2 planu poprawy)
+
+def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict:
+    """Przelicza miasto każdego opublikowanego wpisu głównego nową regułą (katalog_worker/city.py).
+
+    Bez `apply` tylko zapisuje raport: `raport-miasta.csv` (biuro, stare i nowe miasto, źródło, decyzja, ostrzeżenia)
+    i `raport-miasta-podsumowanie.md` (liczba biur na miasto przed i po, miasta ze spadkiem ponad 30%).
+    Z `apply` przenosi wpisy, dla których nowa reguła ma pewne źródło innego miasta: stary adres profilu trafia do
+    listing_redirects (przekierowanie stałe), a gdy firma ma już wpis w nowym mieście, przenoszony wpis jest wycofany
+    i przekierowany na tamten. Wpisów bez pewnego źródła (miasto niepotwierdzone) nie zmienia: decyzja właściciela.
+    """
+    import csv
+
+    repo = ctx.repo
+    known = known_cities(repo.city_names())
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    counts: Counter = Counter()
+    before: Counter = Counter()
+    after: Counter = Counter()
+    rows_out: list[dict] = []
+    for row in repo.primary_listings_for_city_report():
+        listing_id, brand_id = str(row["id"]), str(row["brand_id"])
+        decision = brand_city_decision(repo, brand_id, row["city_hint"], row["brand_name"], known)
+        current = row["city_name"]
+        before[current] += 1
+        if decision.city is None:
+            verdict = "niepotwierdzone"
+            after[current] += 1
+        elif _fold(decision.city) == _fold(current):
+            verdict = "bez zmian"
+            after[current] += 1
+        elif decision.source in STRONG_CITY_SOURCES:
+            verdict = "przeniesienie"
+            after[decision.city] += 1
+        else:
+            verdict = "bez zmian (słaby dowód)"
+            after[current] += 1
+        counts[verdict] += 1
+        rows_out.append({
+            "biuro": row["brand_name"],
+            "domena": repo.brand_host(brand_id) or "",
+            "stare_miasto": current,
+            "nowe_miasto": decision.city or "",
+            "zrodlo": SOURCE_LABEL.get(decision.source, decision.source),
+            "decyzja": verdict,
+            "ostrzezenia": "; ".join(decision.warnings),
+            "profil": f"/{row['city_slug']}/{row['slug']}",
+        })
+        if apply:
+            if verdict == "przeniesienie":
+                _move_listing(repo, row, decision, counts)
+            elif decision.city and verdict == "bez zmian":
+                repo.set_listing_city_source(listing_id, decision.source)
+            repo.conn.commit()
+
+    with (out / "raport-miasta.csv").open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows_out[0].keys()) if rows_out else ["biuro"])
+        writer.writeheader()
+        writer.writerows(rows_out)
+
+    cities = sorted(set(before) | set(after), key=lambda c: (-before[c], c))
+    drops = [c for c in cities if before[c] >= 3 and after[c] < before[c] * 0.7]
+    lines = [
+        "# Raport miast (na sucho)" if not apply else "# Raport miast (zapisany)",
+        "",
+        f"Wpisy główne: {len(rows_out)}. " + ", ".join(f"{k}: {v}" for k, v in sorted(counts.items())),
+        "",
+        "## Miasta ze spadkiem ponad 30%",
+        "",
+        *([f"- {c}: {before[c]} -> {after[c]}" for c in drops] or ["- brak"]),
+        "",
+        "## Liczba biur na miasto (wpisy główne, przed -> po)",
+        "",
+        *[f"- {c}: {before[c]} -> {after[c]}" for c in cities if before[c] != after[c] or before[c] >= 10],
+    ]
+    (out / "raport-miasta-podsumowanie.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    counts["drops_over_30pct"] = len(drops)
+    return dict(counts)
+
+
+def _move_listing(repo: Repo, row: dict, decision: CityDecision, counts: Counter) -> None:
+    listing_id, brand_id, vertical_id = str(row["id"]), str(row["brand_id"]), str(row["vertical_id"])
+    old_path = f"/{row['city_slug']}/{row['slug']}"
+    target_id = repo.ensure_city(decision.city)
+    existing = repo.brand_listing_in_city(brand_id, vertical_id, target_id)
+    if existing and str(existing["id"]) != listing_id:
+        # Firma ma już wpis w nowym mieście: przenoszony wpis wycofujemy i przekierowujemy na tamten.
+        repo.set_listing_status(listing_id, "removed")
+        if existing["status"] != "published":
+            slug = existing["slug"] or _unique_slug(slugify(row["brand_name"]) or "firma",
+                                                     repo.taken_slugs(vertical_id, target_id))
+            repo.publish_listing(str(existing["id"]), target_id, slug, None)
+        repo.add_listing_redirect(old_path, str(existing["id"]))
+        repo.set_listing_city_source(str(existing["id"]), decision.source)
+        target_listing = str(existing["id"])
+        counts["moved_merged"] += 1
+    else:
+        slug = _unique_slug(slugify(row["brand_name"]) or "firma", repo.taken_slugs(vertical_id, target_id))
+        repo.move_listing(listing_id, target_id, slug)
+        repo.add_listing_redirect(old_path, listing_id)
+        repo.set_listing_city_source(listing_id, decision.source)
+        target_listing = listing_id
+        counts["moved"] += 1
+    repo.write_audit("pipeline", "listing.move_city", "listing", listing_id,
+                     {"city": row["city_name"], "path": old_path},
+                     {"city": decision.city, "source": decision.source, "target_listing": target_listing})
