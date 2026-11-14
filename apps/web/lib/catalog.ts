@@ -237,6 +237,79 @@ export async function cityCommissionStats(citySlug: string): Promise<CommissionS
   return { n: values.length, median: median(values.map((r) => r.v)), observedAt: latest };
 }
 
+export type CommissionCity = { name: string; slug: string; firms: number; withPrices: number; n: number; median: number | null };
+export type CommissionReport = {
+  cities: CommissionCity[];
+  firms: number;
+  withPrices: number;
+  n: number;
+  median: number | null;
+  p25: number | null;
+  p75: number | null;
+  observedAt: Date | null;
+};
+
+function quantile(sorted: number[], q: number): number | null {
+  if (sorted.length === 0) return null;
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+/**
+ * Raport prowizji (/raporty/prowizje-biur-nieruchomosci-2026): te same zasady co mediana na stronie miasta
+ * (jedna najniższa wiarygodna stawka procentowa za sprzedaż na biuro), firma liczona raz, w mieście głównego wpisu.
+ */
+export async function commissionReport(): Promise<CommissionReport> {
+  const [firms, rates] = await Promise.all([
+    query<{ brandId: string; name: string; slug: string; hasPrices: boolean }>(
+      `select l.brand_id as "brandId", c.name, c.slug,
+              exists (select 1 from price_items p where p.brand_id = l.brand_id and p.is_current) as "hasPrices"
+       from listings l join cities c on c.id = l.city_id
+       where l.status = 'published' and l.id = (
+         select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
+         order by l1.published_at nulls last, l1.created_at limit 1)`,
+    ),
+    query<{ brandId: string; service: string; unit: PriceRow["unit"]; amountMin: number | null; amountMax: number | null; observedAt: Date }>(
+      `select p.brand_id as "brandId", p.service, p.unit, p.amount_min::float8 as "amountMin",
+              p.amount_max::float8 as "amountMax", p.observed_at as "observedAt"
+       from price_items p
+       where p.is_current and p.unit = 'percent' and p.amount_min is not null
+         and exists (select 1 from listings l where l.brand_id = p.brand_id and l.status = 'published')`,
+    ),
+  ]);
+  const perBrand = new Map<string, { v: number; observedAt: Date }>();
+  for (const r of rates) {
+    if (priceKind(r.service) !== "sale" || !isPlausible(r) || r.amountMin == null) continue;
+    const prev = perBrand.get(r.brandId);
+    if (!prev || r.amountMin < prev.v) perBrand.set(r.brandId, { v: r.amountMin, observedAt: r.observedAt });
+  }
+  const byCity = new Map<string, { name: string; slug: string; firms: number; withPrices: number; values: number[] }>();
+  for (const f of firms) {
+    const c = byCity.get(f.slug) ?? { name: f.name, slug: f.slug, firms: 0, withPrices: 0, values: [] };
+    c.firms += 1;
+    if (f.hasPrices) c.withPrices += 1;
+    const rate = perBrand.get(f.brandId);
+    if (rate) c.values.push(rate.v);
+    byCity.set(f.slug, c);
+  }
+  const all = [...perBrand.values()].map((r) => r.v).sort((a, b) => a - b);
+  const latest = [...perBrand.values()].reduce<Date | null>((acc, r) => (!acc || r.observedAt > acc ? r.observedAt : acc), null);
+  return {
+    cities: [...byCity.values()]
+      .map((c) => ({ name: c.name, slug: c.slug, firms: c.firms, withPrices: c.withPrices, n: c.values.length, median: median(c.values) }))
+      .sort((a, b) => b.n - a.n || b.firms - a.firms || a.name.localeCompare(b.name, "pl")),
+    firms: firms.length,
+    withPrices: firms.filter((f) => f.hasPrices).length,
+    n: all.length,
+    median: median(all),
+    p25: quantile(all, 0.25),
+    p75: quantile(all, 0.75),
+    observedAt: latest,
+  };
+}
+
 export type SitemapEntry = { citySlug: string; firmSlug: string | null; lastModified: Date | null; cityListings: number };
 
 /**

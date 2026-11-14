@@ -353,11 +353,20 @@ export default async function CityPage({ params, searchParams }: Props) {
         </ul>
       )}
       <p className="note">{commission.note}</p>
+      <p>
+        Porównanie z innymi miastami: raport{" "}
+        <Link href="/raporty/prowizje-biur-nieruchomosci-2026">Prowizje biur nieruchomości 2026</Link>. Jak czytać stawki:{" "}
+        <Link href="/poradnik/ile-bierze-biuro-nieruchomosci">ile bierze biuro nieruchomości</Link>.
+      </p>
 
       <h2>Jak wybrać biuro nieruchomości {where}?</h2>
       {guide.map((para, i) => (
         <p key={i}>{para}</p>
       ))}
+      <p>
+        Lista kontrolna przed podpisaniem umowy:{" "}
+        <Link href="/poradnik/jak-sprawdzic-biuro-nieruchomosci">jak sprawdzić biuro nieruchomości</Link>.
+      </p>
 
       <h2>Najczęściej zadawane pytania</h2>
       <div className="faq">

@@ -22,6 +22,7 @@ export async function GET() {
     `- [Reklama i niezależność](${absoluteUrl("/reklama")})`,
     `- [Dla biur nieruchomości](${absoluteUrl("/dla-firm")}): jakie dane publikujemy, korekta i usunięcie wpisu`,
     `- [Lista miast według województw](${absoluteUrl("/miasta")})`,
+    `- [Prowizje biur nieruchomości 2026](${absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026")}): mediana prowizji za sprzedaż według miast, z cenników biur`,
     `- [O nas](${absoluteUrl("/o-nas")}): kto prowadzi serwis (${op.name ?? "operator serwisu"}), skąd są dane i jak często je odświeżamy`,
     `- [Kontakt](${absoluteUrl("/kontakt")})${op.email ? `: ${op.email}` : ""}`,
     "",

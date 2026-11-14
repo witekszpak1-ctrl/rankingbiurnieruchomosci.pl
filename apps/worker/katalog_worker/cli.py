@@ -186,6 +186,17 @@ def cmd_duplicates_report(args) -> int:
     return 0
 
 
+def cmd_guard(args) -> int:
+    from .guard import run_guard
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        result = run_guard(ctx.repo, accept=args.accept)
+        _print(result)
+    # Kod błędu oznacza przebieg na GitHubie jako nieudany (powiadomienie), publikacja jest już wstrzymana.
+    return 0 if result.get("ok", True) else 3
+
+
 def cmd_crawl_deep(args) -> int:
     from .pipeline import stage_crawl_deep
 
@@ -391,6 +402,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=50)
     p = add("reverify", cmd_reverify, "ponowna weryfikacja biur bez potwierdzenia na wszystkich podstronach")
     p.add_argument("--limit", type=int, default=100)
+    p = add("guard", cmd_guard, "kontrole po przebiegu: skoki liczby biur, złe nazwy, duplikaty; wstrzymanie publikacji")
+    p.add_argument("--accept", action="store_true", help="zatwierdź obecny stan katalogu i odblokuj publikację")
     p = add("names-report", cmd_names_report, "firmy z nazwą strony zamiast nazwy biura: raport albo zapis (--apply)")
     p.add_argument("--out", default="queue/results/reports")
     p.add_argument("--apply", action="store_true", help="zmień nazwy i ukryj wpisy bez dobrej nazwy")

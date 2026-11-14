@@ -1136,6 +1136,10 @@ def stage_publish_ready(ctx: Context, limit: int = 200) -> dict:
     repo = ctx.repo
     if repo.setting("auto_publish", False) is not True:
         return {"auto_publish": "wyłączone"}
+    from .guard import publishing_blocked
+
+    if publishing_blocked(repo):
+        return {"auto_publish": "wstrzymane przez kontrolę (katalog guard)"}
     min_facts = int(repo.setting("publish_min_facts", 6))
     counts: Counter = Counter()
     known = known_cities(repo.city_names())
@@ -1264,6 +1268,10 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
     (np. oferty wygasły), wpis jest wycofywany, a gdy znów spełnia, wraca. Wpisów wycofanych ręcznie nie przywracamy.
     """
     repo = ctx.repo
+    from .guard import publishing_blocked
+
+    if publishing_blocked(repo):
+        return {"extra_cities": "wstrzymane przez kontrolę (katalog guard)"}
     counts: Counter = Counter()
     cities = [(str(r["id"]), r["name"], _tokens(r["name"])) for r in repo.conn.execute("select id, name from cities").fetchall()]
     cities = [c for c in cities if c[2] and " ".join(c[2]) not in _AMBIGUOUS_CITY_WORDS]

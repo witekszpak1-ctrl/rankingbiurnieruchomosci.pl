@@ -143,6 +143,10 @@ jobs:
           key: snapshots-${{ github.run_id }}
       # Harmonogram GitHuba często pomija przebiegi, więc przebieg sam uruchamia następny, dopóki jest praca:
       # nieprzeszukane miasta, domeny do otwarcia albo nowe paczki w tym przebiegu. Najwyżej 24 przebiegi pod rząd.
+      - name: Kontrole po przebiegu (skoki liczby biur, złe nazwy, duplikaty)
+        id: guard
+        continue-on-error: true
+        run: katalog guard
       - name: Kolejny przebieg, gdy została praca
         if: ${{ success() }}
         env:
@@ -186,3 +190,9 @@ jobs:
           name: queue
           path: queue/
           if-no-files-found: ignore
+      - name: Wynik kontroli
+        if: steps.guard.outcome == 'failure'
+        run: |
+          echo "Kontrola po przebiegu wstrzymała publikację (szczegóły w kroku kontroli)." >&2
+          echo "Po sprawdzeniu uruchom workflow report z raportem kontrola-akceptuj." >&2
+          exit 1

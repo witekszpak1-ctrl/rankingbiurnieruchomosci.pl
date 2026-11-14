@@ -6,6 +6,9 @@ import { CITY_RANKING_MIN, METHODOLOGY } from "@/lib/ranking";
 
 // Data ostatniej zmiany treści stron informacyjnych. Przy edycji strony zmień datę tutaj.
 const INFO_PAGES_MODIFIED: Record<string, string> = {
+  "/poradnik/ile-bierze-biuro-nieruchomosci": "2026-11-14",
+  "/poradnik/jak-sprawdzic-biuro-nieruchomosci": "2026-11-14",
+  "/poradnik/biura-z-jawnym-cennikiem": "2026-11-14",
   "/o-nas": "2026-11-14",
   "/kontakt": "2026-11-14",
   "/dla-firm": "2026-11-14",
@@ -24,6 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Ranking ogólnopolski jest indeksowany od 10 biur (app/ranking/page.tsx); lista ofert ma noindex.
     ...(entries.filter((e) => e.firmSlug).length >= 10 ? [{ url: absoluteUrl("/ranking"), lastModified: newest }] : []),
     { url: absoluteUrl("/miasta"), lastModified: newest },
+    { url: absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026"), lastModified: newest },
     { url: absoluteUrl("/metodologia"), lastModified: new Date(METHODOLOGY.modified) },
     ...Object.entries(INFO_PAGES_MODIFIED).map(([path, date]) => ({ url: absoluteUrl(path), lastModified: new Date(date) })),
   ];
