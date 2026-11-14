@@ -1329,3 +1329,13 @@ def test_cities_report_reviews_brand_with_listings_in_several_cities(flow, tmp_p
     assert counts.get("do przeglądu (firma ma wpisy w kilku miastach)") == 1 and "moved" not in counts
     status = conn.execute("select status from listings where id = %s", (row["id"],)).fetchone()["status"]
     assert status == "published"
+
+
+def test_branch_names_are_not_duplicates():
+    from katalog_worker.pipeline import _branch_names, _tokens
+
+    city_words = {t for n in ["Białogard", "Szczecinek", "Świnoujście", "Kraków"] for t in _tokens(n)}
+    assert _branch_names("Metrohouse Białogard", "Metrohouse Szczecinek", city_words)
+    assert not _branch_names("Bedroom Nieruchomości Świnoujście", "Bedroom Nieruchomości", city_words)
+    assert not _branch_names("Agent Power", "AGENT POWER", city_words)
+    assert not _branch_names("Dom Kraków", "Dom Kraków Centrum", city_words)
