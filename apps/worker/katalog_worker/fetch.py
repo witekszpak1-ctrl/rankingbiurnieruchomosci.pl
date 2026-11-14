@@ -5,7 +5,10 @@ Zasady:
 - robots.txt: 4xx = brak ograniczeń, błąd serwera lub sieci = zakaz (ostrożnie, zgodnie z RFC 9309); taki zakaz
   jest tymczasowy (błąd "robots_unreachable"), więc stronę można sprawdzić ponownie później,
 - własny User-Agent z adresem kontaktowym, odstęp min_delay_seconds między zapytaniami do tego samego hosta,
-- nie omijamy zabezpieczeń: odpowiedź inna niż HTML kończy się błędem, a nie próbą obejścia.
+- nie omijamy zabezpieczeń: odpowiedź inna niż HTML kończy się błędem, a nie próbą obejścia,
+- adres bez "www" (tak zapisujemy domeny), który nie daje się połączyć (certyfikat tylko dla www, brak rekordu DNS
+  dla domeny bez www), próbujemy jeszcze z "www"; stronę bez HTTPS (połączenie odrzucone na porcie 443) przez http.
+  Błędnego certyfikatu nie pomijamy: wersja http jest tylko dla odrzuconego połączenia, nie dla błędu certyfikatu.
 """
 
 from __future__ import annotations
@@ -13,8 +16,8 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
-from urllib.parse import urljoin, urlsplit
+from dataclasses import dataclass, replace
+from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -82,6 +85,7 @@ class PoliteFetcher:
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, object] = {}
         self._robots_problem: dict[str, str] = {}  # origin -> przyczyna niedostępnego robots.txt (do diagnozy)
+        self._origin_alias: dict[str, str] = {}  # origin bez www, który nie działa -> działający (www albo http)
 
     def clone(self) -> "PoliteFetcher":
         """Nowy fetcher z tymi samymi ustawieniami i własnym klientem HTTP (do pracy w osobnym wątku).
@@ -146,6 +150,22 @@ class PoliteFetcher:
     # ------------------------------------------------------------------ pobieranie
 
     def fetch(self, url: str) -> FetchResult:
+        """Pobiera adres; gdy host bez www nie daje się połączyć, próbuje wersji z www (a bez HTTPS przez http)."""
+        parts = urlsplit(url)
+        origin = f"{parts.scheme}://{parts.netloc}"
+        alias = self._origin_alias.get(origin)
+        if alias:
+            return replace(self._fetch_once(alias + url[len(origin):]), url=url)
+        result = self._fetch_once(url)
+        for alternative in _alternative_origins(parts, result):
+            retry = self._fetch_once(alternative + url[len(origin):])
+            if retry.status is not None or retry.error == "robots":
+                # tamten adres odpowiada (także zakazem w robots.txt, który szanujemy): odtąd używamy go dla hosta
+                self._origin_alias[origin] = alternative
+                return replace(retry, url=url)
+        return result
+
+    def _fetch_once(self, url: str) -> FetchResult:
         current = url
         headers = {"User-Agent": self._ua, "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5"}
         for _ in range(self._max_redirects + 1):
@@ -175,5 +195,25 @@ class PoliteFetcher:
                     text = decode_body(content, response.charset_encoding)
                     return FetchResult(url, current, 200, ctype, text, len(content), True)
             except httpx.HTTPError as exc:
-                return FetchResult(url, current, None, "", "", 0, True, f"network:{type(exc).__name__}")
+                return FetchResult(
+                    url, current, None, "", "", 0, True, f"network:{type(exc).__name__}", f"{type(exc).__name__}: {str(exc)[:120]}"
+                )
         return FetchResult(url, current, None, "", "", 0, True, "too_many_redirects")
+
+
+def _alternative_origins(parts, result: FetchResult) -> list[str]:
+    """Inne adresy hosta do sprawdzenia, gdy połączenie się nie udało (nie przy odpowiedzi serwera ani przekroczeniu
+    czasu): z www, gdy host jest bez www, oraz http, gdy port 443 odrzucił połączenie (strona bez HTTPS)."""
+    detail = result.detail or ""
+    connect_failed = (result.error == "robots_unreachable" and detail.startswith("ConnectError")) or (
+        result.error == "network:ConnectError"
+    )
+    host = parts.hostname or ""
+    if not connect_failed or not host:
+        return []
+    out: list[str] = []
+    if not host.startswith("www."):
+        out.append(urlunsplit((parts.scheme, "www." + parts.netloc, "", "", "")))
+    if parts.scheme == "https" and "Connection refused" in detail:
+        out.append(urlunsplit(("http", parts.netloc, "", "", "")))
+    return out

@@ -164,3 +164,54 @@ def test_decode_body_handles_legacy_polish_encodings():
     assert decode_body(meta, None).endswith(text)
     assert decode_body(text.encode("utf-8"), None) == text
     assert "�" in decode_body(b"\xff\xfe\xfa", None) or decode_body(b"\xff\xfe\xfa", None) is not None
+
+
+def test_bare_host_with_certificate_only_for_www_falls_back_to_www_and_remembers_it():
+    hosts: list[str] = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        if request.url.host == "firma.pl":
+            raise httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] Hostname mismatch, certificate is not valid for 'firma.pl'")
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return html_response()
+
+    fetcher, _ = make_fetcher(handler)
+    home = fetcher.fetch("https://firma.pl/")
+    assert home.ok and home.url == "https://firma.pl/" and home.final_url == "https://www.firma.pl/"
+    contact = fetcher.fetch("https://firma.pl/kontakt")
+    assert contact.ok and contact.final_url == "https://www.firma.pl/kontakt"
+    assert hosts.count("firma.pl") == 1  # tylko pierwsza próba robots.txt; potem od razu www
+
+
+def test_site_without_https_falls_back_to_http_but_bad_certificate_does_not():
+    def no_tls(request):
+        if request.url.scheme == "https":
+            raise httpx.ConnectError("[Errno 111] Connection refused")
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return html_response()
+
+    fetcher, _ = make_fetcher(no_tls)
+    page = fetcher.fetch("https://firma.pl/")
+    assert page.ok and page.final_url == "http://firma.pl/"
+
+    def expired(request):
+        raise httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired")
+
+    fetcher, _ = make_fetcher(expired)
+    broken = fetcher.fetch("https://firma.pl/")
+    # z www też nie działa, a błędnego certyfikatu nie omijamy przez http
+    assert broken.error == "robots_unreachable" and "expired" in broken.detail
+
+
+def test_network_error_on_page_keeps_detail_and_www_host_has_no_alternative():
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        raise httpx.ConnectError("[Errno -2] Name or service not known")
+
+    fetcher, _ = make_fetcher(handler)
+    result = fetcher.fetch("https://www.firma.pl/")
+    assert result.error == "network:ConnectError" and "Name or service not known" in result.detail
