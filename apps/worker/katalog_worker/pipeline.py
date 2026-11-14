@@ -1180,7 +1180,7 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
     """Dodatkowe wpisy firmy w miastach, w których działa (biura często obsługują kilka miast).
 
     Miasto dostaje wpis, gdy co najmniej `min_offers` aktywnych ofert firmy je wymienia (tytuł lub adres oferty)
-    albo fakty o firmie podają w nim adres biura (kod pocztowy z miastem). Tylko miasta, które już mają stronę
+    albo fakty o firmie podają w nim adres biura (kod pocztowy z miastem) i jest tam co najmniej jedna oferta. Tylko miasta, które już mają stronę
     w katalogu. Wpis jest od razu opublikowany; strona firmy w drugim mieście wskazuje główny wpis jako kanoniczny.
     Wpisy dodane tak wcześniej są sprawdzane przy każdym przebiegu: gdy miasto przestaje spełniać warunek
     (np. oferty wygasły), wpis jest wycofywany, a gdy znów spełnia, wraca. Wpisów wycofanych ręcznie nie przywracamy.
@@ -1217,7 +1217,9 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
                 continue  # żadne słowo w ofertach nie zaczyna się jak nazwa miasta: szybkie pominięcie
             # Własna nazwa miasta w zbiorze nie przeszkadza: identyczne słowo jest sprawdzane wcześniej.
             hits = sum(1 for t in offer_texts if offer_mentions_city(t, city_tokens, single_words))
-            office = any(offer_mentions_city(t, city_tokens, single_words) for t in address_texts)
+            # Adres ze strony biura liczy się tylko razem z co najmniej jedną ofertą w tym mieście: strony podają też
+            # cudze adresy (UODO w polityce prywatności, firma przetwarzająca dane, właściciel serwisu).
+            office = hits >= 1 and any(offer_mentions_city(t, city_tokens, single_words) for t in address_texts)
             if hits >= min_offers or office:
                 scored.append((hits + (1000 if office else 0), city_id, city_name))
         keep = {city_id: city_name for _, city_id, city_name in sorted(scored, reverse=True)[:max_extra]}

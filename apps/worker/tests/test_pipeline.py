@@ -808,6 +808,35 @@ def test_publish_ready_keeps_city_when_brand_already_has_listing_in_hinted_city(
     assert kept["status"] == "published" and kept["city_id"] == listing["city_id"]
 
 
+def test_extra_cities_office_address_needs_an_offer_in_that_city(flow):
+    from katalog_worker.pipeline import stage_extra_cities, stage_publish_ready
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    conn.execute("insert into settings (key, value) values ('auto_publish', 'true') on conflict (key) do update set value = 'true'")
+    conn.execute("update settings set value = '3' where key = 'publish_min_facts'")
+    write_result(flow)
+    stage_import(ctx)
+    stage_publish_ready(ctx)
+    warszawa = ctx.repo.ensure_city("Warszawa")
+    torun = ctx.repo.ensure_city("Toruń")
+    # Z produkcji: adres UODO z polityki prywatności i adres firmy przetwarzającej dane dawały biuru wpis w Warszawie.
+    ctx.repo.add_fact(brand_id, "address_hint", "00-193 Warszawa", "Prezes UODO, ul. Stawki 2, 00-193 Warszawa", AGENCY, "regex", 0.9)
+    ctx.repo.add_fact(brand_id, "address_hint", "87-100 Toruń", "Oddział: ul. Szeroka 1, 87-100 Toruń", AGENCY, "regex", 0.9)
+    domain_id = conn.execute("select id from domains where brand_id = %s", (brand_id,)).fetchone()["id"]
+    conn.execute(
+        """insert into offers (brand_id, domain_id, url, url_key, title, position, is_active, last_seen_at)
+           values (%s, %s, %s, 'k1', 'Mieszkanie w Toruniu, 2 pokoje', 1, true, now())""",
+        (brand_id, domain_id, f"{AGENCY}oferta/1"),
+    )
+    conn.commit()
+    stage_extra_cities(ctx)
+    status = lambda city: conn.execute(  # noqa: E731
+        "select status from listings where brand_id = %s and city_id = %s", (brand_id, city)).fetchone()
+    assert status(warszawa) is None  # sam adres bez oferty nie wystarcza
+    assert status(torun)["status"] == "published"  # adres oddziału i oferta w tym mieście
+
+
 def test_offer_mentions_city_handles_inflection_and_skips_street_names():
     from katalog_worker.pipeline import _tokens, offer_mentions_city
 
