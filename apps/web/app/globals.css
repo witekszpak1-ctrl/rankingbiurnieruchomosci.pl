@@ -712,7 +712,7 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .stars-mini > span { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: #e8a800; white-space: nowrap; }
 .stars-mini > span::before { content: "★★★★★"; }
 .fc-thumb .firm-img.md.logo { background: #fff; color: var(--fg); }
-.fc-thumb .firm-img.logo img { padding: 14%; }
+.fc-thumb .firm-img.logo img { padding: 6%; }
 
 /* menu na telefonie */
 .mnav { display: none; }
@@ -780,3 +780,19 @@ nav .chips li { background: none; border: 0; padding: 0; }
 .stars .star svg { display: block; }
 .stars .star-fill { position: absolute; left: 0; top: 0; height: 100%; overflow: hidden; }
 .profile-main .chips li a { display: inline; padding: 0; border: 0; background: none; border-radius: 0; color: inherit; text-decoration: none; }
+
+.fc-chips li.fc-mobile-only { display: none; }
+/* telefon: logo w kwadratowej miniaturze obok nazwy (na pełnej szerokości ginęło na środku białego paska) */
+@media (max-width: 520px) {
+  .firm-card { grid-template-columns: 100px minmax(0, 1fr); }
+  .fc-thumb { height: 86px; min-height: 0; width: 86px; margin: 14px 0 0 14px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+  .fc-thumb .firm-img.logo img { padding: 4%; }
+  .fc-thumb .firm-img.md { font-size: 1.5rem; }
+  .fc-pos { left: 4px; top: 4px; font-size: 0.7rem; padding: 0 6px; }
+  .fc-count { display: none; }
+  .fc-chips li.fc-mobile-only { display: inline-flex; }
+  .fc-mid { padding: 12px 14px 12px 10px; }
+  .fc-mid h3 { font-size: 1.1rem; }
+  .fc-desc { grid-column: 1 / -1; }
+  .fc-side { grid-column: 1 / -1; }
+}
