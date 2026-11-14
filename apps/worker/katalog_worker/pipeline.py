@@ -1497,6 +1497,8 @@ def _reslug_listing(repo: Repo, listing: dict, new_name: str, counts: Counter) -
         return
     repo.move_listing(str(listing["id"]), city_id, slug)
     repo.add_listing_redirect(f"/{listing['city_slug']}/{listing['slug']}", str(listing["id"]))
+    repo.write_audit("pipeline", "listing.reslug", "listing", str(listing["id"]),
+                     {"slug": listing["slug"]}, {"slug": slug})
     counts["reslugged"] += 1
 
 
@@ -1671,9 +1673,14 @@ def _merge_brand(repo: Repo, dup: dict, keep: dict, counts: Counter) -> None:
                 repo.publish_listing(str(existing["id"]), city_id, slug, None)
             repo.set_listing_status(str(listing["id"]), "removed")
             repo.add_listing_redirect(old_path, str(existing["id"]))
+            repo.write_audit("pipeline", "listing.merge_brand", "listing", str(listing["id"]),
+                             {"status": "published", "brand_id": str(dup["brand_id"])},
+                             {"status": "removed", "redirect_to": str(existing["id"])})
             counts["merged_into_existing"] += 1
         else:
             repo.reassign_listing(str(listing["id"]), keep_id)
+            repo.write_audit("pipeline", "listing.merge_brand", "listing", str(listing["id"]),
+                             {"brand_id": str(dup["brand_id"])}, {"brand_id": keep_id})
             _reslug_listing(repo, {**listing, "brand_id": keep_id}, keep["brand_name"], counts)
             counts["merged_moved"] += 1
     repo.write_audit("pipeline", "brand.merge", "brand", str(dup["brand_id"]),
