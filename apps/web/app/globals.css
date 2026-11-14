@@ -728,11 +728,12 @@ a.top3-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .mnav-panel li a[aria-current="page"] { color: var(--yellow); }
 .mnav-cta { display: flex; justify-content: center; gap: 8px; margin-top: 22px; padding: 14px; border-radius: 999px; background: var(--yellow); color: var(--fg); font-weight: 700; text-decoration: none; }
 body.mnav-lock { overflow: hidden; }
+/* na telefonie w pasku tylko logo i menu: "Znajdź biuro" jest w menu, a obok logo przy większym tekście się nie mieścił */
 @media (max-width: 640px) {
-  .mnav { display: block; }
-  .header-cta { margin-left: auto; }
+  .mnav { display: block; margin-left: auto; flex: none; }
+  .header-cta { display: none; }
+  .brand { min-width: 0; }
 }
-@media (max-width: 360px) { .header-cta { display: none; } .mnav { margin-left: auto; } }
 
 /* lista rozwijana w stylu paska wyszukiwania (oferty, strona główna) */
 .search-field select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 30px;
