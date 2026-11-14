@@ -7,7 +7,8 @@ import { TopThree } from "@/components/TopThree";
 import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { cityCommissionStats, cityPriceExamples, cityServices, getCity, listCities, listCityListings, type ListingCard } from "@/lib/catalog";
+import { unstable_cache } from "next/cache";
+import { cityCommissionStats, commissionReport, cityPriceExamples, cityServices, getCity, listCities, listCityListings, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import {
   brandServiceGroups,
@@ -28,6 +29,16 @@ import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } fro
 
 export const revalidate = 300;
 
+/** Dane krajowe do porównania w sekcji prowizji: jedno zapytanie na godzinę, nie przy każdej stronie miasta. */
+const nationalCommission = unstable_cache(
+  async () => {
+    const r = await commissionReport();
+    return { median: r.median, n: r.n, withPricesPct: r.firms > 0 ? Math.round((100 * r.withPrices) / r.firms) : null };
+  },
+  ["national-commission-v1"],
+  { revalidate: 3600 },
+);
+
 type Props = { params: Promise<{ city: string }>; searchParams: Promise<SearchParams> };
 
 
@@ -47,15 +58,17 @@ async function load(slug: string) {
   if (!city) return null;
   const listings = await listCityListings(slug);
   if (listings.length === 0) return null;
-  const [stats, prices, services, cities] = await Promise.all([
+  const [stats, prices, services, cities, report] = await Promise.all([
     cityCommissionStats(slug),
     cityPriceExamples(slug),
     cityServices(slug),
     listCities().catch(() => []),
+    nationalCommission().catch(() => null),
   ]);
+  const national = report ?? undefined;
   const ranked = listings.length >= CITY_RANKING_MIN ? rankListings(listings, toInput) : null;
   const updatedAt = new Date(Math.max(0, ...listings.map((l) => (l.publishedAt ? new Date(l.publishedAt).getTime() : 0))));
-  return { city, listings, stats, ranked, updatedAt, prices, services, cities };
+  return { city, listings, stats, ranked, updatedAt, prices, services, cities, national };
 }
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -89,7 +102,7 @@ export default async function CityPage({ params, searchParams }: Props) {
   const data = await load(slug);
   if (!data) notFound();
   const view = parseView(await searchParams);
-  const { city, listings, stats, ranked, updatedAt, prices, services, cities } = data;
+  const { city, listings, stats, ranked, updatedAt, prices, services, cities, national } = data;
   const withPrices = listings.filter((l) => l.hasPublicPrices).length;
   const rows = ranked ?? listings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] }));
   // Filtry: pozycje zostają z pełnego rankingu miasta, lista pokazuje tylko pasujące biura.
@@ -125,6 +138,7 @@ export default async function CityPage({ params, searchParams }: Props) {
     medianObservedAt: stats.observedAt,
     prices,
     services,
+    national,
   };
   const medianText =
     stats.n >= PRICE_STAT_MIN && stats.median != null

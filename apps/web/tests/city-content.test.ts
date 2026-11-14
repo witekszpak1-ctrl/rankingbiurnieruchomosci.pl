@@ -45,11 +45,18 @@ describe("treść strony miasta", () => {
   });
   it("prowizje: bez mediany przy małej próbie, nierealne stawki pominięte", () => {
     const c = commissionSection(base);
-    expect(c.summary).toContain("1 z 5 biur w Warszawie publikuje");
+    expect(c.summary).toContain("1 z 5 biur w Warszawie (20%) publikuje");
     expect(c.summary).toContain("za mała próba");
     expect(c.examples).toHaveLength(1);
     expect(c.examples[0].value).toContain("2,5% brutto");
     expect(commissionSection({ ...base, median: 2.75, medianN: 4 }).summary).toContain("Mediana najniższych deklarowanych stawek od sprzedaży wynosi 2,75%");
+  });
+  it("prowizje: porównanie z całym katalogiem", () => {
+    const national = { median: 2.5, n: 120, withPricesPct: 18 };
+    expect(commissionSection({ ...base, national }).summary).toContain("(20%, w całym katalogu 18%)");
+    expect(commissionSection({ ...base, median: 2.75, medianN: 4, national }).summary).toContain("To o 0,25 pkt proc. więcej niż mediana w całym katalogu (2,5%");
+    expect(commissionSection({ ...base, median: 2.5, medianN: 4, national }).summary).toContain("To tyle samo, co mediana w całym katalogu");
+    expect(commissionSection({ ...base, median: 2.75, medianN: 4, national: { ...national, n: 5 } }).summary).not.toContain("w całym katalogu (");
   });
   it("poradnik 150-250 słów i z danymi lokalnymi", () => {
     const words = choosingGuide(base).join(" ").split(/\s+/).length;
