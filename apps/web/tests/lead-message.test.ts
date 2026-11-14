@@ -22,6 +22,6 @@ describe("leadMessage", () => {
   });
 
   it("bez długich myślników", () => {
-    for (const t of TOPICS) expect(leadMessage(t, "w Krakowie")).not.toMatch(/[–—]/);
+    for (const t of TOPICS) expect(leadMessage(t, "w Krakowie")).not.toMatch(/[\u2013\u2014]/);
   });
 });
