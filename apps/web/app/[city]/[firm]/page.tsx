@@ -451,6 +451,12 @@ export default async function FirmPage({ params, searchParams }: Props) {
 
             <section className="profile-section">
               <h2>Wynik w rankingu: {score}/100</h2>
+              <p className="note">
+                Wynik w rankingu mierzy, jak kompletne i sprawdzalne są dane biura (rejestr, cennik, usługi, oferty).
+                {listing.googleRating && listing.googleCount
+                  ? ` Ocena w Google (${listing.googleRating.toFixed(1)}, ${nOpinii(listing.googleCount)}) to opinie klientów i wchodzi do wyniku tylko jako jeden z parametrów, więc to dwie różne miary.`
+                  : " Opinie klientów w Google, gdy biuro ma tam profil, są jednym z parametrów wyniku."}
+              </p>
               <div className="score-rows">
                 {breakdown.map((item) => (
                   <div key={item.key} className="score-row">

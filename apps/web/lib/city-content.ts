@@ -30,6 +30,8 @@ export type CityData = {
   medianObservedAt: Date | null;
   prices: CityPriceExample[];
   services: { brandId: string; service: string }[];
+  /** Cały katalog, do porównania miasta z krajem (raport prowizji). */
+  national?: { median: number | null; n: number; withPricesPct: number | null };
 };
 
 const SERVICE_GROUPS: { key: string; label: string; re: RegExp }[] = [
@@ -117,13 +119,22 @@ export function commissionSection(d: CityData): CommissionSection {
       `Żadne z biur nieruchomości ${where} w naszym katalogu (${nBiur(n)}) nie publikuje na swojej stronie stawek prowizji, więc wysokość wynagrodzenia trzeba ustalić bezpośrednio z biurem.`,
     );
   } else {
+    const share = n > 0 ? Math.round((100 * withPrices) / n) : 0;
+    const natShare = d.national?.withPricesPct;
     sentences.push(
-      `${withPrices} z ${nBiurGen(n)} ${where} ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług, a ${saleFirms} ${plural(saleFirms, "podaje", "podają", "podaje")} procentową prowizję od sprzedaży, którą da się porównać.`,
+      `${withPrices} z ${nBiurGen(n)} ${where} (${share}%${natShare != null ? `, w całym katalogu ${natShare}%` : ""}) ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług, a ${saleFirms} ${plural(saleFirms, "podaje", "podają", "podaje")} procentową prowizję od sprzedaży, którą da się porównać.`,
     );
     if (d.median != null && d.medianN >= PRICE_STAT_MIN) {
       sentences.push(
         `Mediana najniższych deklarowanych stawek od sprzedaży wynosi ${pct(d.median)} ceny transakcyjnej (na podstawie ${nBiurGen(d.medianN)}).`,
       );
+      const nat = d.national;
+      if (nat?.median != null && nat.n >= PRICE_STAT_MIN * 3) {
+        const diff = Math.round((d.median - nat.median) * 100) / 100;
+        const pp = (x: number) => pct(x).replace("%", " pkt proc.");
+        const relation = diff === 0 ? "tyle samo, co" : diff < 0 ? `o ${pp(Math.abs(diff))} mniej niż` : `o ${pp(diff)} więcej niż`;
+        sentences.push(`To ${relation} mediana w całym katalogu (${pct(nat.median)}, ${nBiurGen(nat.n)}).`);
+      }
     } else if (saleFirms > 0) {
       sentences.push(`To za mała próba, żeby podawać medianę dla miasta; poniżej pokazujemy stawki konkretnych biur.`);
     }
