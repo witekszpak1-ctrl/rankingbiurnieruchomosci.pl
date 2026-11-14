@@ -1,13 +1,17 @@
-# Test SEO na stronie produkcyjnej po każdym udanym wdrożeniu z Vercela (i ręcznie).
+# Test SEO na stronie produkcyjnej: po wdrożeniu z Vercela (gdy Vercel zgłasza wdrożenia do GitHuba), po każdym
+# przebiegu pipeline (co godzinę) i ręcznie.
 name: seo-check
 
 on:
   deployment_status:
+  workflow_run:
+    workflows: [pipeline]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
   check:
-    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    if: github.event_name != 'deployment_status' || (github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, 'roduction'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
