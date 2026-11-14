@@ -1251,3 +1251,57 @@ def test_name_from_domain_as_last_resort():
     assert name_from_domain("lknieruchomosci.pl") == "LK Nieruchomości"
     assert name_from_domain("bnhit.pl") is None  # bez rozpoznanego słowa nie dzielimy nazwy
     assert better_name("Biuro Nieruchomości", "hegesnieruchomosci.pl") == ("Heges Nieruchomości", "domena")
+
+
+def test_decide_city_two_word_towns_and_postcode():
+    from katalog_worker.city import AddressHit, decide_city, known_cities
+
+    known = known_cities(["Brzeg", "Trzebnica", "Góra", "Warszawa", "Gorzów Wielkopolski"])
+    # "Brzeg Dolny" to inna miejscowość niż Brzeg: nazwa spoza listy znanych, więc raport da ją do przeglądu
+    r = decide_city(None, "Trzebnica", "", [AddressHit("56-120", "Brzeg Dolny", "ul. X 1, 56-120 Brzeg Dolny")], known)
+    assert (r.city, r.source, r.postcode) == ("Brzeg Dolny", "adres", "56-120")
+    r = decide_city(None, "Brzeg", "", [AddressHit("56-120", "Brzeg Dolny", "56-120 Brzeg Dolny")], known)
+    assert r.city == "Brzeg Dolny"  # miasto wyszukiwania "Brzeg" nie pasuje do adresu "Brzeg Dolny"
+    r = decide_city(None, "Góra", "", [AddressHit("05-530", "Góra Kalwaria", "05-530 Góra Kalwaria")], known)
+    assert r.city == "Góra Kalwaria"
+    # dzielnica po nazwie miasta nie zmienia miasta
+    r = decide_city(None, "Trzebnica", "", [AddressHit("02-001", "Warszawa Mokotów", "02-001 Warszawa Mokotów")], known)
+    assert (r.city, r.postcode) == ("Warszawa", "02-001")
+    r = decide_city(None, "Gorzów Wielkopolski", "", [AddressHit("66-400", "Gorzów Wlkp", "66-400 Gorzów Wlkp.")], known)
+    assert (r.city, r.source, r.postcode) == ("Gorzów Wielkopolski", "adres_wyszukiwanie", "66-400")
+
+
+def test_cities_report_reviews_postcode_mismatch_and_name_with_current_city(flow, tmp_path):
+    import csv
+
+    from katalog_worker.pipeline import stage_cities_report
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    row = _published_listing(flow)
+    leszno = ctx.repo.ensure_city("Leszno")
+    for i in range(2):  # dwa biura potwierdzone adresem w Lesznie (kod 64-100)
+        other = ctx.repo.insert_unregistered_brand(f"Biuro Leszczyńskie {i}")
+        listing = ctx.repo.upsert_listing(other, str(row["vertical_id"]), leszno, "verified")
+        ctx.repo.publish_listing(listing, leszno, f"biuro-leszczynskie-{i}", None)
+        ctx.repo.add_fact(other, "address_hint", "64-100 Leszno", "ul. Słowiańska 1, 64-100 Leszno", AGENCY, "regex", 0.9)
+    conn.execute("update legal_entities set registered_address = null")
+    conn.execute("update facts set is_current = false where brand_id = %s and type in ('address', 'address_hint')",
+                 (brand_id,))
+    # Biuro spod Warszawy: "05-084 Leszno" to wieś, nie miasto Leszno
+    ctx.repo.add_fact(brand_id, "address_hint", "05-084 Leszno", "ul. Szkolna 1, 05-084 Leszno", AGENCY, "regex", 0.9)
+    conn.commit()
+    counts = stage_cities_report(ctx, str(tmp_path / "r"), apply=True)
+    assert counts.get("do przeglądu (kod pocztowy nie pasuje do miasta)") == 1 and "moved" not in counts
+    report = list(csv.DictReader((tmp_path / "r" / "raport-miasta.csv").open(encoding="utf-8")))
+    assert next(r for r in report if r["nowe_miasto"] == "Leszno" and r["kod"] == "05-084")
+
+    # Nazwa biura z obecnym miastem ("... Wisła") i adres gdzie indziej: do przeglądu, nie przeniesienie
+    wisla = ctx.repo.ensure_city("Wisła")
+    conn.execute("update listings set city_id = %s where id = %s", (wisla, row["id"]))
+    conn.execute("update brands set name = 'Nieruchomości Wisła' where id = %s", (brand_id,))
+    conn.execute("update facts set is_current = false where brand_id = %s and type = 'address_hint'", (brand_id,))
+    ctx.repo.add_fact(brand_id, "address_hint", "64-100 Leszno", "ul. Rynek 2, 64-100 Leszno", AGENCY, "regex", 0.9)
+    conn.commit()
+    counts = stage_cities_report(ctx, str(tmp_path / "r2"))
+    assert counts.get("do przeglądu (nazwa lub domena biura wskazuje obecne miasto)") == 1

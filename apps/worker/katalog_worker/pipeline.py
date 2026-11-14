@@ -1370,11 +1370,20 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
     before: Counter = Counter()
     after: Counter = Counter()
     rows_out: list[dict] = []
-    for row in repo.primary_listings_for_city_report():
+    rows = repo.primary_listings_for_city_report()
+    decisions = [brand_city_decision(repo, str(r["brand_id"]), r["city_hint"], r["brand_name"], known) for r in rows]
+    # Kody pocztowe (dwie pierwsze cyfry) miast z wpisów potwierdzonych adresem w obecnym mieście. Przeniesienie
+    # z adresem o kodzie spoza tych kodów idzie do przeglądu: "05-084 Leszno" (wieś pod Warszawą) to nie Leszno 64-100.
+    city_codes: dict[str, Counter] = {}
+    for r, d in zip(rows, decisions):
+        if d.postcode and d.city and _fold(d.city) == _fold(r["city_name"]):
+            city_codes.setdefault(_fold(d.city), Counter())[d.postcode[:2]] += 1
+    for row, decision in zip(rows, decisions):
         listing_id, brand_id = str(row["id"]), str(row["brand_id"])
-        decision = brand_city_decision(repo, brand_id, row["city_hint"], row["brand_name"], known)
         current = row["city_name"]
         before[current] += 1
+        codes = city_codes.get(_fold(decision.city or ""), Counter())
+        names_current = any(w.endswith(f": {current}") for w in decision.warnings if w.startswith("inne miasto w"))
         if decision.city is None:
             verdict = "niepotwierdzone"
             after[current] += 1
@@ -1389,6 +1398,12 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
             after[current] += 1
         elif decision.source == "rejestr" and mentions_city(repo.brand_fact_text(brand_id), current):
             verdict = "do przeglądu (rejestr podaje inne miasto niż strona biura)"
+            after[current] += 1
+        elif names_current:
+            verdict = "do przeglądu (nazwa lub domena biura wskazuje obecne miasto)"
+            after[current] += 1
+        elif decision.postcode and sum(codes.values()) >= 2 and decision.postcode[:2] not in codes:
+            verdict = "do przeglądu (kod pocztowy nie pasuje do miasta)"
             after[current] += 1
         elif decision.source in STRONG_CITY_SOURCES:
             verdict = "przeniesienie"
@@ -1405,6 +1420,7 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
             "zrodlo": SOURCE_LABEL.get(decision.source, decision.source),
             "decyzja": verdict,
             "ostrzezenia": "; ".join(decision.warnings),
+            "kod": decision.postcode or "",
             "profil": f"/{row['city_slug']}/{row['slug']}",
         })
         if apply:
