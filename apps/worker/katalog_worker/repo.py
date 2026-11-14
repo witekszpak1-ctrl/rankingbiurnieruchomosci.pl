@@ -181,6 +181,14 @@ class Repo:
             (label, Jsonb(reasons), robots_status, verification_status, domain_id),
         )
 
+    def requeue_probe(self, domain_id: str, reason: str) -> None:
+        """Domena do ponownego pobrania przez probe (np. zrzuty stron zniknęły z pamięci podręcznej runnera)."""
+        self.conn.execute(
+            """update domains set classification = 'unknown', verification_status = 'candidate',
+                 classification_reasons = %s, last_checked_at = null where id = %s""",
+            (Jsonb([reason]), domain_id),
+        )
+
     def touch_domain(self, domain_id: str, reasons: list[str], robots_status: str | None = None) -> None:
         self.conn.execute(
             """update domains set classification_reasons = %s, robots_status = coalesce(%s, robots_status),
@@ -192,7 +200,8 @@ class Repo:
         return self.conn.execute(
             """select id, host, canonical_url, city_hint, classification, brand_id from domains
                where (classification in ('official', 'uncertain') and verification_status = 'candidate')
-                  or (classification = 'official' and verification_status = 'needs_review' and brand_id is null)
+                  or (classification in ('official', 'uncertain') and verification_status = 'needs_review'
+                      and brand_id is null)
                order by first_seen_at limit %s""",
             (limit,),
         ).fetchall()

@@ -309,6 +309,12 @@ def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
     repo.conn.commit()
     rows = list(repo.domains_to_probe(limit))
     for row, (home, fetched) in _fetch_parallel(fetcher, rows, _probe_fetch):
+        if home.error == "robots_unreachable":
+            # robots.txt chwilowo niedostępny: nie pobieramy strony, ale nie odrzucamy jej na stałe (próba za dobę).
+            repo.touch_domain(row["id"], ["robots.txt niedostępny (błąd sieci lub serwera), ponowna próba później"])
+            counts["robots_unreachable"] += 1
+            repo.conn.commit()
+            continue
         if home.error == "robots":
             repo.update_domain_classification(
                 row["id"], "unknown", ["robots.txt zabrania pobierania"], robots_status="disallowed",
@@ -429,6 +435,12 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
         pages = _load_pages(ctx, row["id"])
         if pages:
             loaded.append((row, pages, merge_extractions(pages)))
+        else:
+            # Zrzuty stron zniknęły (cache Actions trzyma je ograniczony czas): bez nich domena utknęłaby tu na
+            # zawsze, więc wraca do probe, które pobierze strony od nowa i ją sklasyfikuje.
+            repo.requeue_probe(row["id"], "brak zapisanych stron, ponowne pobranie")
+            counts["requeued_no_snapshots"] += 1
+    repo.conn.commit()
     all_nips = sorted({hit.value for _, _, merged in loaded for hit in merged.nips})
     lookups = mf.lookup(all_nips) if all_nips else {}
     known = known_cities(repo.city_names())
@@ -456,8 +468,10 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
             verification = Verification(0, "needs_review", None, ["NIP ze strony nie występuje w wykazie VAT"])
 
         legal_entity_id = brand_id = None
-        if entity is None and verification.status == "needs_review" and row["classification"] == "official":
+        if entity is None and verification.status == "needs_review" and row["classification"] in ("official", "uncertain"):
             # Biuro bez potwierdzenia w rejestrze (np. brak NIP na stronie): trafia do katalogu z niższym rankingiem.
+            # Strony "niepewne" też dostają markę: o tym, czy to biuro, decyduje sesja opisów (pomija urzędy,
+            # portale i deweloperów), a bez marki taka domena nigdy by do niej nie trafiła.
             name = _brand_name(pages, None)
             if not name and not row.get("brand_id"):
                 counts["bad_name"] += 1  # same nazwy stron ("Strona główna") i brak rejestru: nie dodajemy

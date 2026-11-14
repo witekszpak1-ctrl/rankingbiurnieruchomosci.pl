@@ -821,6 +821,70 @@ def test_agency_without_any_nip_gets_unconfirmed_brand_listing_and_bundle(ctx):
     assert stage_bundle(ctx, 10).get("describe") == 1
 
 
+def _agency_domain(ctx):
+    return ctx.repo.conn.execute(
+        "select id, classification, verification_status, brand_id, last_checked_at, classification_reasons "
+        "from domains where host = 'przyklad-nieruchomosci.pl'"
+    ).fetchone()
+
+
+def test_uncertain_domain_stuck_without_brand_gets_one_for_description_session(ctx):
+    # Na produkcji 186 stron "niepewnych" miało status needs_review bez marki: weryfikacja ich nie brała, a bez
+    # marki nie trafiały do sesji opisów, która decyduje, czy to biuro.
+    fetcher = FakeFetcher(_agency_without_nip_pages())
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    conn = ctx.repo.conn
+    conn.execute(
+        "update domains set classification = 'uncertain', verification_status = 'needs_review' "
+        "where host = 'przyklad-nieruchomosci.pl'"
+    )
+    verify = stage_verify(ctx, make_mf(), make_krs(), 50)
+    assert verify.get("needs_review") == 1
+    domain = _agency_domain(ctx)
+    assert domain["brand_id"] is not None
+    listing = conn.execute("select status from listings where brand_id = %s", (domain["brand_id"],)).fetchone()
+    assert listing["status"] == "needs_review"
+
+
+def test_verify_sends_domain_back_to_probe_when_snapshots_are_gone(ctx):
+    import shutil
+
+    fetcher = FakeFetcher(_agency_without_nip_pages())
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    stage_probe(ctx, fetcher, 50)
+    conn = ctx.repo.conn
+    conn.execute(
+        "update domains set verification_status = 'needs_review' where host = 'przyklad-nieruchomosci.pl'"
+    )
+    shutil.rmtree(ctx.snapshots_dir)  # cache Actions już ich nie ma
+    verify = stage_verify(ctx, make_mf(), make_krs(), 50)
+    assert verify.get("requeued_no_snapshots") == 1
+    domain = _agency_domain(ctx)
+    assert (domain["classification"], domain["verification_status"]) == ("unknown", "candidate")
+    assert domain["brand_id"] is None and domain["last_checked_at"] is None
+    # następny przebieg pobiera strony od nowa i zakłada markę (polityka prywatności w tych stronach ma NIP)
+    stage_probe(ctx, fetcher, 50)
+    verify = stage_verify(ctx, make_mf(), make_krs(), 50)
+    assert verify.get("verified", 0) + verify.get("needs_review", 0) == 1
+    assert _agency_domain(ctx)["brand_id"] is not None
+
+
+def test_probe_retries_later_when_robots_txt_is_unreachable(ctx):
+    class RobotsDown(FakeFetcher):
+        def fetch(self, url):
+            if url.startswith(AGENCY):
+                return FetchResult(url, url, None, "", "", 0, False, "robots_unreachable")
+            return super().fetch(url)
+
+    stage_discover(ctx, FakeProvider(), "Wrocław", max_queries=1)
+    counts = stage_probe(ctx, RobotsDown(_agency_without_nip_pages()), 50)
+    assert counts.get("robots_unreachable") == 1
+    domain = _agency_domain(ctx)
+    assert (domain["classification"], domain["verification_status"]) == ("unknown", "candidate")
+    assert "niedostępny" in domain["classification_reasons"][0]
+
+
 def test_fetch_parallel_uses_clones_and_returns_every_item(monkeypatch):
     import threading
 
