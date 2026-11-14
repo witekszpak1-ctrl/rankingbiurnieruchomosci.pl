@@ -279,6 +279,19 @@ export default async function CityPage({ params, searchParams }: Props) {
                   )}
                 </div>
                 <div className="fc-mid">
+                  <h3>
+                    <Link className="fc-name" href={href}>
+                      {row.name}
+                    </Link>
+                  </h3>
+                  {row.googleRating != null && row.googleCount ? (
+                    <p className="fc-rating">
+                      <StarsMini value={row.googleRating} />
+                      <b>{row.googleRating.toFixed(1).replace(".", ",")}</b>
+                      <span>{nOpinii(row.googleCount)} w Google</span>
+                    </p>
+                  ) : null}
+                  {row.host && <p className="fc-meta">{row.host}</p>}
                   <ul className="fc-chips">
                     {row.registryConfirmed ? (
                       <li className="ok">✓ W rejestrze{since ? ` od ${since}` : ""}</li>
@@ -297,12 +310,6 @@ export default async function CityPage({ params, searchParams }: Props) {
                       </li>
                     )}
                   </ul>
-                  <h3>
-                    <Link className="fc-name" href={href}>
-                      {row.name}
-                    </Link>
-                  </h3>
-                  {row.host && <p className="fc-meta">{row.host}</p>}
                   {row.description && <p className="fc-desc">{shortText(row.description, 150)}</p>}
                 </div>
                 <div className="fc-side">
@@ -311,14 +318,6 @@ export default async function CityPage({ params, searchParams }: Props) {
                       <b>{row.score}</b>
                       <span>/100</span>
                       <small>wynik w rankingu</small>
-                    </div>
-                  ) : null}
-                  {row.googleRating != null && row.googleCount ? (
-                    <div className="fc-google">
-                      <StarsMini value={row.googleRating} />
-                      <span>
-                        {row.googleRating.toFixed(1).replace(".", ",")} · {nOpinii(row.googleCount)} w Google
-                      </span>
                     </div>
                   ) : null}
                   <span className="fc-see" aria-hidden="true">
