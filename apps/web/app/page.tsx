@@ -84,6 +84,7 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <PublicShell wide>
+      <div className="hero-wrap">
       <section className="hero-dark">
         <div className="wrap hero-grid">
           <div className="hero-copy">
@@ -172,6 +173,8 @@ export default async function HomePage({ searchParams }: Props) {
           </nav>
         </div>
       </section>
+
+      </div>
 
       <section className="stats-row" aria-label="Katalog w liczbach">
         <div className="wrap">
