@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { FirmImage } from "@/components/FirmImage";
 import { LeadForm } from "@/components/LeadForm";
+import { ProfileStickyCta } from "@/components/ProfileStickyCta";
 import { ShowPhone } from "@/components/ShowPhone";
 import { TrackEvent } from "@/components/TrackEvent";
 import { Stars } from "@/components/Stars";
@@ -241,8 +242,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
             </ul>
             <div className="profile-actions">
               {listing.phone && <ShowPhone phone={listing.phone} label={formatPhone(listing.phone)} />}
-              <a className="btn-outline" href="#zapytanie">
-                Napisz do biura
+              <a className="btn-green" href="#zapytanie">
+                Zapytaj o ofertę
               </a>
             </div>
 
@@ -564,6 +565,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
             <LeadForm
               listingId={listing.listingId}
               firmName={listing.name}
+              where={where}
               path={path}
               sent={sp.sent === "1"}
               eventId={typeof sp.eid === "string" ? sp.eid : undefined}
@@ -573,6 +575,7 @@ export default async function FirmPage({ params, searchParams }: Props) {
           </aside>
         </div>
       </div>
+      {sp.sent === "1" ? null : <ProfileStickyCta />}
 
       <JsonLd
         data={{
