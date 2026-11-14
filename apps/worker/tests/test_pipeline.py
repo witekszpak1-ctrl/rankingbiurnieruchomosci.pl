@@ -1305,3 +1305,27 @@ def test_cities_report_reviews_postcode_mismatch_and_name_with_current_city(flow
     conn.commit()
     counts = stage_cities_report(ctx, str(tmp_path / "r2"))
     assert counts.get("do przeglądu (nazwa lub domena biura wskazuje obecne miasto)") == 1
+
+
+def test_cities_report_reviews_brand_with_listings_in_several_cities(flow, tmp_path):
+    from katalog_worker.pipeline import stage_cities_report
+
+    ctx, brand_id = flow["ctx"], flow["brand_id"]
+    conn = ctx.repo.conn
+    row = _published_listing(flow)
+    conn.execute("update legal_entities set registered_address = null")
+    conn.execute("update facts set is_current = false where brand_id = %s and type in ('address', 'address_hint')",
+                 (brand_id,))
+    ctx.repo.add_fact(brand_id, "address_hint", "78-400 Szczecinek", "ul. Wyszyńskiego 1, 78-400 Szczecinek",
+                      AGENCY, "regex", 0.9)
+    # Oddział tej samej firmy w Szczecinku i wpis w Białogardzie (np. po scaleniu duplikatów z jednym NIP-em)
+    szczecinek = ctx.repo.ensure_city("Szczecinek")
+    second = ctx.repo.upsert_listing(brand_id, str(row["vertical_id"]), szczecinek, "verified")
+    ctx.repo.publish_listing(second, szczecinek, "oddzial-szczecinek", None)
+    bialogard = ctx.repo.ensure_city("Białogard")
+    conn.execute("update listings set city_id = %s where id = %s", (bialogard, row["id"]))
+    conn.commit()
+    counts = stage_cities_report(ctx, str(tmp_path / "r"), apply=True)
+    assert counts.get("do przeglądu (firma ma wpisy w kilku miastach)") == 1 and "moved" not in counts
+    status = conn.execute("select status from listings where id = %s", (row["id"],)).fetchone()["status"]
+    assert status == "published"
