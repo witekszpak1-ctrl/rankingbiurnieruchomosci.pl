@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { query } from "@/lib/db";
+import { resolveRedirects } from "@/lib/redirects";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,10 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const [redirects, goneFirms, goneCities] = await Promise.all([
-    query<{ from: string; to: string }>(
-      `select r.from_path as "from", '/' || c.slug || '/' || l.slug as "to"
+    query<{ from: string; to: string; published: boolean }>(
+      `select r.from_path as "from", '/' || c.slug || '/' || l.slug as "to", l.status = 'published' as published
        from listing_redirects r
-       join listings l on l.id = r.listing_id and l.status = 'published' and l.slug is not null
+       join listings l on l.id = r.listing_id and l.slug is not null
        join cities c on c.id = l.city_id`,
     ),
     query<{ path: string }>(
@@ -28,11 +29,11 @@ export async function GET() {
          and not exists (select 1 from listings l where l.city_id = c.id and l.status = 'published')`,
     ),
   ]);
-  const map: Record<string, string> = {};
-  for (const r of redirects) if (r.from !== r.to) map[r.from] = r.to;
+  const map = resolveRedirects(redirects);
   const gone = [...goneFirms, ...goneCities].map((r) => r.path).filter((p) => !(p in map));
   return NextResponse.json(
     { redirects: map, gone },
     { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
   );
 }
+
