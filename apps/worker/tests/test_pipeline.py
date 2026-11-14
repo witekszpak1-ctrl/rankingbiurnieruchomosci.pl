@@ -1238,3 +1238,13 @@ def test_cities_report_moves_only_to_catalog_cities(flow, tmp_path):
     counts = stage_cities_report(ctx, str(tmp_path / "r"), apply=True)
     assert counts.get("do przeglądu (miasto bez strony w katalogu)") == 1 and "moved" not in counts
     assert conn.execute("select status from listings where id = %s", (row["id"],)).fetchone()["status"] == "published"
+
+
+def test_name_from_domain_as_last_resort():
+    from katalog_worker.names import better_name, name_from_domain
+
+    assert name_from_domain("pasjanieruchomosci.pl") == "Pasja Nieruchomości"
+    assert name_from_domain("nieruchomosciwbeskidach.pl") == "Nieruchomości w Beskidach"
+    assert name_from_domain("lknieruchomosci.pl") == "LK Nieruchomości"
+    assert name_from_domain("bnhit.pl") is None  # bez rozpoznanego słowa nie dzielimy nazwy
+    assert better_name("Biuro Nieruchomości", "hegesnieruchomosci.pl") == ("Heges Nieruchomości", "domena")
