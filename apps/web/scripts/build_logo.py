@@ -100,16 +100,37 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    # Ikona: sama ramka z RBN na białym tle (widoczna także na ciemnym pasku kart), grubsza kreska dla małych rozmiarów.
-    icon_rbn = text_path(bold, "RBN", 11, 39.4, 14.8, 42)
+    # Ikona (wersja 2, projekt 1254 px): zaokrąglony kwadrat z grubą ramką i RBN (Inter Bold), środek biały, rogi
+    # przezroczyste. Proporcje z projektu: ramka 6,4% szerokości, zewnętrzny promień ok. 19%, RBN 67% szerokości,
+    # wysokość wersalików 29%, tekst 0,7% powyżej środka.
+    size, stroke, outer_r = 64.0, 4.1, 12.0
+    # Litery w wysokości z projektu (29% ramki) i z ciasnym odstępem jak w projekcie (8% wysokości wersalików).
+    # Inter Bold ma szersze litery niż czcionka z projektu, więc napis jest odrobinę szerszy niż 67%.
+    cap = size * 295 / 1006
+    scale = cap / bold.cap
+    glyph_ink = sum((bold.bounds(ch)[2] - bold.bounds(ch)[0]) * scale for ch in "RBN")
+    rbn_w = glyph_ink + 2 * 0.08 * cap
+    baseline = size / 2 - 0.45 + cap / 2
+    icon_rbn = text_path(bold, "RBN", (size - rbn_w) / 2, baseline, cap, rbn_w)
+    inset = stroke / 2
+    frame_icon = (
+        f'<rect x="{inset:.2f}" y="{inset:.2f}" width="{size - stroke:.2f}" height="{size - stroke:.2f}" '
+        f'rx="{outer_r - inset:.2f}" fill="#ffffff" stroke="#111111" stroke-width="{stroke}"/>'
+    )
     (WEB / "app" / "icon.svg").write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">'
-        '<rect width="64" height="64" fill="#ffffff"/>'
-        '<rect x="4.5" y="4.5" width="55" height="55" fill="none" stroke="#111111" stroke-width="5"/>'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">{frame_icon}'
         f'<path fill="#111111" d="{icon_rbn}"/></svg>\n',
         encoding="utf-8",
     )
-    print("zapisano: public/logo.svg, lib/logo-paths.ts, app/icon.svg")
+    # Wersja dla iPhone'a (apple-icon.png): iOS zamienia przezroczystość na czarne tło i sam zaokrągla rogi,
+    # więc całe pole jest białe, a znak jest pomniejszony do 86% i wyśrodkowany.
+    (WEB / "scripts" / "apple-icon.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">'
+        '<rect width="64" height="64" fill="#ffffff"/>'
+        f'<g transform="translate(4.48 4.48) scale(0.86)">{frame_icon}<path fill="#111111" d="{icon_rbn}"/></g></svg>\n',
+        encoding="utf-8",
+    )
+    print("zapisano: public/logo.svg, lib/logo-paths.ts, app/icon.svg, scripts/apple-icon.svg")
 
 
 if __name__ == "__main__":
