@@ -265,6 +265,11 @@ class Repo:
                  and not exists (select 1 from descriptions x where x.brand_id = b.id and x.status <> 'rejected')
                  and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
                                  and q.status in ('pending', 'claimed'))
+                 -- firma pominięta przez sesję opisów nie dostanie paczki (brands_needing_description), więc nie
+                 -- pobieramy jej stron w każdym przebiegu; inaczej zajmowały limit crawl-deep przed firmami bez opisu
+                 and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
+                                 and q.status = 'rejected'
+                                 and q.validator_report -> 'errors' @> '[{"code": "skipped"}]'::jsonb)
                order by d.first_seen_at limit %s""",
             (limit,),
         ).fetchall()

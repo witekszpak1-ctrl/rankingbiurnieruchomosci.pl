@@ -290,6 +290,7 @@ def test_import_closes_item_skipped_by_model(flow):
     assert item["validator_report"]["errors"][0] == {"code": "skipped", "message": "deweloper, nie biuro nieruchomości"}
     assert stage_import(flow["ctx"]) == {}  # zadanie zamknięte, nie wraca
     assert stage_bundle(flow["ctx"], 10) == {}  # pominiętej firmy nie pakujemy od nowa w każdym przebiegu
+    assert flow["ctx"].repo.domains_awaiting_bundle(50) == []  # ani nie pobieramy od nowa jej stron
 
 
 def test_deep_crawl_marks_domain_and_skips_it_for_a_week(flow):

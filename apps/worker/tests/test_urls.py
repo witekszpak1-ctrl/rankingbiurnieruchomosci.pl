@@ -87,6 +87,24 @@ def test_pick_legal_pages_prefers_privacy_and_skips_cookies_foreign_and_pdf():
     assert pick_legal_pages([("/kontakt", "Kontakt")], "https://przyklad.pl/") == []
 
 
+def test_legal_filter_ignores_words_in_domain_name():
+    """prodoma.pl, ogrodowa.waw.pl i eurodom.pl mają w nazwie "rodo": ich podstrony to nie strony RODO."""
+    from katalog_worker.urls import is_legal_url, pick_legal_pages, pick_pages
+
+    for url in ("https://prodoma.pl/", "https://ogrodowa.waw.pl/kontakt/", "https://eurodom.walbrzych.pl/o-nas",
+                "https://www.polityka-nieruchomosci.pl/oferty", "https://terms-dom.pl/"):
+        assert not is_legal_url(url), url
+    assert is_legal_url("https://prodoma.pl/polityka-prywatnosci/")
+    assert is_legal_url("https://eurodom.pl/index.php?page=rodo")
+    assert is_legal_url("https://przyklad.pl/polityka-prywatno%C5%9Bci")
+    links = [("/kontakt", "Kontakt"), ("/blog/wpis", "Wpis"), ("/polityka-prywatnosci", "Polityka prywatności")]
+    assert pick_legal_pages(links, "https://prodoma.pl/") == ["https://prodoma.pl/polityka-prywatnosci"]
+    # słowo z podpowiedzi w domenie (wynajem) nie podnosi każdej podstrony
+    assert pick_pages([("/blog/wpis", "Wpis"), ("/kontakt", "Kontakt")], "https://wynajem-test.pl/") == [
+        "https://wynajem-test.pl/kontakt"
+    ]
+
+
 def test_is_public_institution():
     from katalog_worker.urls import is_public_institution
 
