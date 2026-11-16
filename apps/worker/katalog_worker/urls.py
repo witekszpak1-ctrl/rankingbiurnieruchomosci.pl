@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urljoin, urlsplit, urlunsplit
 
 import tldextract
 
@@ -120,6 +120,15 @@ _PAGE_HINTS: tuple[tuple[str, int], ...] = (
     ("pośrednictwo", 3),
     ("posrednictwo", 3),
 )
+def _link_haystack(url: str, anchor: str = "") -> str:
+    """Tekst do oceny podstrony: ścieżka i parametry adresu oraz tekst kotwicy, bez nazwy domeny. Słowa w domenie
+    dotyczą każdej podstrony tak samo, a potrafią udawać wskazówkę: "rodo" jest w prodoma.pl, ogrodowa.waw.pl
+    i eurodom.pl, przez co każda ich podstrona wyglądała na stronę RODO i biuro nie dostawało opisu."""
+    parts = urlsplit(url)
+    tail = unquote(parts.path) + ("?" + unquote(parts.query) if parts.query else "")
+    return f"{tail} {anchor}".lower()
+
+
 _SKIP_EXT = re.compile(r"\.(jpg|jpeg|png|gif|webp|svg|ico|css|js|zip|rar|mp4|mp3|docx?|xlsx?)(\?|$)", re.I)
 
 
@@ -139,7 +148,7 @@ def pick_pages(links: list[tuple[str, str]], base_url: str, limit: int = 8) -> l
             continue
         if _SKIP_EXT.search(absolute):
             continue
-        haystack = f"{absolute} {anchor}".lower()
+        haystack = _link_haystack(absolute, anchor)
         score = sum(weight for hint, weight in _PAGE_HINTS if hint in haystack)
         if absolute.lower().split("?")[0].endswith(".pdf") and ("cennik" in haystack or "prowizj" in haystack):
             score += 5
@@ -174,7 +183,7 @@ def _legal_score(haystack: str) -> int:
 
 def is_legal_url(url: str) -> bool:
     """Czy adres wygląda na stronę prawną (do wykluczenia z danych dla opisów)."""
-    return _legal_score(url.lower()) > 0
+    return _legal_score(_link_haystack(url)) > 0
 
 
 def pick_legal_pages(links: list[tuple[str, str]], base_url: str, limit: int = 2) -> list[str]:
@@ -189,7 +198,7 @@ def pick_legal_pages(links: list[tuple[str, str]], base_url: str, limit: int = 2
             continue
         if absolute.lower().split("?")[0].endswith(".pdf"):
             continue
-        score = _legal_score(f"{absolute} {anchor}".lower())
+        score = _legal_score(_link_haystack(absolute, anchor))
         if score <= 0:
             continue
         url = canonical_url(absolute)
