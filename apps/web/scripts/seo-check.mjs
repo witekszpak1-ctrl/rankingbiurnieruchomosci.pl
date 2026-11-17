@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 // Test SEO na działającej stronie (etap 6 planu poprawy). Uruchamiany po wdrożeniu (workflow seo-check.yml)
 // albo ręcznie: node scripts/seo-check.mjs [https://adres-strony]
 // Sprawdza na kilku stronach: kod 200, jeden nagłówek h1, canonical, regułę indeksowania i poprawny JSON-LD,
@@ -55,8 +56,14 @@ async function checkRedirect(url) {
 
 const sitemap = await (await fetch(BASE + "/sitemap.xml")).text();
 const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].replace(BASE, ""));
-const city = urls.find((u) => /^\/[a-z0-9-]+$/.test(u) && !["/miasta", "/metodologia", "/o-nas", "/kontakt", "/dla-firm", "/reklama", "/bot", "/ranking"].includes(u));
-const firm = urls.find((u) => /^\/[a-z0-9-]+\/[a-z0-9-]+$/.test(u));
+// Stałe podstrony (foldery w app/ bez nawiasów, np. /wyroznienia-2026) to nie miasta — test miasta ich pomija.
+const staticRoutes = new Set(
+  readdirSync(new URL("../app/", import.meta.url), { withFileTypes: true })
+    .filter((d) => d.isDirectory() && !/^[[(@_]/.test(d.name))
+    .map((d) => `/${d.name}`),
+);
+const city = urls.find((u) => /^\/[a-z0-9-]+$/.test(u) && !staticRoutes.has(u));
+const firm = urls.find((u) => /^\/[a-z0-9-]+\/[a-z0-9-]+$/.test(u) && !staticRoutes.has(u.replace(/\/[^/]+$/, "")));
 
 await checkPage("/", { canonical: "/", noindex: false });
 for (const p of ["/miasta", "/metodologia", "/o-nas", "/kontakt"]) await checkPage(p, { canonical: p, noindex: false });
