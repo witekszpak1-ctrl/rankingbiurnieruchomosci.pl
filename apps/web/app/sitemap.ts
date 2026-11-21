@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { BLOG_PATH, BLOG_POSTS, blogModified, blogPath } from "@/lib/blog";
+import { cityPairs, loadBlogData } from "@/lib/blog-stats";
 import { listPublishedPaths } from "@/lib/catalog";
 import { absoluteUrl } from "@/lib/format";
 import { CITY_RANKING_MIN, METHODOLOGY } from "@/lib/ranking";
@@ -19,7 +21,7 @@ const INFO_PAGES_MODIFIED: Record<string, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries = await listPublishedPaths();
+  const [entries, blog] = await Promise.all([listPublishedPaths(), loadBlogData().catch(() => null)]);
   const newest = entries.reduce<Date | undefined>((acc, e) => (e.lastModified && (!acc || e.lastModified > acc) ? e.lastModified : acc), undefined);
   // Strona główna i lista miast zmieniają się razem z katalogiem; strony informacyjne mają datę zmiany treści.
   const staticPages = [
@@ -31,6 +33,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026"), lastModified: newest },
     { url: absoluteUrl("/metodologia"), lastModified: new Date(METHODOLOGY.modified) },
     ...Object.entries(INFO_PAGES_MODIFIED).map(([path, date]) => ({ url: absoluteUrl(path), lastModified: new Date(date) })),
+    // Blog: data zmiany tekstu z lib/blog.ts (liczby odświeżają się codziennie, ale to nie zmiana treści).
+    { url: absoluteUrl(BLOG_PATH), lastModified: new Date(blogModified()) },
+    ...BLOG_POSTS.map((p) => ({ url: absoluteUrl(blogPath(p.slug)), lastModified: new Date(p.modified) })),
+    ...(blog ? cityPairs(blog.cities) : []).map((p) => ({ url: absoluteUrl(blogPath(`porownanie/${p.slug}`)), lastModified: new Date(blogModified()) })),
   ];
   const dynamicPages = entries
     // strony miast z mniejszą liczbą firm niż próg są noindex, więc nie trafiają do mapy strony

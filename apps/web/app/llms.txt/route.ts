@@ -1,3 +1,4 @@
+import { BLOG_PATH, BLOG_POSTS, blogPath } from "@/lib/blog";
 import { listCities } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { SITE_NAME, absoluteUrl } from "@/lib/format";
@@ -25,6 +26,10 @@ export async function GET() {
     `- [Prowizje biur nieruchomości 2026](${absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026")}): mediana prowizji za sprzedaż według miast, z cenników biur`,
     `- [O nas](${absoluteUrl("/o-nas")}): kto prowadzi serwis (${op.name ?? "operator serwisu"}), skąd są dane i jak często je odświeżamy`,
     `- [Kontakt](${absoluteUrl("/kontakt")})${op.email ? `: ${op.email}` : ""}`,
+    "",
+    "## Blog",
+    `- [Blog](${absoluteUrl(BLOG_PATH)}): artykuły z danymi katalogu, odświeżane codziennie`,
+    ...BLOG_POSTS.map((p) => `- [${p.h1}](${absoluteUrl(blogPath(p.slug))})`),
     "",
     "## Miasta",
     ...cities.map((c) => `- [Biura nieruchomości ${c.name}](${absoluteUrl(`/${c.slug}`)}): ${nBiur(c.listings)} ${inCity(c.name)}`),

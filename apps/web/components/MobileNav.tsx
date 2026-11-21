@@ -8,6 +8,7 @@ const LINKS: [string, string][] = [
   ["/miasta", "Miasta"],
   ["/ranking", "Ranking"],
   ["/oferty", "Oferty biur"],
+  ["/blog", "Blog"],
   ["/metodologia", "Jak oceniamy"],
   ["/raporty/prowizje-biur-nieruchomosci-2026", "Prowizje biur 2026"],
   ["/poradnik/jak-sprawdzic-biuro-nieruchomosci", "Jak sprawdzić biuro"],

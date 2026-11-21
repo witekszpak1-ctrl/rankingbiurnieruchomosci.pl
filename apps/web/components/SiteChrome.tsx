@@ -19,6 +19,7 @@ export function SiteHeader() {
         <nav className="nav" aria-label="Główna nawigacja">
           <Link href="/miasta">Miasta</Link>
           <Link href="/ranking">Ranking</Link>
+          <Link href="/blog">Blog</Link>
           <Link href="/metodologia">Jak oceniamy</Link>
           <Link href="/dla-firm">Dla biur</Link>
         </nav>
@@ -76,6 +77,9 @@ export async function SiteFooter() {
             </li>
             <li>
               <Link href="/poradnik/jak-sprawdzic-biuro-nieruchomosci">Jak sprawdzić biuro</Link>
+            </li>
+            <li>
+              <Link href="/blog">Blog</Link>
             </li>
           </ul>
         </div>
