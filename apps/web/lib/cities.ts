@@ -1,6 +1,7 @@
 /**
  * Odmiana nazw miast w miejscowniku z przyimkiem ("w Warszawie", "we Wrocławiu") dla miast z listy branży
- * (packages/verticals/nieruchomosci/cities.txt). Miasta spoza słownika dostają bezpieczną formę "w mieście X".
+ * (packages/verticals/nieruchomosci/cities.txt) i kilku miejscowości z katalogu. Pozostałe dostają bezpieczną formę
+ * "w miejscowości X" (część z nich to wsie, więc "w mieście X" byłoby nieprawdą).
  */
 const LOCATIVE: Record<string, string> = {
   "Wrocław": "we Wrocławiu", "Warszawa": "w Warszawie", "Kraków": "w Krakowie", "Łódź": "w Łodzi", "Poznań": "w Poznaniu",
@@ -83,11 +84,15 @@ const LOCATIVE: Record<string, string> = {
   "Kluczbork": "w Kluczborku", "Namysłów": "w Namysłowie", "Olesno": "w Oleśnie", "Karpacz": "w Karpaczu",
   "Szklarska Poręba": "w Szklarskiej Porębie", "Polanica-Zdrój": "w Polanicy-Zdroju", "Kudowa-Zdrój": "w Kudowie-Zdroju",
   "Duszniki-Zdrój": "w Dusznikach-Zdroju",
+  // miejscowości spoza listy branży, w których katalog ma biura
+  "Leśna": "w Leśnej", "Mszana Dolna": "w Mszanie Dolnej", "Złocieniec": "w Złocieńcu", "Kościelisko": "w Kościelisku",
+  "Modlniczka": "w Modlniczce", "Otrębusy": "w Otrębusach", "Paszkówka": "w Paszkówce", "Murowaniec": "w Murowańcu",
+  "Gębice": "w Gębicach",
 };
 
-/** "w Warszawie", "we Wrocławiu"; dla miasta spoza słownika "w mieście X" (forma zawsze poprawna gramatycznie). */
+/** "w Warszawie", "we Wrocławiu"; dla miejscowości spoza słownika "w miejscowości X" (forma zawsze poprawna). */
 export function inCity(name: string): string {
-  return LOCATIVE[name] ?? `w mieście ${name}`;
+  return LOCATIVE[name] ?? `w miejscowości ${name}`;
 }
 
 /** Sam miejscownik bez przyimka ("Warszawie"), np. do zdań "biura nieruchomości w ...". */

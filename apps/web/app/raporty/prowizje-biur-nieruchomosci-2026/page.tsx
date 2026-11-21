@@ -17,7 +17,7 @@ const pct = (v: number | null) => (v == null ? "-" : `${v.toLocaleString("pl-PL"
 export const metadata: Metadata = pageMetadata({
   title: "Prowizje biur nieruchomości 2026: raport z cenników biur według miast",
   description:
-    "Ile biorą biura nieruchomości za sprzedaż w 2026 roku: mediana prowizji w Polsce i w miastach, udział biur z jawnym cennikiem, liczba biur w próbie i sposób liczenia.",
+    "Ile biorą biura nieruchomości za sprzedaż w 2026: mediana prowizji w Polsce i w miastach, udział biur z jawnym cennikiem i metoda liczenia.",
   path: PATH,
   type: "article",
 });
@@ -89,7 +89,7 @@ export default async function CommissionReportPage() {
                   <th>Miasto</th>
                   <th className="num">Mediana prowizji</th>
                   <th className="num">Biura w próbie</th>
-                  <th className="num">Biura w katalogu</th>
+                  <th className="num">Biura z głównym wpisem w mieście</th>
                   <th className="num">Z jawnym cennikiem</th>
                 </tr>
               </thead>
@@ -108,6 +108,10 @@ export default async function CommissionReportPage() {
               </tbody>
             </table>
           </div>
+          <p className="note">
+            Firmę z oddziałami w kilku miastach liczymy raz, w mieście jej głównego wpisu. Strony miast liczą wszystkie wpisy,
+            razem z oddziałami, dlatego liczba biur i odsetek z cennikiem mogą się tam różnić.
+          </p>
         </>
       )}
 

@@ -22,11 +22,12 @@ export default async function SellWithAgentPost() {
   const has = report != null && report.n >= PRICE_STAT_MIN && report.median != null;
   const vat = saleVatStats(rates);
   const fee = has ? (EXAMPLE * (report.median as number)) / 100 : null;
+  const reportCities = (report?.cities ?? []).filter((c) => c.n >= PRICE_STAT_MIN);
   const faq = [
     {
       q: "Ile kosztuje pośrednik przy sprzedaży mieszkania?",
       a: has
-        ? `Według cenników ${nBiurGen(report.n)} z naszego katalogu typowa prowizja za sprzedaż to ${fmtRate(report.median)} ceny, a połowa biur bierze od ${fmtRate(report.p25)} do ${fmtRate(report.p75)}. Przy mieszkaniu za ${fmtPln(EXAMPLE)} to około ${fmtPln(fee)} plus ewentualny VAT.`
+        ? `Według cenników ${nBiurGen(report.n)} z naszego katalogu, które podają stawkę procentową, mediana najniższej stawki za sprzedaż to ${fmtRate(report.median)} ceny, a połowa biur bierze od ${fmtRate(report.p25)} do ${fmtRate(report.p75)}. Przy mieszkaniu za ${fmtPln(EXAMPLE)} to około ${fmtPln(fee)} plus ewentualny VAT.`
         : "Biura zwykle biorą procent ceny sprzedaży. Dokładna stawka wynika z umowy pośrednictwa.",
     },
     {
@@ -39,15 +40,15 @@ export default async function SellWithAgentPost() {
     },
     {
       q: "Czy prowizja biura obniża podatek od sprzedaży mieszkania?",
-      a: "Jeśli sprzedajesz mieszkanie przed upływem pięciu lat od końca roku zakupu, prowizja pośrednika jest kosztem odpłatnego zbycia i zmniejsza dochód do opodatkowania. Zachowaj fakturę lub rachunek od biura.",
+      a: "Jeśli sprzedajesz mieszkanie przed upływem pięciu lat od końca roku, w którym je nabyłeś (przy spadku liczy się nabycie przez spadkodawcę), prowizja pośrednika jest kosztem odpłatnego zbycia i zmniejsza dochód do opodatkowania. Zachowaj fakturę lub rachunek od biura.",
     },
   ];
   return (
     <BlogArticle post={post} extraLd={[faqLd(faq)]}>
       <ShortAnswer>
-        Z biurem płacisz prowizję, ale oszczędzasz czas i ryzyko błędów w dokumentach.
+        Z biurem płacisz prowizję, ale oszczędzasz czas i zmniejszasz ryzyko błędów w dokumentach.
         {has
-          ? ` Typowe biuro z naszego katalogu bierze ${fmtRate(report.median)} ceny sprzedaży (połowa biur: ${fmtRate(report.p25)}-${fmtRate(report.p75)}), czyli przy mieszkaniu za ${fmtPln(EXAMPLE)} około ${fmtPln(fee)} bez VAT.`
+          ? ` Wśród ${nBiurGen(report.n)} z katalogu, które podają na stronie procentową stawkę za sprzedaż, mediana najniższej stawki z cennika to ${fmtRate(report.median)} ceny (połowa biur: ${fmtRate(report.p25)}-${fmtRate(report.p75)}), czyli przy mieszkaniu za ${fmtPln(EXAMPLE)} około ${fmtPln(fee)} plus ewentualny VAT.`
           : ""}{" "}
         Samemu warto sprzedawać, gdy masz kupca z polecenia, czas na prezentacje i komplet dokumentów. Policz swój koszt w
         kalkulatorze poniżej.
@@ -64,7 +65,8 @@ export default async function SellWithAgentPost() {
           Netto czy brutto? {fmtShare((100 * vat.plusVat) / vat.n)} biur z cennikiem podaje stawkę netto albo z
           dopiskiem „+ VAT”, {fmtShare((100 * vat.gross) / vat.n)} brutto, a {fmtShare((100 * vat.unknown) / vat.n)} nie
           pisze tego wprost. Zapytaj o to przed podpisaniem umowy: 23% VAT to przy {fmtPln(EXAMPLE)} i stawce{" "}
-          {has ? fmtRate(report.median) : "2%"} kilka tysięcy złotych różnicy.
+          {fmtRate(has ? report.median : 2)} około {fmtPln((EXAMPLE * (has ? (report.median as number) : 2) * 0.23) / 100)}{" "}
+          różnicy.
         </p>
       )}
 
@@ -94,11 +96,11 @@ export default async function SellWithAgentPost() {
             </tr>
             <tr>
               <td>Mieszkanie jest typowe i łatwo je wycenić.</td>
-              <td>Nieruchomość jest nietypowa (dom, działka, lokal z najemcą, spadek).</td>
+              <td>Nieruchomość jest nietypowa (dom, działka, lokal z najemcą).</td>
             </tr>
             <tr>
               <td>Masz komplet dokumentów i stan prawny jest prosty.</td>
-              <td>Są komplikacje: hipoteka, współwłaściciele, brak księgi wieczystej.</td>
+              <td>Są komplikacje: hipoteka, współwłaściciele, spadek, brak księgi wieczystej.</td>
             </tr>
             <tr>
               <td>Mieszkasz blisko i możesz pokazywać mieszkanie.</td>
@@ -125,7 +127,8 @@ export default async function SellWithAgentPost() {
         <li>Przeczytaj umowę: wyłączność, okres obowiązywania, kiedy prowizja jest należna, kary umowne.</li>
       </ol>
       <p>
-        Mediany prowizji w poszczególnych miastach są w raporcie{" "}
+        Mediany prowizji w miastach, dla których mamy stawki co najmniej {nBiurGen(PRICE_STAT_MIN)}
+        {reportCities.length > 0 ? ` (teraz: ${reportCities.map((c) => c.name).join(", ")})` : ""}, są w raporcie{" "}
         <Link href="/raporty/prowizje-biur-nieruchomosci-2026">prowizje biur nieruchomości 2026</Link>. Jak liczy się
         prowizję krok po kroku, opisujemy w poradniku{" "}
         <Link href="/poradnik/ile-bierze-biuro-nieruchomosci">ile bierze biuro nieruchomości</Link>.

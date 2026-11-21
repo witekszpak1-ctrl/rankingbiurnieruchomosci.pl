@@ -3,16 +3,20 @@ import Link from "next/link";
 
 import { BlogArticle, Faq, ShareBar, ShortAnswer, faqLd } from "@/components/BlogArticle";
 import { blogPath, fmtInt, fmtRating, fmtShare, getPost } from "@/lib/blog";
-import { CITY_COMPARE_MIN, MIN_REVIEWS, loadBlogData, ratingLeague, ratingOverview } from "@/lib/blog-stats";
+import { CITY_COMPARE_MIN, MIN_REVIEWS, SAME_RATING, loadBlogData, ratingLeague, ratingOverview } from "@/lib/blog-stats";
 import { inCity } from "@/lib/cities";
-import { nBiur, nBiurGen, nMiast, nOpinii } from "@/lib/plural";
+import { nBiur, nMiast, nOpinii, nOpiniami } from "@/lib/plural";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 86400;
 
 const post = getPost("oceny-biur-nieruchomosci-w-miastach");
+/** Miasto "duże" w tym artykule: tyle firm w katalogu. */
+const BIG = 30;
 
 export const metadata: Metadata = pageMetadata({ title: post.title, description: post.description, path: blogPath(post.slug), type: "article" });
+
+const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 
 export default async function CityRatingsPost() {
   const data = await loadBlogData().catch(() => null);
@@ -20,7 +24,12 @@ export default async function CityRatingsPost() {
   const all = data ? ratingOverview(data.firms) : null;
   const best = league[0];
   const worst = league[league.length - 1];
-  const big = league.filter((c) => c.firms >= 30);
+  const big = league.filter((c) => c.firms >= BIG);
+  const rest = league.filter((c) => c.firms < BIG);
+  const bigMean = mean(big.map((c) => c.avgRating as number));
+  const restMean = mean(rest.map((c) => c.avgRating as number));
+  const diff = bigMean != null && restMean != null ? bigMean - restMean : null;
+  const verdict = diff == null ? null : Math.abs(diff) < SAME_RATING ? "podobna jak" : diff < 0 ? "niższa niż" : "wyższa niż";
   const faq = [
     {
       q: "Jak liczymy średnią ocenę biur w mieście?",
@@ -28,7 +37,14 @@ export default async function CityRatingsPost() {
     },
     {
       q: "Dlaczego mojego miasta nie ma w tabeli?",
-      a: `Miasto pokazujemy, gdy ma co najmniej ${nBiur(CITY_COMPARE_MIN)} z oceną od ${nOpinii(MIN_REVIEWS)}. Przy mniejszej liczbie biur jedno biuro zmienia wynik całego miasta. Listę biur w każdym mieście znajdziesz na stronie Miasta.`,
+      a: `Miasto pokazujemy, gdy co najmniej ${nBiur(CITY_COMPARE_MIN)} w mieście ma co najmniej ${nOpinii(MIN_REVIEWS)}. Przy mniejszej liczbie biur jedno biuro zmienia wynik całego miasta. Listę biur w każdym mieście znajdziesz na stronie Miasta.`,
+      node: (
+        <>
+          Miasto pokazujemy, gdy co najmniej {nBiur(CITY_COMPARE_MIN)} w mieście ma co najmniej {nOpinii(MIN_REVIEWS)}. Przy
+          mniejszej liczbie biur jedno biuro zmienia wynik całego miasta. Listę biur w każdym mieście znajdziesz na stronie{" "}
+          <Link href="/miasta">Miasta</Link>.
+        </>
+      ),
     },
     {
       q: "Czy wysoka średnia w mieście oznacza, że każde biuro jest dobre?",
@@ -41,8 +57,9 @@ export default async function CityRatingsPost() {
         <ShortAnswer>
           Najwyżej oceniane biura nieruchomości są {inCity(best.name)}: średnia ocena Google {fmtRating(best.avgRating)}, a{" "}
           {fmtShare(best.share48)} biur ma ocenę 4,8 lub wyższą. Najniższą średnią w zestawieniu ma {worst.name} (
-          {fmtRating(worst.avgRating)}). Porównaliśmy {nMiast(league.length)}, w których co najmniej{" "}
-          {nBiur(CITY_COMPARE_MIN)} ma od {nOpinii(MIN_REVIEWS)}. W całym katalogu ocenę Google ma {nBiur(all.rated)}, a średnia ważona liczbą opinii wynosi {fmtRating(all.weightedRating)}.
+          {fmtRating(worst.avgRating)}). Porównaliśmy {nMiast(league.length)}, w których co najmniej {nBiur(CITY_COMPARE_MIN)}{" "}
+          ma co najmniej {nOpinii(MIN_REVIEWS)}. Dla porównania: średnia wszystkich biur z katalogu z co najmniej{" "}
+          {nOpiniami(MIN_REVIEWS)}, liczona tak jak w tabeli, to {fmtRating(all.avgRatingSolid)}.
         </ShortAnswer>
       ) : (
         <p>Zestawienie jest w przygotowaniu.</p>
@@ -52,8 +69,8 @@ export default async function CityRatingsPost() {
         <>
           <h2>Ranking miast według ocen biur nieruchomości</h2>
           <p className="note">
-            Miasta z co najmniej {nBiurGen(CITY_COMPARE_MIN)} z oceną od {nOpinii(MIN_REVIEWS)}, od najwyższej średniej.
-            Kliknij miasto, żeby zobaczyć ranking biur.
+            Miasta, w których co najmniej {nBiur(CITY_COMPARE_MIN)} ma co najmniej {nOpinii(MIN_REVIEWS)} w Google, od
+            najwyższej średniej. „Biura w próbie” i „Opinie” dotyczą tylko tych biur. Kliknij miasto, żeby zobaczyć ranking biur.
           </p>
           <div className="tablewrap">
             <table>
@@ -64,7 +81,7 @@ export default async function CityRatingsPost() {
                   <th className="num">Średnia ocena</th>
                   <th>Biura z oceną 4,8+</th>
                   <th className="num">Biura w próbie</th>
-                  <th className="num">Opinie łącznie</th>
+                  <th className="num">Opinie biur z próby</th>
                 </tr>
               </thead>
               <tbody>
@@ -79,7 +96,7 @@ export default async function CityRatingsPost() {
                       <ShareBar value={c.share48} />
                     </td>
                     <td className="num">{c.rated}</td>
-                    <td className="num">{fmtInt(c.reviews)}</td>
+                    <td className="num">{fmtInt(c.ratedReviews)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -88,15 +105,15 @@ export default async function CityRatingsPost() {
         </>
       )}
 
-      {big.length >= 2 && (
+      {big.length >= 2 && rest.length >= 2 && verdict && (
         <>
-          <h2>Duże miasta: więcej biur, większy rozrzut</h2>
+          <h2>Miasta z największym wyborem biur</h2>
           <p>
-            W miastach z co najmniej trzydziestoma biurami w katalogu ({big.map((c) => c.name).join(", ")}) wybór jest
-            duży, ale średnia ocena jest zwykle niższa niż w mniejszych miastach. Najlepiej z dużych miast wypada{" "}
-            {big[0].name} ({fmtRating(big[0].avgRating)}), najsłabiej {big[big.length - 1].name} (
-            {fmtRating(big[big.length - 1].avgRating)}). W dużym mieście łatwiej trafić na biuro z wieloma opiniami, więc
-            ocena jest bardziej miarodajna, ale też częściej trafiają się słabsze firmy.
+            W miastach, w których mamy w katalogu co najmniej {BIG} biur ({big.map((c) => c.name).join(", ")}), średnia ocena (
+            {fmtRating(bigMean)}) jest {verdict} w pozostałych miastach zestawienia ({fmtRating(restMean)}). Najlepiej z nich
+            wypada {big[0].name} ({fmtRating(big[0].avgRating)}), najsłabiej {big[big.length - 1].name} (
+            {fmtRating(big[big.length - 1].avgRating)}). Duży wybór oznacza, że warto porównać kilka biur, a nie kierować się
+            średnią miasta.
           </p>
         </>
       )}
@@ -104,12 +121,26 @@ export default async function CityRatingsPost() {
       <h2>Jak czytać to zestawienie</h2>
       <ul className="plain">
         <li>
-          Liczymy tylko biura z co najmniej {nOpinii(MIN_REVIEWS)}. Ocena 5,0 z trzech opinii mówi mało, więcej o tym w
+          Liczymy tylko biura z co najmniej {nOpiniami(MIN_REVIEWS)}. Ocena 5,0 z trzech opinii mówi mało, więcej o tym w
           artykule{" "}
           <Link href={blogPath("ocena-5-w-google-biuro-nieruchomosci")}>czy ocena 5,0 oznacza najlepsze biuro</Link>.
         </li>
         <li>Biuro działające w kilku miastach liczymy raz, w mieście jego głównego wpisu.</li>
-        <li>Oceny pochodzą z profili firm w Google i odświeżają się codziennie razem z katalogiem.</li>
+        {all && all.weightedRating != null && all.avgRatingSolid != null && (
+          <li>
+            Średnia ważona liczbą opinii (jak ocenia biura przeciętny klient, a nie przeciętne biuro) wynosi dla całego
+            katalogu {fmtRating(all.weightedRating)}.
+            {all.weightedRating - all.avgRatingSolid >= SAME_RATING
+              ? " Jest wyższa od zwykłej średniej, bo biura z dużą liczbą opinii mają zwykle wysokie oceny."
+              : all.avgRatingSolid - all.weightedRating >= SAME_RATING
+                ? " Jest niższa od zwykłej średniej, bo biura z dużą liczbą opinii mają zwykle nieco niższe oceny."
+                : " To prawie tyle samo co zwykła średnia."}
+          </li>
+        )}
+        <li>
+          Oceny pochodzą z profili firm w Google. Aktualizujemy je stopniowo, więc ocena konkretnego biura może być sprzed
+          kilku tygodni.
+        </li>
         <li>
           Ocena Google to tylko jeden z czynników. Nasz ranking biur bierze pod uwagę także rejestr, staż, cennik i oferty.
           Zasady opisujemy w <Link href="/metodologia">metodologii</Link>.

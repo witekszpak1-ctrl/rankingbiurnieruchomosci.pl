@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BlogArticle, Faq, ShareBar, ShortAnswer, faqLd } from "@/components/BlogArticle";
 import { blogPath, fmtInt, fmtRating, fmtShare, getPost } from "@/lib/blog";
 import { MIN_REVIEWS, loadBlogData, ratingOverview } from "@/lib/blog-stats";
-import { nOpinii } from "@/lib/plural";
+import { nOpiniach, nOpiniami, nOpinii } from "@/lib/plural";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 86400;
@@ -20,15 +20,15 @@ export default async function FiveStarsPost() {
   const faq = [
     {
       q: "Ile opinii powinno mieć wiarygodne biuro nieruchomości?",
-      a: `Nie ma jednej granicy, ale przy mniej niż ${nOpinii(MIN_REVIEWS)} jedna opinia mocno zmienia średnią. Od kilkudziesięciu opinii w górę ocena zaczyna mówić coś o biurze.${o?.medianReviews != null ? ` Typowe biuro w naszym katalogu ma ${nOpinii(Math.round(o.medianReviews))}.` : ""}`,
+      a: `Nie ma jednej granicy, ale przy mniej niż ${nOpiniach(MIN_REVIEWS)} jedna opinia mocno zmienia średnią. Od kilkudziesięciu opinii w górę ocena zaczyna mówić coś o biurze.${o?.medianReviews != null ? ` Typowe biuro w naszym katalogu ma ${nOpinii(Math.round(o.medianReviews))}.` : ""}`,
     },
     {
       q: "Czy biura mogą kupować opinie?",
-      a: "Zakazane jest publikowanie fałszywych opinii i przedstawianie opinii bez sprawdzenia, czy pochodzą od klientów. Mimo to fałszywe opinie się zdarzają. Sygnały ostrzegawcze to wiele krótkich pięciogwiazdkowych opinii w krótkim czasie i autorzy bez innych recenzji.",
+      a: "Nie wolno. Od 1 stycznia 2023 r. ustawa o przeciwdziałaniu nieuczciwym praktykom rynkowym zakazuje zamieszczania nieprawdziwych opinii i zlecania tego innym, a także zapewniania, że opinie pochodzą od klientów, bez rozsądnego sprawdzenia, czy tak jest. Opinii kupionych albo wystawionych za nagrodę zabrania też regulamin Google. Mimo to fałszywe opinie się zdarzają. Sygnały ostrzegawcze to wiele krótkich pięciogwiazdkowych opinii w krótkim czasie i autorzy bez innych recenzji.",
     },
     {
       q: "Czy niska ocena oznacza złe biuro?",
-      a: "Nie zawsze. Biuro z dużą liczbą transakcji ma więcej niezadowolonych klientów w liczbach bezwzględnych. Ważne jest, czego dotyczą negatywne opinie i czy biuro na nie odpowiada.",
+      a: `Nie zawsze. Przy kilku opiniach jedna negatywna mocno obniża średnią${o?.shareLow4Few != null && o?.shareLow4Many != null ? `: ocenę poniżej 4,0 ma ${fmtShare(o.shareLow4Few)} biur z mniej niż ${nOpiniami(MIN_REVIEWS)} i ${fmtShare(o.shareLow4Many)} pozostałych` : ""}. Duże biuro ma też więcej negatywnych opinii w liczbach bezwzględnych, więc patrz na ich odsetek i treść, na daty i na to, czy biuro odpowiada.`,
     },
   ];
   return (
@@ -36,7 +36,7 @@ export default async function FiveStarsPost() {
       {ok ? (
         <ShortAnswer>
           Nie zawsze. W naszym katalogu ocenę 5,0 ma {fmtShare(o.share5)} biur z oceną Google, ale wśród biur z mniej niż{" "}
-          {nOpinii(MIN_REVIEWS)} ocenę 5,0 ma {fmtShare(o.share5Few)}, a wśród biur z co najmniej {nOpinii(MIN_REVIEWS)}{" "}
+          {nOpiniami(MIN_REVIEWS)} ocenę 5,0 ma {fmtShare(o.share5Few)}, a wśród biur z co najmniej {nOpiniami(MIN_REVIEWS)}{" "}
           już tylko {fmtShare(o.share5Many)}. Im mniej opinii, tym łatwiej o idealną średnią. Ocena 4,8 ze stu opinii mówi o
           biurze więcej niż 5,0 z pięciu.
         </ShortAnswer>
@@ -90,7 +90,7 @@ export default async function FiveStarsPost() {
           {o.shareLow4Few != null && o.shareLow4Many != null && (
             <p>
               Mała liczba opinii działa w obie strony: ocenę poniżej 4,0 ma {fmtShare(o.shareLow4Few)} biur z mniej niż{" "}
-              {nOpinii(MIN_REVIEWS)} i {fmtShare(o.shareLow4Many)} biur z większą liczbą opinii. Jedna zła opinia przy
+              {nOpiniami(MIN_REVIEWS)} i {fmtShare(o.shareLow4Many)} biur z większą liczbą opinii. Jedna zła opinia przy
               trzech dobrych daje słabą średnią, choć nie musi świadczyć o biurze.
             </p>
           )}

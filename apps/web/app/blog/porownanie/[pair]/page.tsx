@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 
 import { BlogArticle, ShortAnswer } from "@/components/BlogArticle";
 import { blogPath, fmtInt, fmtRate, fmtRating, fmtShare, fmtYears } from "@/lib/blog";
-import { CITY_COMPARE_MIN, MIN_REVIEWS, cityPairs, loadBlogData, pairPoints, type CityPair, type CityStats } from "@/lib/blog-stats";
+import { CITY_COMPARE_MIN, MIN_REVIEWS, YEARS_MIN, cityPairs, loadBlogData, pairPoints, type CityPair, type CityStats } from "@/lib/blog-stats";
 import { inCity } from "@/lib/cities";
-import { nBiur, nOpinii } from "@/lib/plural";
+import { nBiur, nBiurGen, nOpinii, plural } from "@/lib/plural";
 import { PRICE_STAT_MIN } from "@/lib/ranking";
 import { pageMetadata } from "@/lib/seo";
 
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { a, b } = found.pair;
   return pageMetadata({
     title: `${a.name} czy ${b.name}? Porównanie biur nieruchomości 2026`,
-    description: `${a.name} i ${b.name} w liczbach: ile jest biur nieruchomości, jak oceniają je klienci w Google, jak długo działają, ile publikuje cennik i jaka jest mediana prowizji.`,
+    description: `${a.name} i ${b.name} w liczbach: biura nieruchomości, oceny Google, staż, jawne cenniki i mediana prowizji za sprzedaż.`,
     path: blogPath(`porownanie/${pair}`),
     type: "article",
   });
@@ -52,16 +52,16 @@ function winnerText(key: string, w: "a" | "b" | "tie" | null, a: CityStats, b: C
   switch (key) {
     case "firms":
       return w === "tie"
-        ? `W obu miastach jest tyle samo biur w katalogu (${a.firms}).`
-        : `Większy wybór jest ${inCity(win.name)}: ${nBiur(win.firms)} wobec ${lose.firms} ${inCity(lose.name)}.`;
+        ? `W obu miastach mamy w katalogu tyle samo biur (${a.firms}).`
+        : `Więcej biur mamy w katalogu ${inCity(win.name)}: ${win.firms} wobec ${lose.firms} ${inCity(lose.name)}.`;
     case "rating":
       return w === "tie"
         ? `Biura w obu miastach są oceniane podobnie (średnio ${fmtRating(a.avgRating)} i ${fmtRating(b.avgRating)}).`
         : `Wyżej oceniane są biura ${inCity(win.name)}: średnio ${fmtRating(win.avgRating)} wobec ${fmtRating(lose.avgRating)}.`;
     case "years":
       return w === "tie"
-        ? `Typowe biuro działa w obu miastach podobnie długo (${fmtYears(a.medianYears)}).`
-        : `Dłużej działają biura ${inCity(win.name)}: mediana stażu ${fmtYears(win.medianYears)} wobec ${fmtYears(lose.medianYears)}.`;
+        ? `Typowe biuro jest w rejestrze podobnie długo w obu miastach (${fmtYears(a.medianYears)}).`
+        : `Dłużej w rejestrze są biura ${inCity(win.name)}: mediana stażu ${fmtYears(win.medianYears)} wobec ${fmtYears(lose.medianYears)}.`;
     case "prices":
       return w === "tie"
         ? `Cennik na stronie publikuje podobna część biur (${fmtShare(a.sharePrices)} i ${fmtShare(b.sharePrices)}).`
@@ -83,9 +83,10 @@ export default async function CityPairPage({ params }: Props) {
   const points = pairPoints(a, b);
   const sentences = points.map((p) => winnerText(p.key, p.winner, a, b)).filter((s): s is string => s != null);
   const ratedOk = (c: CityStats) => c.rated >= CITY_COMPARE_MIN;
-  const yearsOk = (c: CityStats) => c.withYears >= 5;
+  const yearsOk = (c: CityStats) => c.withYears >= YEARS_MIN;
   const rows: { label: string; a: string; b: string }[] = [
     { label: "Biura w katalogu", a: fmtInt(a.firms), b: fmtInt(b.firms) },
+    { label: "Biura ze znaną datą rejestracji", a: fmtInt(a.withYears), b: fmtInt(b.withYears) },
     { label: "Wszystkie wpisy (z oddziałami firm z innych miast)", a: fmtInt(a.listings), b: fmtInt(b.listings) },
     {
       label: `Średnia ocena Google (biura od ${nOpinii(MIN_REVIEWS)})`,
@@ -139,13 +140,22 @@ export default async function CityPairPage({ params }: Props) {
         </table>
       </div>
       <ul className="plain note">
-        <li>Biura liczymy raz, w mieście głównego wpisu. Firmy z innych miast, które obsługują miasto, są w „wszystkich wpisach”.</li>
         <li>
-          Średnią ocenę liczymy z biur z co najmniej {nOpinii(MIN_REVIEWS)}, gdy jest ich w mieście co najmniej{" "}
+          Biura liczymy raz, w mieście głównego wpisu. Firmy z innych miast, które mają tu też wpis (oddział albo obsługa
+          okolicy), liczymy tylko we „wszystkich wpisach”. Liczba biur to biura w naszym katalogu, a nie cały rynek.
+        </li>
+        <li>
+          Średnią ocenę liczymy z biur mających co najmniej {nOpinii(MIN_REVIEWS)}, gdy takich biur jest w mieście co najmniej{" "}
           {CITY_COMPARE_MIN}.
         </li>
-        <li>Mediana prowizji to najniższa stawka za sprzedaż z cenników biur, gdy podaje ją co najmniej {nBiur(PRICE_STAT_MIN)}.</li>
-        <li>Staż liczymy od daty rozpoczęcia działalności w rejestrze (KRS lub CEIDG).</li>
+        <li>
+          Mediana prowizji to mediana najniższych stawek za sprzedaż z cenników biur (jedna stawka na biuro), liczona, gdy{" "}
+          {plural(PRICE_STAT_MIN, "podaje", "podają", "podaje")} je co najmniej {nBiur(PRICE_STAT_MIN)}.
+        </li>
+        <li>
+          Staż liczymy od daty wpisu do KRS albo rejestracji jako podatnik VAT, gdy znamy ją dla co najmniej{" "}
+          {nBiurGen(YEARS_MIN)} w mieście. To data rejestracji, nie zawsze faktyczny początek działalności.
+        </li>
       </ul>
 
       <h2>Ranking biur w obu miastach</h2>

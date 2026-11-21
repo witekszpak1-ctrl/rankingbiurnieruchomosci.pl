@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BLOG_POSTS, fmtRate, fmtRating, fmtShare, fmtYears, relatedPosts } from "@/lib/blog";
+import { nLatGen, nOpiniach, nOpiniami } from "@/lib/plural";
 import {
   CITY_COMPARE_MIN,
   buyerStats,
@@ -57,6 +58,7 @@ describe("cityStats", () => {
     expect(c.avgRating).toBeCloseTo(4.75);
     expect(c.share48).toBe(50);
     expect(c.reviews).toBe(43);
+    expect(c.ratedReviews).toBe(40);
     expect(c.sharePrices).toBe(25);
   });
 
@@ -95,6 +97,8 @@ describe("ratingOverview", () => {
     expect(o.buckets.find((b) => b.label === "4,8-4,9")?.firms).toBe(1);
     expect(o.buckets.reduce((s, b) => s + b.firms, 0)).toBe(4);
     expect(o.weightedRating).toBeCloseTo((5 * 3 + 5 * 4 + 4.8 * 100 + 3.5 * 2) / 109);
+    expect(o.avgRatingSolid).toBe(4.8);
+    expect(o.solid).toBe(1);
   });
 });
 
@@ -113,6 +117,12 @@ describe("reachStats", () => {
 });
 
 describe("tenureStats", () => {
+  it("liczy firmy z tą samą najwcześniejszą datą", () => {
+    const d = new Date("1993-07-05");
+    const t = tenureStats([firm("A", { startDate: d }), firm("A", { startDate: d }), firm("A", { startDate: new Date("2001-01-01") })], NOW);
+    expect(t.oldestTied).toBe(2);
+  });
+
   it("sortuje od najstarszej firmy i liczy udziały", () => {
     const t = tenureStats(
       [firm("A", { startDate: new Date("1995-03-01") }), firm("A", { startDate: new Date("2025-01-01") }), firm("A", { startDate: new Date("2010-06-01") }), firm("A")],
@@ -160,6 +170,7 @@ describe("stawki z cenników", () => {
       rate("b", "prowizja od kupującego", 2),
       rate("c", "zakup nieruchomości", 1.5),
       rate("d", "sprzedaż mieszkania", 3),
+      rate("e", "pośrednictwo w sprzedaży i zakupie", 2.5),
     ]);
     expect(b.free).toBe(1);
     expect(b.brands).toBe(3);
@@ -210,5 +221,13 @@ describe("lista artykułów", () => {
     expect(fmtShare(63.4)).toBe("63%");
     expect(fmtYears(12.9)).toBe("12 lat");
     expect(fmtYears(3.2)).toBe("3 lata");
+  });
+
+  it("odmienia liczebniki w przypadkach zależnych", () => {
+    expect(nOpiniami(10)).toBe("10 opiniami");
+    expect(nOpiniami(1)).toBe("1 opinią");
+    expect(nOpiniach(10)).toBe("10 opiniach");
+    expect(nLatGen(33)).toBe("33 lat");
+    expect(nLatGen(1)).toBe("1 roku");
   });
 });

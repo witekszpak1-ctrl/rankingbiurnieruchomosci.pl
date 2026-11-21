@@ -24,6 +24,12 @@ export const nLat = (n: number) => count(n, "rok", "lata", "lat");
 /** Dopełniacz po "na podstawie", "z": 1 biura, 4 biur, 5 biur. */
 export const nBiurGen = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "biura" : "biur"}`;
 export const nFirm = (n: number) => count(n, "firma", "firmy", "firm");
+/** Narzędnik po "z" w znaczeniu "mające": "z 1 opinią", "z 10 opiniami". */
+export const nOpiniami = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "opinią" : "opiniami"}`;
+/** Miejscownik po "przy": "przy 1 opinii", "przy 10 opiniach". */
+export const nOpiniach = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "opinii" : "opiniach"}`;
+/** Dopełniacz po "od": "od 1 roku", "od 33 lat". */
+export const nLatGen = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "roku" : "lat"}`;
 
 /** Robot pobiera najwyżej tyle najnowszych ofert z jednej strony biura (apps/worker offers.MAX_OFFERS). */
 export const OFFERS_SAMPLE_MAX = 20;

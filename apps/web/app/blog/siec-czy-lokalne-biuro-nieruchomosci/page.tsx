@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import { BlogArticle, ShortAnswer } from "@/components/BlogArticle";
 import { blogPath, fmtInt, fmtRating, fmtShare, fmtYears, getPost } from "@/lib/blog";
-import { MIN_REVIEWS, loadBlogData, reachStats } from "@/lib/blog-stats";
-import { nBiur, nMiast, nOpinii } from "@/lib/plural";
+import { MIN_REVIEWS, SAME_RATING, SAME_SHARE, loadBlogData, reachStats } from "@/lib/blog-stats";
+import { nBiur, nMiast, nOpiniami } from "@/lib/plural";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 86400;
@@ -18,15 +18,30 @@ export default async function ChainVsLocalPost() {
   const s = data ? reachStats(data.firms, data.citiesByBrand, data.now) : null;
   const [local, multi] = s?.groups ?? [];
   const ok = local && multi && local.rated >= 20 && multi.rated >= 10;
+  // -1/0/1: mniej, podobnie, więcej w grupie firm z kilku miast (progi jak w porównaniach miast)
+  const cmp = (x: number | null | undefined, y: number | null | undefined, same: number) =>
+    x == null || y == null ? null : Math.abs(x - y) < same ? 0 : x > y ? 1 : -1;
+  const rating = ok ? (cmp(multi.medianRating, local.medianRating, SAME_RATING) ?? 0) : 0;
+  const reviews = ok && multi.medianReviews && local.medianReviews ? cmp(multi.medianReviews / local.medianReviews, 1, 0.15) : null;
+  const prices = ok ? cmp(multi.sharePrices, local.sharePrices, SAME_SHARE) : null;
   return (
     <BlogArticle post={post}>
       {ok ? (
         <ShortAnswer>
-          Biura z jednego miasta i firmy obecne w kilku miastach mają podobne oceny klientów: mediana {fmtRating(local.medianRating)}{" "}
-          wobec {fmtRating(multi.medianRating)}. Firmy z kilku miast mają zwykle więcej opinii (mediana{" "}
-          {fmtInt(multi.medianReviews)} wobec {fmtInt(local.medianReviews)}) i
-          {(multi.sharePrices ?? 0) > (local.sharePrices ?? 0) ? " częściej" : " rzadziej"} publikują cennik. Wybór zależy
-          bardziej od konkretnego biura i agenta niż od tego, czy firma ma oddziały.
+          {rating === 0
+            ? `Biura z jednego miasta i firmy obecne w kilku miastach mają podobne oceny klientów (mediana ${fmtRating(local.medianRating)} i ${fmtRating(multi.medianRating)}).`
+            : `Wyżej oceniane są ${rating > 0 ? "firmy obecne w kilku miastach" : "biura z jednego miasta"}: mediana ${fmtRating(rating > 0 ? multi.medianRating : local.medianRating)} wobec ${fmtRating(rating > 0 ? local.medianRating : multi.medianRating)}.`}{" "}
+          {reviews === 0
+            ? `Liczba opinii jest zbliżona (mediana ${fmtInt(multi.medianReviews)} i ${fmtInt(local.medianReviews)}).`
+            : reviews != null
+              ? `${reviews > 0 ? "Firmy z kilku miast" : "Biura z jednego miasta"} mają więcej opinii (mediana ${fmtInt(reviews > 0 ? multi.medianReviews : local.medianReviews)} wobec ${fmtInt(reviews > 0 ? local.medianReviews : multi.medianReviews)}).`
+              : ""}{" "}
+          {prices === 0
+            ? `Cennik publikuje podobna część firm w obu grupach (${fmtShare(multi.sharePrices)} i ${fmtShare(local.sharePrices)}).`
+            : prices != null
+              ? `Firmy z kilku miast ${prices > 0 ? "częściej" : "rzadziej"} publikują cennik (${fmtShare(multi.sharePrices)} wobec ${fmtShare(local.sharePrices)}).`
+              : ""}{" "}
+          O wyborze decyduje bardziej konkretne biuro i agent niż to, czy firma ma oddziały.
         </ShortAnswer>
       ) : (
         <ShortAnswer>
@@ -39,7 +54,7 @@ export default async function ChainVsLocalPost() {
         <>
           <h2>Porównanie w liczbach</h2>
           <p className="note">
-            Każda firma liczona raz. Ocena: mediana ocen Google firm z co najmniej {nOpinii(MIN_REVIEWS)}. Firma w kilku
+            Każda firma liczona raz. Ocena: mediana ocen Google firm z co najmniej {nOpiniami(MIN_REVIEWS)}. Firma w kilku
             miastach to firma, która ma w katalogu wpisy w więcej niż jednym mieście (oddziały albo obsługa okolicy).
           </p>
           <div className="tablewrap">
@@ -56,7 +71,9 @@ export default async function ChainVsLocalPost() {
                 </tr>
               </thead>
               <tbody>
-                {s.groups.map((g) => (
+                {s.groups
+                  .filter((g) => g.firms > 0)
+                  .map((g) => (
                   <tr key={g.label}>
                     <td>{g.label}</td>
                     <td className="num">{fmtInt(g.firms)}</td>
@@ -70,6 +87,10 @@ export default async function ChainVsLocalPost() {
               </tbody>
             </table>
           </div>
+          <p className="note">
+            Biura franczyzowe sieci mają zwykle własny NIP, więc w katalogu są osobnymi firmami. Grupa „w kilku miastach” to
+            firmy z wpisami w kilku miastach: z oddziałami albo obsługujące okoliczne miejscowości.
+          </p>
           {s.multiShare != null && (
             <p>
               W kilku miastach działa {fmtShare(s.multiShare)} firm z katalogu. Pozostałe to biura z jednego miasta, często

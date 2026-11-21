@@ -21,7 +21,7 @@ describe("odmiana miast", () => {
     expect(names.filter((n) => !hasLocative(n))).toEqual([]);
   });
   it("nieznane miasto: bezpieczna forma", () => {
-    expect(inCity("Nowe Miasteczko")).toBe("w mieście Nowe Miasteczko");
+    expect(inCity("Nowe Miasteczko")).toBe("w miejscowości Nowe Miasteczko");
   });
 });
 

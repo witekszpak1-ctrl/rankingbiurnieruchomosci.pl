@@ -45,7 +45,11 @@ export default async function BuyerFeePost() {
         Kupujący płaci prowizję tylko wtedy, gdy podpisał umowę pośrednictwa z biurem. Wiele biur ma umowy z obiema
         stronami i bierze prowizję od sprzedającego i od kupującego, ale część biur pobiera ją tylko od sprzedającego.
         {buyer.brands >= PRICE_STAT_MIN
-          ? ` W cennikach ${nBiurGen(buyer.brands)} z naszego katalogu, które piszą wprost o kupującym, ${nBiur(buyer.free)} ${plural(buyer.free, "podaje", "podają", "podaje")} 0% dla kupującego${paidOk ? `, a pozostałe biorą od kupującego typowo ${fmtRate(buyer.paid.median)} ceny` : ""}.`
+          ? buyer.free === 0
+            ? paidOk
+              ? ` Wszystkie ${nBiur(buyer.brands)} z naszego katalogu, które w cenniku piszą wprost o kupującym, ${plural(buyer.brands, "pobiera", "pobierają", "pobiera")} od niego prowizję (mediana ${fmtRate(buyer.paid.median)} ceny). Biura bez prowizji od kupującego często w ogóle nie piszą o tym w cenniku, tylko w ogłoszeniach.`
+              : ""
+            : ` W cennikach ${nBiurGen(buyer.brands)} z naszego katalogu, które piszą wprost o kupującym, ${nBiur(buyer.free)} ${plural(buyer.free, "podaje", "podają", "podaje")} 0% dla kupującego${paidOk ? `, a pozostałe biorą od kupującego typowo ${fmtRate(buyer.paid.median)} ceny` : ""}.`
           : ""}
       </ShortAnswer>
 
@@ -68,7 +72,7 @@ export default async function BuyerFeePost() {
       <h2>Ile wynosi prowizja dla kupującego</h2>
       {paidOk ? (
         <p>
-          W cennikach, które podają osobną stawkę dla kupującego, mediana to {fmtRate(buyer.paid.median)} ceny, a połowa
+          W cennikach, które podają stawkę dla kupującego (osobno albo jako „zakup nieruchomości”), mediana to {fmtRate(buyer.paid.median)} ceny, a połowa
           biur bierze od {fmtRate(buyer.paid.p25)} do {fmtRate(buyer.paid.p75)} (próba: {nBiurGen(buyer.paid.n)}). Przy
           mieszkaniu za {fmtPln(EXAMPLE)} to około {fmtPln(fee)}, a jeśli stawka jest netto, dochodzi 23% VAT.
         </p>
@@ -104,7 +108,7 @@ export default async function BuyerFeePost() {
       <p>
         Szukasz biura, które podaje stawki na stronie? Zobacz{" "}
         <Link href="/poradnik/biura-z-jawnym-cennikiem">biura z jawnym cennikiem</Link> albo{" "}
-        <Link href="/raporty/prowizje-biur-nieruchomosci-2026">mediany prowizji w miastach</Link>.
+        <Link href="/raporty/prowizje-biur-nieruchomosci-2026">raport prowizji</Link> (mediany dla miast z wystarczającą próbą).
       </p>
 
       <Faq items={faq} />

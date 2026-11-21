@@ -35,7 +35,7 @@ export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "biura-nieruchomosci-w-najwiekszych-miastach",
     title: "Biura nieruchomości w największych miastach: liczby, oceny, staż, cenniki",
-    h1: "Biura nieruchomości w największych miastach Polski w liczbach",
+    h1: "Biura nieruchomości w miastach z największym wyborem: liczby z katalogu",
     description: "Ile biur nieruchomości działa w największych miastach, jak oceniają je klienci, jak długo działają, ile publikuje cennik i ile biorą prowizji. Tabela miast.",
     category: "Porównania",
     published: "2026-11-21",
@@ -88,9 +88,9 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: "najdluzej-dzialajace-biura-nieruchomosci",
-    title: "Najdłużej działające biura nieruchomości w Polsce (dane z rejestrów)",
+    title: "Najdłużej działające biura nieruchomości w Polsce (dane z KRS i VAT)",
     h1: "Najdłużej działające biura nieruchomości w Polsce",
-    description: "Które biura nieruchomości działają najdłużej, jak długo działa typowe biuro i ile jest nowych firm. Daty rozpoczęcia działalności z rejestrów KRS i CEIDG.",
+    description: "Które biura nieruchomości są najdłużej w rejestrach, jak długo działa typowe biuro i ile jest nowych firm. Daty rejestracji z KRS i wykazu podatników VAT.",
     category: "Dane",
     published: "2026-11-21",
     modified: "2026-11-21",

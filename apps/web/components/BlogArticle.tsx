@@ -51,7 +51,8 @@ export function BlogArticle({
         <p className="note">
           Opublikowano {formatDate(post.published)}
           {post.modified > post.published ? `, zaktualizowano ${formatDate(post.modified)}` : ""}. Liczby w tekście
-          odświeżają się codziennie z danych katalogu (stan na {formatDate(new Date())}).
+          przeliczamy codziennie z aktualnych danych katalogu (ostatnie przeliczenie: {formatDate(new Date())}). Oceny Google i
+          cenniki biur aktualizujemy stopniowo, więc dane pojedynczego biura mogą być sprzed kilku tygodni.
         </p>
         {children}
       </article>
@@ -112,7 +113,8 @@ export function faqLd(items: { q: string; a: string }[]): Record<string, unknown
   };
 }
 
-export function Faq({ items }: { items: { q: string; a: string }[] }) {
+/** Pytania i odpowiedzi. `node` to wersja odpowiedzi z linkami do pokazania na stronie (JSON-LD bierze tekst `a`). */
+export function Faq({ items }: { items: { q: string; a: string; node?: React.ReactNode }[] }) {
   return (
     <>
       <h2>Najczęstsze pytania</h2>
@@ -120,7 +122,7 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
         {items.map((i) => (
           <details key={i.q}>
             <summary>{i.q}</summary>
-            <p>{i.a}</p>
+            <p>{i.node ?? i.a}</p>
           </details>
         ))}
       </div>

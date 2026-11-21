@@ -12,7 +12,7 @@ export const revalidate = 86400;
 export const metadata: Metadata = pageMetadata({
   title: "Blog o biurach nieruchomości: dane, porównania miast, prowizje",
   description:
-    "Artykuły oparte na danych z katalogu biur nieruchomości: oceny biur w miastach, prowizje za sprzedaż i najem, staż firm, porównania miast i poradniki dla kupujących i sprzedających.",
+    "Artykuły z danymi katalogu biur nieruchomości: oceny biur w miastach, prowizje za sprzedaż i najem, staż firm, porównania miast i poradniki.",
   path: BLOG_PATH,
 });
 

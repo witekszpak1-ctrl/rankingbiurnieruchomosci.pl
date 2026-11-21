@@ -22,15 +22,16 @@ export function CommissionCalculator({
 }) {
   const [price, setPrice] = useState(String(defaultPrice));
   const [own, setOwn] = useState(median != null ? String(median).replace(".", ",") : "2");
-  const [plusVat, setPlusVat] = useState(true);
+  // Domyślnie bez VAT: mediana miesza stawki netto i brutto, a większość biur nie podaje stawki netto.
+  const [plusVat, setPlusVat] = useState(false);
   const value = Number(price.replace(/\s/g, "").replace(",", "."));
   const ownRate = Number(own.replace(",", "."));
   const ok = Number.isFinite(value) && value > 0;
   const vat = plusVat ? 1.23 : 1;
   const rows: { label: string; r: number }[] = [];
-  if (p25 != null) rows.push({ label: "Tańsza połowa biur (25. percentyl)", r: p25 });
+  if (p25 != null) rows.push({ label: "Tańsze biura (25. percentyl)", r: p25 });
   if (median != null) rows.push({ label: "Typowe biuro (mediana)", r: median });
-  if (p75 != null) rows.push({ label: "Droższa połowa biur (75. percentyl)", r: p75 });
+  if (p75 != null) rows.push({ label: "Droższe biura (75. percentyl)", r: p75 });
   if (Number.isFinite(ownRate) && ownRate > 0 && ownRate <= 10) rows.push({ label: "Twoja stawka", r: ownRate });
   return (
     <div className="calc">
@@ -45,7 +46,7 @@ export function CommissionCalculator({
         </label>
         <label className="calc-check">
           <input type="checkbox" checked={plusVat} onChange={(e) => setPlusVat(e.target.checked)} />
-          Doliczyć 23% VAT (stawka netto)
+          Doliczyć 23% VAT (gdy biuro podaje stawkę netto)
         </label>
       </div>
       <div className="tablewrap" id="calc-out" aria-live="polite">
@@ -54,7 +55,7 @@ export function CommissionCalculator({
             <tr>
               <th>Wariant</th>
               <th className="num">Stawka</th>
-              <th className="num">Prowizja{plusVat ? " z VAT" : ""}</th>
+              <th className="num">Prowizja{plusVat ? " z VAT" : " (według stawki z cennika)"}</th>
             </tr>
           </thead>
           <tbody>

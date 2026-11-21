@@ -4,7 +4,7 @@
  */
 import { inCity } from "./cities";
 import { formatPhone, formatPrice } from "./format";
-import { nLat, offersLabel } from "./plural";
+import { nLatGen, offersLabel } from "./plural";
 import { priceBasis } from "./prices";
 import type { FaqItem } from "./city-content";
 
@@ -50,7 +50,7 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
   faq.push({
     q: `Czy ${f.name} jest firmą wpisaną do rejestru?`,
     a: f.registryConfirmed
-      ? `Tak. NIP ze strony biura zgadza się z rejestrem publicznym (KRS lub wykaz podatników VAT)${f.registryYears ? `, a firma jest w rejestrze od ${nLat(f.registryYears)}` : ""}.`
+      ? `Tak. NIP ze strony biura zgadza się z rejestrem publicznym (KRS lub wykaz podatników VAT)${f.registryYears ? `, a firma jest w rejestrze od ${nLatGen(f.registryYears)}` : ""}.`
       : `Nie udało się tego potwierdzić: strona biura nie podaje NIP albo dane nie zgadzają się z rejestrem. Przed podpisaniem umowy poproś o NIP i sprawdź go w wykazie podatników VAT.`,
   });
   if (f.offersCount > 0) {

@@ -15,6 +15,8 @@ import { PRICE_STAT_MIN, median } from "./ranking";
 export const MIN_REVIEWS = 10;
 /** Miasto trafia do porównania ocen, gdy ma tyle firm z oceną od MIN_REVIEWS opinii. */
 export const CITY_COMPARE_MIN = 10;
+/** Staż miasta (mediana, odsetek 10+ lat) pokazujemy i porównujemy od tylu firm ze znaną datą rejestracji. */
+export const YEARS_MIN = 10;
 /** Strony "miasto czy miasto" powstają dla miast z co najmniej tyloma firmami... */
 export const PAIR_CITY_MIN = 20;
 /** ...i najwyżej dla tylu największych miast (pary: n * (n - 1) / 2). */
@@ -69,6 +71,8 @@ export type CityStats = {
   share48: number | null;
   /** Suma opinii Google wszystkich firm z oceną. */
   reviews: number;
+  /** Suma opinii firm z próby (`rated`). */
+  ratedReviews: number;
   medianReviews: number | null;
   /** Firmy z datą rozpoczęcia działalności z rejestru. */
   withYears: number;
@@ -110,6 +114,7 @@ export function cityStats(
         medianRating: median(ratings),
         share48: share(ratings.filter((r) => r >= 4.8).length, ratings.length),
         reviews: list.reduce((sum, f) => sum + (f.googleRating != null ? (f.googleCount ?? 0) : 0), 0),
+        ratedReviews: rated.reduce((sum, f) => sum + (f.googleCount ?? 0), 0),
         medianReviews: median(list.filter((f) => f.googleRating != null).map((f) => f.googleCount ?? 0)),
         withYears: years.length,
         medianYears: median(years),
@@ -153,6 +158,9 @@ export type RatingOverview = {
   avgRating: number | null;
   /** Średnia ważona liczbą opinii: tak ocenia "przeciętny klient", a nie "przeciętne biuro". */
   weightedRating: number | null;
+  /** Zwykła średnia firm z co najmniej MIN_REVIEWS opiniami (tak jak w tabeli miast) i ich liczba. */
+  avgRatingSolid: number | null;
+  solid: number;
   share5: number | null;
   share48: number | null;
   /** Odsetek firm z oceną, które mają mniej niż MIN_REVIEWS opinii. */
@@ -187,6 +195,8 @@ export function ratingOverview(firms: Firm[]): RatingOverview {
     medianReviews: median(rated.map((f) => f.googleCount ?? 0)),
     avgRating: avg(rated.map(r)),
     weightedRating: totalReviews > 0 ? rated.reduce((s, f) => s + r(f) * (f.googleCount ?? 0), 0) / totalReviews : null,
+    avgRatingSolid: avg(many.map(r)),
+    solid: many.length,
     share5: share(rated.filter((f) => r(f) >= 5).length, rated.length),
     share48: share(rated.filter((f) => r(f) >= 4.8).length, rated.length),
     shareFew: share(few.length, rated.length),
@@ -238,7 +248,7 @@ export function reachStats(firms: Firm[], citiesByBrand: Map<string, number>, no
   const multi = withReach.filter((f) => f.cities >= 2);
   const wide = withReach.filter((f) => f.cities >= 5);
   return {
-    groups: [group("Biura z jednego miasta", local), group("Firmy w 2 i więcej miastach", multi), group("Firmy w 5 i więcej miastach", wide)],
+    groups: [group("Biura z jednego miasta", local), group("Firmy w 2 lub więcej miastach", multi), group("Firmy w 5 lub więcej miastach", wide)],
     wide: [...multi]
       .sort((a, b) => b.cities - a.cities || (b.googleCount ?? 0) - (a.googleCount ?? 0) || a.name.localeCompare(b.name, "pl"))
       .slice(0, top),
@@ -255,6 +265,8 @@ export type TenureStats = {
   share20y: number | null;
   shareUnder3y: number | null;
   oldest: (Firm & { years: number })[];
+  /** Ile firm ma tę samą najwcześniejszą datę co pierwsza na liście (przy remisie kolejność jest alfabetyczna). */
+  oldestTied: number;
 };
 
 export function tenureStats(firms: Firm[], now: Date, top = 25): TenureStats {
@@ -262,13 +274,15 @@ export function tenureStats(firms: Firm[], now: Date, top = 25): TenureStats {
     .map((f) => ({ ...f, years: yearsSince(f.startDate, now) }))
     .filter((f): f is Firm & { years: number } => f.years != null);
   const years = dated.map((f) => f.years);
+  const sorted = [...dated].sort((a, b) => b.years - a.years || a.name.localeCompare(b.name, "pl"));
   return {
     withYears: dated.length,
     medianYears: median(years),
     share10y: share(years.filter((y) => y >= 10).length, years.length),
     share20y: share(years.filter((y) => y >= 20).length, years.length),
     shareUnder3y: share(years.filter((y) => y < 3).length, years.length),
-    oldest: [...dated].sort((a, b) => b.years - a.years || a.name.localeCompare(b.name, "pl")).slice(0, top),
+    oldest: sorted.slice(0, top),
+    oldestTied: sorted.length ? sorted.filter((f) => f.years === sorted[0].years).length : 0,
   };
 }
 
@@ -332,6 +346,8 @@ export function saleVatStats(rows: RateRow[]): VatStats {
 }
 
 const BUYER = /kupując|kupujac|kupn|zakup/i;
+const BUYER_EXPLICIT = /kupując|kupujac/i;
+const SELLER = /sprzeda/i;
 
 export type BuyerStats = { brands: number; free: number; paid: RateStats };
 
@@ -339,7 +355,13 @@ export type BuyerStats = { brands: number; free: number; paid: RateStats };
 export function buyerStats(rows: RateRow[]): BuyerStats {
   // "od kupującego" nie pasuje do wzorca sprzedaży w prices.ts, więc rozpoznajemy kupującego osobno (bez najmu).
   const buyerRows = rows.filter(
-    (r) => r.unit === "percent" && r.amountMin != null && BUYER.test(r.service) && !["rent_brokerage", "management"].includes(priceKind(r.service)),
+    (r) =>
+      r.unit === "percent" &&
+      r.amountMin != null &&
+      BUYER.test(r.service) &&
+      // wspólna pozycja "pośrednictwo w sprzedaży i zakupie" to nie osobna stawka dla kupującego
+      (BUYER_EXPLICIT.test(r.service) || !SELLER.test(r.service)) &&
+      !["rent_brokerage", "management"].includes(priceKind(r.service)),
   );
   const free = new Set(buyerRows.filter((r) => r.amountMin === 0 && (r.amountMax == null || r.amountMax === 0)).map((r) => r.brandId));
   const paid = lowestPerBrand(
@@ -407,9 +429,9 @@ export const loadRates = cache(async (): Promise<RateRow[]> =>
 // ----------------------------------------------------------------------------- wnioski z porównania dwóch miast
 
 /** Różnice mniejsze niż te progi opisujemy jako "podobnie", żeby nie wyolbrzymiać szumu w danych. */
-const SAME_RATING = 0.05;
-const SAME_SHARE = 5;
-const SAME_RATE = 0.2;
+export const SAME_RATING = 0.05;
+export const SAME_SHARE = 5;
+export const SAME_RATE = 0.2;
 
 export type PairPoint = { key: string; winner: "a" | "b" | "tie" | null };
 
@@ -425,7 +447,7 @@ export function pairPoints(a: CityStats, b: CityStats): PairPoint[] {
     { key: "firms", winner: a.firms === b.firms ? "tie" : a.firms > b.firms ? "a" : "b" },
     { key: "rating", winner: ratedOk ? cmp(a.avgRating, b.avgRating, SAME_RATING) : null },
     { key: "share48", winner: ratedOk ? cmp(a.share48, b.share48, SAME_SHARE) : null },
-    { key: "years", winner: a.withYears >= 5 && b.withYears >= 5 ? cmp(a.medianYears, b.medianYears, 1) : null },
+    { key: "years", winner: a.withYears >= YEARS_MIN && b.withYears >= YEARS_MIN ? cmp(a.medianYears, b.medianYears, 1) : null },
     { key: "prices", winner: cmp(a.sharePrices, b.sharePrices, SAME_SHARE) },
     { key: "commission", winner: cmp(a.commission, b.commission, SAME_RATE, false) },
   ];
