@@ -42,8 +42,7 @@ export default async function CityRatingsPost() {
           Najwyżej oceniane biura nieruchomości są {inCity(best.name)}: średnia ocena Google {fmtRating(best.avgRating)}, a{" "}
           {fmtShare(best.share48)} biur ma ocenę 4,8 lub wyższą. Najniższą średnią w zestawieniu ma {worst.name} (
           {fmtRating(worst.avgRating)}). Porównaliśmy {nMiast(league.length)}, w których co najmniej{" "}
-          {nBiur(CITY_COMPARE_MIN)} ma od {nOpinii(MIN_REVIEWS)}. W całym katalogu ocenę Google ma {fmtInt(all.rated)}{" "}
-          biur, a średnia ważona liczbą opinii wynosi {fmtRating(all.weightedRating)}.
+          {nBiur(CITY_COMPARE_MIN)} ma od {nOpinii(MIN_REVIEWS)}. W całym katalogu ocenę Google ma {nBiur(all.rated)}, a średnia ważona liczbą opinii wynosi {fmtRating(all.weightedRating)}.
         </ShortAnswer>
       ) : (
         <p>Zestawienie jest w przygotowaniu.</p>

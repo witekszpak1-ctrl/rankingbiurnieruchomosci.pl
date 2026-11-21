@@ -5,7 +5,7 @@ import { BlogArticle, Faq, ShortAnswer, faqLd } from "@/components/BlogArticle";
 import { blogPath, fmtPln, fmtRate, getPost } from "@/lib/blog";
 import { buyerStats, loadRates } from "@/lib/blog-stats";
 import { commissionReport } from "@/lib/catalog";
-import { nBiur, nBiurGen } from "@/lib/plural";
+import { nBiur, nBiurGen, plural } from "@/lib/plural";
 import { PRICE_STAT_MIN } from "@/lib/ranking";
 import { pageMetadata } from "@/lib/seo";
 
@@ -45,7 +45,7 @@ export default async function BuyerFeePost() {
         Kupujący płaci prowizję tylko wtedy, gdy podpisał umowę pośrednictwa z biurem. Wiele biur ma umowy z obiema
         stronami i bierze prowizję od sprzedającego i od kupującego, ale część biur pobiera ją tylko od sprzedającego.
         {buyer.brands >= PRICE_STAT_MIN
-          ? ` W cennikach ${nBiurGen(buyer.brands)} z naszego katalogu, które piszą wprost o kupującym, ${nBiur(buyer.free)} podaje 0% dla kupującego${paidOk ? `, a pozostałe biorą od kupującego typowo ${fmtRate(buyer.paid.median)} ceny` : ""}.`
+          ? ` W cennikach ${nBiurGen(buyer.brands)} z naszego katalogu, które piszą wprost o kupującym, ${nBiur(buyer.free)} ${plural(buyer.free, "podaje", "podają", "podaje")} 0% dla kupującego${paidOk ? `, a pozostałe biorą od kupującego typowo ${fmtRate(buyer.paid.median)} ceny` : ""}.`
           : ""}
       </ShortAnswer>
 
