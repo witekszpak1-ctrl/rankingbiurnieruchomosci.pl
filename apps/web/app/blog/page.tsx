@@ -102,11 +102,18 @@ export default async function BlogIndex() {
         <section>
           <h2>Porównania miast</h2>
           <p className="note">Dwa miasta obok siebie: liczba biur, oceny klientów, staż, cenniki i prowizje.</p>
-          <ul className="chips">
+          <ul className="blog-list pairs">
             {pairs.map((p) => (
               <li key={p.slug}>
                 <Link href={blogPath(`porownanie/${p.slug}`)}>
-                  {p.a.name} czy {p.b.name}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="blog-thumb" src={coverPath(`porownanie-${p.slug}`)} width={1200} height={630} alt="" loading="lazy" />
+                  <b>
+                    {p.a.name} czy {p.b.name}?
+                  </b>
+                  <span>
+                    {p.a.firms} wobec {p.b.firms} biur w katalogu, oceny, staż, usługi i prowizje.
+                  </span>
                 </Link>
               </li>
             ))}
