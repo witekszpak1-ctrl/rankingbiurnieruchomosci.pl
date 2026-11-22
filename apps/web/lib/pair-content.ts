@@ -48,8 +48,8 @@ export function cityPortrait(c: CityStats, extra: CityExtra, seed: number): stri
   const ratings = ratedOk(c)
     ? pick(
         [
-          `Ocenę Google z co najmniej ${nOpiniami(MIN_REVIEWS)} ${plural(c.rated, "ma", "mają", "ma")} ${nBiur(c.rated)}. Ich średnia to ${fmtRating(c.avgRating)}, ocenę 4,8 lub wyższą ma ${fmtShare(c.share48)} z nich${c.shareBelow4 != null && c.shareBelow4 > 0 ? `, a poniżej 4,0 ${fmtShare(c.shareBelow4)}` : ""}.`,
-          `Średnia ocena Google biur, które mają co najmniej ${nOpiniami(MIN_REVIEWS)}, wynosi ${fmtRating(c.avgRating)} (próba: ${nBiur(c.rated)}). ${fmtShare(c.share48)} z nich ma 4,8 lub więcej${c.shareBelow4 != null && c.shareBelow4 > 0 ? `, ${fmtShare(c.shareBelow4)} mniej niż 4,0` : ""}.`,
+          `Ocenę Google z co najmniej ${nOpiniami(MIN_REVIEWS)} ${plural(c.rated, "ma", "mają", "ma")} ${nBiur(c.rated)}. Ich średnia to ${fmtRating(c.avgRating)}, ocenę 4,8 lub wyższą ma ${fmtShare(c.share48)} z nich${c.shareBelow4 != null && c.shareBelow4 > 0 ? `, a ${fmtShare(c.shareBelow4)} ma ocenę niższą niż 4,0` : ""}.`,
+          `Średnia ocena Google biur, które mają co najmniej ${nOpinii(MIN_REVIEWS)}, wynosi ${fmtRating(c.avgRating)} (próba: ${nBiur(c.rated)}). ${fmtShare(c.share48)} z nich ma 4,8 lub więcej${c.shareBelow4 != null && c.shareBelow4 > 0 ? `, ${fmtShare(c.shareBelow4)} mniej niż 4,0` : ""}.`,
         ],
         seed,
         `ratings:${c.slug}`,
@@ -84,9 +84,11 @@ export function cityPortrait(c: CityStats, extra: CityExtra, seed: number): stri
         `top:${c.slug}`,
       )
     : "";
-  const paras = [`${intro} ${ratings}${reviews}`, `${tenure} ${pricing}${services}`];
+  // Opis zawsze zaczyna się od przedstawienia miasta; różnicujemy kolejność zdań w drugim akapicie.
+  const second = seedOf(`${seed}:order:${c.slug}`) % 2 ? `${pricing}${services} ${tenure}` : `${tenure} ${pricing}${services}`;
+  const paras = [`${intro} ${ratings}${reviews}`, second];
   if (top) paras.push(top);
-  return seedOf(`${seed}:order:${c.slug}`) % 2 ? [paras[1], paras[0], ...paras.slice(2)] : paras;
+  return paras;
 }
 
 type Side = "a" | "b" | "tie" | null;
