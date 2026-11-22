@@ -102,7 +102,7 @@ export function analyzeBlogHtml(html: string, opts: { keyword?: string; category
     const places = [norm(title).includes(kw), norm(description).includes(kw), norm(firstPara).includes(kw)];
     add("keyword", `Fraza „${opts.keyword}” w tytule, opisie i wstępie`, 6, places.filter(Boolean).length / 3, `${places.filter(Boolean).length} z 3 miejsc`);
   }
-  add("dash", "Bez długich myślników", 2, !longDash, longDash ? "w tekście jest — lub –" : "ok");
+  add("dash", "Bez długich myślników", 2, !longDash, longDash ? "w tekście jest długi myślnik lub półpauza" : "ok");
   const max = checks.reduce((s, c) => s + c.max, 0);
   const score = Math.round((100 * checks.reduce((s, c) => s + c.points, 0)) / max);
   return { score, words, targetWords, title, description, checks };
