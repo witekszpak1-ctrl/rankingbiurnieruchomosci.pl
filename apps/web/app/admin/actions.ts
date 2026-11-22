@@ -12,6 +12,7 @@ import { REQUEST_STATUSES } from "@/lib/requests";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { getTracking, parseTrackingForm } from "@/lib/tracking";
 import { BLOG_OVERRIDES_KEY, cleanOverrides } from "@/lib/blog-overrides";
+import { API_USAGE_KEY } from "@/lib/api-usage";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -401,4 +402,41 @@ export async function blogAction(formData: FormData) {
   revalidatePath("/[city]", "page");
   revalidatePath("/[city]/[firm]", "page");
   back(path, "ok", message);
+}
+
+/** Miesięczny limit płatnego API (settings.api_usage.limits), po którym automat przestaje wysyłać zapytania. */
+export async function apiLimitAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const path = "/admin/koszty";
+  const service = String(formData.get("service") ?? "");
+  if (!["google_places", "serper", "brave"].includes(service)) back(path, "error", "Nieznana usługa.");
+  const clear = formData.get("clear") === "1";
+  const raw = String(formData.get("limit") ?? "").trim();
+  const limit = Number(raw);
+  if (!clear && (raw === "" || !Number.isInteger(limit) || limit < 0 || limit > 1_000_000)) {
+    back(path, "error", "Podaj limit jako liczbę całkowitą od 0 do 1 000 000.");
+  }
+  if (clear && service === "google_places") back(path, "error", "Google Places musi mieć limit (domyślnie 950).");
+  await withTransaction(async (client) => {
+    await client.query(`insert into settings (key, value) values ($1, '{}'::jsonb) on conflict (key) do nothing`, [API_USAGE_KEY]);
+    const before = await client.query<{ value: { limits?: Record<string, number> } }>(
+      "select value from settings where key = $1 for update",
+      [API_USAGE_KEY],
+    );
+    const value = before.rows[0]?.value ?? {};
+    const limits = { ...(value.limits ?? {}) };
+    if (clear) delete limits[service];
+    else limits[service] = limit;
+    await client.query("update settings set value = $2, updated_at = now() where key = $1", [API_USAGE_KEY, JSON.stringify({ ...value, limits })]);
+    await writeAudit(client, {
+      actor: admin,
+      action: "api_limit.update",
+      entityType: "settings",
+      entityId: `${API_USAGE_KEY}:${service}`,
+      before: { limit: value.limits?.[service] ?? null },
+      after: { limit: clear ? null : limit },
+    });
+  });
+  revalidatePath(path);
+  back(path, "ok", clear ? "Usunięto limit." : `Zapisano limit ${limit} zapytań miesięcznie. Automat użyje go przy najbliższym przebiegu.`);
 }

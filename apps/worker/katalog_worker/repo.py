@@ -565,6 +565,48 @@ class Repo:
         row = self.conn.execute("select value from settings where key = %s", (key,)).fetchone()
         return row["value"] if row else default
 
+    # ------------------------------------------------------------------ liczniki płatnych API (api_usage.py)
+
+    def api_usage_seed(self, service: str) -> int:
+        """Zużycie w bieżącym miesiącu sprzed wprowadzenia licznika (dolny szacunek z danych)."""
+        month_start = "date_trunc('month', now() at time zone 'UTC') at time zone 'UTC'"
+        if service == "google_places":
+            row = self.conn.execute(f"select count(*) as n from google_places where fetched_at >= {month_start}").fetchone()
+        elif service in ("serper", "brave"):
+            row = self.conn.execute(
+                f"select count(*) as n from search_queries where provider = %s and created_at >= {month_start}", (service,)
+            ).fetchone()
+        else:
+            return 0
+        return int(row["n"] or 0)
+
+    def api_usage_status(self, service: str) -> tuple[int, int | None]:
+        """(zużycie w tym miesiącu, limit). Bez licznika na ten miesiąc zużycie to szacunek z danych."""
+        from .api_usage import SETTINGS_KEY, limit_of, month_key, used_in
+
+        value = self.setting(SETTINGS_KEY, {}) or {}
+        used = used_in(value, month_key(), service)
+        return (used if used is not None else self.api_usage_seed(service)), limit_of(value, service)
+
+    def api_usage_reserve(self, service: str, count: int = 1) -> tuple[bool, int, int | None]:
+        """Rezerwuje zapytania w liczniku miesiąca (blokada wiersza, zatwierdzone od razu). (czy wolno, zużycie, limit)."""
+        from .api_usage import SETTINGS_KEY, month_key, reserve
+
+        self.conn.commit()
+        with self.conn.transaction():
+            self.conn.execute(
+                "insert into settings (key, value) values (%s, '{}'::jsonb) on conflict (key) do nothing", (SETTINGS_KEY,)
+            )
+            row = self.conn.execute("select value from settings where key = %s for update", (SETTINGS_KEY,)).fetchone()
+            value = row["value"] if row else {}
+            month = month_key()
+            seed = 0 if ((value or {}).get("months") or {}).get(month, {}).get(service) is not None else self.api_usage_seed(service)
+            allowed, new_value, used, limit = reserve(value, month, service, seed=seed, count=count)
+            self.conn.execute(
+                "update settings set value = %s, updated_at = now() where key = %s", (Jsonb(new_value), SETTINGS_KEY)
+            )
+        return allowed, used, limit
+
     def listings_ready_to_publish(self, min_facts: int, limit: int) -> list[dict]:
         """Wpisy spełniające bramkę publikacji: domena zweryfikowana, zwalidowany opis, minimum faktów."""
         return self.conn.execute(

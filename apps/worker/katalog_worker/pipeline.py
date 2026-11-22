@@ -217,6 +217,12 @@ def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, di
     done = []
     for city in cities_to_search(ctx, cities):
         queries = city_queries(ctx, city["name"], city["deep"], districts)
+        # Opcjonalny miesięczny limit zapytań do wyszukiwarki (ustawiany w panelu, /admin/koszty).
+        used, month_limit = ctx.repo.api_usage_status(provider.name)
+        if month_limit is not None and used + len(queries) > month_limit:
+            totals["stopped_limit"] += 1
+            done.append(f"limit {provider.name}: {used}/{month_limit} zapytań w tym miesiącu")
+            break
         try:
             counts = stage_discover(ctx, provider, city["name"], queries=queries)
         except SearchError as exc:
@@ -1116,17 +1122,31 @@ def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300, only_
 # ----------------------------------------------------------------------------- opinie Google
 
 
-def stage_google_reviews(ctx: Context, limit: int = 100, max_age_days: int = 7) -> dict:
-    """Ocena i opinie z Google dla firm w katalogu (najdawniej odświeżane pierwsze). Bez klucza API nic nie robi."""
+def stage_google_reviews(ctx: Context, limit: int = 100, max_age_days: int = 30) -> dict:
+    """Ocena i opinie z Google dla firm w katalogu (najpierw nigdy niepobrane, potem najdawniej odświeżane).
+
+    Bez klucza API nic nie robi. Każde zapytanie jest liczone w miesięcznym liczniku (api_usage.py) przed wysłaniem:
+    po osiągnięciu limitu (domyślnie 950, darmowa pula Google to 1000) etap się zatrzymuje do następnego miesiąca.
+    Reszta limitu jest rozkładana równo na pozostałe dni miesiąca.
+    """
     import os
 
+    from .api_usage import days_left, run_budget
     from .google_places import fetch_place
 
     if not os.environ.get("GOOGLE_PLACES_API_KEY"):
         return {"skipped": "brak GOOGLE_PLACES_API_KEY"}
     repo = ctx.repo
+    used, month_limit = repo.api_usage_status("google_places")
+    budget = run_budget(used, month_limit, days_left(), limit)
     counts: Counter = Counter()
-    for row in repo.brands_for_google_reviews(limit, max_age_days):
+    if budget <= 0:
+        return {"stopped": "osiągnięty miesięczny limit zapytań Google Places", "month_used": used, "month_limit": month_limit}
+    for row in repo.brands_for_google_reviews(budget, max_age_days):
+        allowed, used, month_limit = repo.api_usage_reserve("google_places")
+        if not allowed:
+            counts["stopped_limit"] += 1
+            break
         result = fetch_place(
             row["name"], row["city"], row["website"],
             lambda found: name_similarity(row["name"], found) >= 0.6,
@@ -1135,7 +1155,11 @@ def stage_google_reviews(ctx: Context, limit: int = 100, max_age_days: int = 7) 
         counts[result.status] += 1
         counts["reviews"] += len(result.reviews)
         repo.conn.commit()
-    return dict(counts)
+        if result.http_status in (403, 429):
+            # brak uprawnień albo limit po stronie Google: nie wysyłamy kolejnych zapytań w tym przebiegu
+            counts["stopped_google_quota"] += 1
+            break
+    return {**dict(counts), "run_budget": budget, "month_used": used, "month_limit": month_limit}
 
 
 # ----------------------------------------------------------------------------- publikacja

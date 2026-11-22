@@ -389,3 +389,11 @@
 .adm .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; }
 .adm .inline-form input[type="date"] { padding: 2px 6px; font: inherit; font-size: 0.8rem; }
 .adm table.tight td .row-actions:has(.inline-form) { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
+
+/* Koszty i limity */
+.adm .cost-card { border: 1px solid var(--a-line); border-radius: 12px; padding: 4px 18px 14px; margin: 14px 0; background: var(--a-panel); }
+.adm .cost-bar { height: 10px; border-radius: 6px; background: var(--a-soft-line); overflow: hidden; margin: 6px 0 10px; }
+.adm .cost-fill { display: block; height: 100%; background: var(--a-accent); }
+.adm .cost-fill.warn { background: #b7791f; }
+.adm .cost-fill.bad { background: #c53030; }
+.adm .inline-form input[type="number"] { width: 120px; padding: 2px 6px; font: inherit; }

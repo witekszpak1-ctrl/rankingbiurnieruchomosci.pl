@@ -37,6 +37,8 @@ jobs:
       - name: Migracje
         run: katalog migrate
       # Opinie Google najpierw: szybkie (jedno zapytanie na firmę), a nie mogą czekać na długie kroki crawlera.
+      # Miesięczny licznik zapytań z twardym limitem (domyślnie 950, darmowa pula Google to 1000), reszta limitu
+      # rozkładana na pozostałe dni miesiąca; podgląd i zmiana limitu w panelu: /admin/koszty.
       - name: Opinie z Google (Places API, gdy jest klucz)
         if: ${{ !inputs.dry_run }}
         env:

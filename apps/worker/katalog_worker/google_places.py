@@ -29,6 +29,7 @@ class PlaceResult:
     maps_url: str | None = None
     reviews: list[dict] = field(default_factory=list)
     status: str = "ok"  # ok | not_found | error
+    http_status: int | None = None
 
 
 def _review(raw: dict) -> dict | None:
@@ -74,7 +75,7 @@ def fetch_place(name: str, city: str, website: str | None, name_ok, client: http
                   "pageSize": 5},
         )
         if response.status_code != 200:
-            return PlaceResult(status="error")
+            return PlaceResult(status="error", http_status=response.status_code)
         places = response.json().get("places") or []
     except (httpx.HTTPError, ValueError):
         return PlaceResult(status="error")

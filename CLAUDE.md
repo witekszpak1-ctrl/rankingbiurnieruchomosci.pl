@@ -5,3 +5,4 @@
 - W tekstach na stronie i w odpowiedziach dla użytkownika nie używaj długiego myślnika (—) ani półpauzy (–), tylko zwykły łącznik „-”.
 - Liczby na stronie tylko z danych katalogu, przy zbyt małej próbie piszemy, że danych jest za mało. Nie wymyślamy statystyk.
 - Gdy użytkownik prosi o analizę albo pomysł, odpowiadamy analizą i nie wdrażamy zmian bez jego zgody.
+- Płatne API (Google Places, Serper, Brave): liczniki i limity w `settings.api_usage`, podgląd w panelu `/admin/koszty`. Nie podnoś limitu Google Places (950 miesięcznie) ani nie dodawaj nowych płatnych zapytań bez zgody użytkownika.

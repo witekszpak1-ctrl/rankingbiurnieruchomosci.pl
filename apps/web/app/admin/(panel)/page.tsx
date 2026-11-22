@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ActivityFeed, Flash } from "@/components/admin";
 import { getDashboard, listFirms, type FirmRow } from "@/lib/admin-data";
 import { countNewLeads } from "@/lib/leads";
+import { getApiUsage } from "@/lib/api-usage";
 import { countNewRequests } from "@/lib/requests";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -54,12 +55,14 @@ function Board({ columns }: { columns: Column[] }) {
 
 export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
-  const [d, newRequests, firms, newLeads] = await Promise.all([
+  const [d, newRequests, firms, newLeads, usage] = await Promise.all([
     getDashboard(),
     countNewRequests(),
     listFirms({}),
     countNewLeads(),
+    getApiUsage().catch(() => []),
   ]);
+  const places = usage.find((u) => u.key === "google_places");
   const published = firms.filter((f) => f.status === "published");
   const preparing = firms.filter((f) => ["candidate", "needs_review", "verified"].includes(f.status));
   const removed = firms.filter((f) => ["rejected", "removed"].includes(f.status));
@@ -105,6 +108,18 @@ export default async function DashboardPage({ searchParams }: Props) {
           <b>{newLeads}</b>
           <span>nowych zapytań klientów</span>
         </Link>
+        {places && (
+          <Link className="stat" href="/admin/koszty">
+            <b>
+              {places.used.toLocaleString("pl-PL")}
+              {places.limit != null ? ` / ${places.limit.toLocaleString("pl-PL")}` : ""}
+            </b>
+            <span>
+              zapytań Google Places w tym miesiącu
+              {places.limit != null && places.used >= places.limit ? " (limit osiągnięty, automat zatrzymany)" : ""}
+            </span>
+          </Link>
+        )}
       </div>
 
       <h2>Droga firmy do katalogu</h2>
