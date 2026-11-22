@@ -18,6 +18,9 @@ import { cityMeta } from "@/lib/meta-texts";
 import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
 import { FILTERS, GOALS, PER_PAGE, parseView, viewHref, type Filter, type Goal, type SearchParams } from "@/lib/city-view";
 import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } from "@/lib/ranking";
+import { BlogLinks } from "@/components/BlogLinks";
+import { blogPairLinks, cityBlogLinks } from "@/lib/blog-links";
+import { getBlogOverrides } from "@/lib/blog-overrides";
 
 export const revalidate = 300;
 
@@ -94,6 +97,12 @@ export default async function CityPage({ params, searchParams }: Props) {
   if (!data) notFound();
   const view = parseView(await searchParams);
   const { city, listings, stats, ranked, updatedAt, prices, services, cities, national } = data;
+  const [pairLinks, blogOverrides] = await Promise.all([blogPairLinks().catch(() => []), getBlogOverrides()]);
+  const blogLinks = cityBlogLinks(
+    city.slug,
+    pairLinks,
+    new Set(Object.entries(blogOverrides).filter(([, o]) => o.hidden).map(([k]) => k)),
+  );
   const withPrices = listings.filter((l) => l.hasPublicPrices).length;
   const rows = ranked ?? listings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] }));
   // Filtry: pozycje zostają z pełnego rankingu miasta, lista pokazuje tylko pasujące biura.
@@ -399,6 +408,8 @@ export default async function CityPage({ params, searchParams }: Props) {
           </details>
         ))}
       </div>
+
+      <BlogLinks title={`Porównania i dane o biurach ${where}`} items={blogLinks} />
 
         </>
       )}

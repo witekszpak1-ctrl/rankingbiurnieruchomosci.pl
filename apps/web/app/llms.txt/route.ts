@@ -1,4 +1,5 @@
 import { BLOG_PATH, BLOG_POSTS, blogPath } from "@/lib/blog";
+import { getBlogOverrides, isHidden } from "@/lib/blog-overrides";
 import { listCities } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { SITE_NAME, absoluteUrl } from "@/lib/format";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 // Plik dla asystentów AI: krótki opis serwisu i najważniejsze adresy. Skuteczność llms.txt nie jest potwierdzona,
 // ale koszt jest znikomy.
 export async function GET() {
-  const cities = await listCities();
+  const [cities, blogOverrides] = await Promise.all([listCities(), getBlogOverrides()]);
   const op = operator();
   const lines = [
     `# ${SITE_NAME}`,
@@ -29,7 +30,7 @@ export async function GET() {
     "",
     "## Blog",
     `- [Blog](${absoluteUrl(BLOG_PATH)}): artykuły z danymi katalogu, odświeżane codziennie`,
-    ...BLOG_POSTS.map((p) => `- [${p.h1}](${absoluteUrl(blogPath(p.slug))})`),
+    ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides)).map((p) => `- [${p.h1}](${absoluteUrl(blogPath(p.slug))})`),
     "",
     "## Miasta",
     ...cities.map((c) => `- [Biura nieruchomości ${c.name}](${absoluteUrl(`/${c.slug}`)}): ${nBiur(c.listings)} ${inCity(c.name)}`),

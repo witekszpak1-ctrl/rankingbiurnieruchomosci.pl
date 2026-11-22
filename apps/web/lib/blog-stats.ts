@@ -69,6 +69,8 @@ export type CityStats = {
   medianRating: number | null;
   /** Odsetek firm z oceną 4,8 lub wyższą (spośród `rated`). */
   share48: number | null;
+  /** Odsetek firm z oceną poniżej 4,0 (spośród `rated`). */
+  shareBelow4: number | null;
   /** Suma opinii Google wszystkich firm z oceną. */
   reviews: number;
   /** Suma opinii firm z próby (`rated`). */
@@ -79,6 +81,8 @@ export type CityStats = {
   medianYears: number | null;
   /** Odsetek firm działających 10 lat lub dłużej (spośród `withYears`). */
   share10y: number | null;
+  /** Odsetek firm zarejestrowanych w ostatnich 3 latach (spośród `withYears`). */
+  shareUnder3y: number | null;
   withPrices: number;
   sharePrices: number | null;
   withOffers: number;
@@ -113,12 +117,14 @@ export function cityStats(
         avgRating: avg(ratings),
         medianRating: median(ratings),
         share48: share(ratings.filter((r) => r >= 4.8).length, ratings.length),
+        shareBelow4: share(ratings.filter((r) => r < 4).length, ratings.length),
         reviews: list.reduce((sum, f) => sum + (f.googleRating != null ? (f.googleCount ?? 0) : 0), 0),
         ratedReviews: rated.reduce((sum, f) => sum + (f.googleCount ?? 0), 0),
         medianReviews: median(list.filter((f) => f.googleRating != null).map((f) => f.googleCount ?? 0)),
         withYears: years.length,
         medianYears: median(years),
         share10y: share(years.filter((y) => y >= 10).length, years.length),
+        shareUnder3y: share(years.filter((y) => y < 3).length, years.length),
         withPrices,
         sharePrices: share(withPrices, list.length),
         withOffers,

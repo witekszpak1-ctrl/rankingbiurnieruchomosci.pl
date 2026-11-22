@@ -14,6 +14,9 @@ import { ORG_ID, organizationLd, pageMetadata, SITE_ID } from "@/lib/seo";
 import { nBiur, nMiast, nOfert, offersLabel, plural } from "@/lib/plural";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 import { GOALS, type Goal } from "@/lib/city-view";
+import { BlogLinks } from "@/components/BlogLinks";
+import { latestBlogLinks } from "@/lib/blog-links";
+import { getBlogOverrides, withOverride } from "@/lib/blog-overrides";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +85,12 @@ export default async function HomePage({ searchParams }: Props) {
     listLatestOffers(6),
   ]);
   const top = rankListings(all, toInput).slice(0, 6);
+  const blogOverrides = await getBlogOverrides();
+  const blogLinks = latestBlogLinks(
+    new Set(Object.entries(blogOverrides).filter(([, o]) => o.hidden).map(([k]) => k)),
+    3,
+    (p) => withOverride(p, blogOverrides).published,
+  );
 
   return (
     <PublicShell wide>
@@ -306,6 +315,12 @@ export default async function HomePage({ searchParams }: Props) {
               )}
             </>
           )}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="wrap">
+          <BlogLinks title="Z bloga: dane i poradniki" items={blogLinks} className="blog-links home-blog" />
         </div>
       </section>
 

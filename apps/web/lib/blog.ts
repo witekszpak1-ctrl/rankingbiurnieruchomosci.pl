@@ -3,7 +3,10 @@
  * Treść artykułów jest w app/blog/<slug>/page.tsx, a liczby w nich pochodzą z lib/blog-stats.ts.
  * Przy zmianie tekstu artykułu zmień `modified` (data trafia do mapy strony i JSON-LD).
  */
+import type { Metadata } from "next";
+
 import { nLat } from "./plural";
+import { pageMetadata } from "./seo";
 
 export type BlogCategory = "Dane" | "Porównania" | "Poradnik";
 
@@ -15,12 +18,21 @@ export type BlogPost = {
   /** Opis do wyszukiwarki i karty na liście artykułów. */
   description: string;
   category: BlogCategory;
+  /** Główna fraza, pod którą pisany jest artykuł (ocena SEO w panelu sprawdza ją w tytule, h1, opisie i wstępie). */
+  keyword: string;
   published: string;
   modified: string;
 };
 
 export const BLOG_PATH = "/blog";
 export const blogPath = (slug: string) => `${BLOG_PATH}/${slug}`;
+/** Okładka artykułu (1200x630 PNG, generowana z kodu w app/blog/okladka/[file]/route.tsx). Pary miast: "porownanie-<para>". */
+export const coverPath = (key: string) => `${BLOG_PATH}/okladka/${key}.png`;
+
+/** Metadane strony artykułu: tytuł, opis, canonical i okładka jako obrazek do udostępniania. */
+export function blogMetadata(post: Pick<BlogPost, "slug" | "title" | "description">): Metadata {
+  return pageMetadata({ title: post.title, description: post.description, path: blogPath(post.slug), type: "article", image: coverPath(post.slug) });
+}
 
 export const BLOG_POSTS: BlogPost[] = [
   {
@@ -29,6 +41,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Gdzie biura nieruchomości mają najlepsze opinie? Ranking miast",
     description: "Porównanie miast według ocen Google biur nieruchomości: średnia ocena, odsetek biur z oceną 4,8 i wyższą, liczba opinii. Tylko biura z co najmniej 10 opiniami.",
     category: "Dane",
+    keyword: "najlepsze biura nieruchomości",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -38,6 +51,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Biura nieruchomości w miastach z największym wyborem: liczby z katalogu",
     description: "Ile biur nieruchomości działa w największych miastach, jak oceniają je klienci, jak długo działają, ile publikuje cennik i ile biorą prowizji. Tabela miast.",
     category: "Porównania",
+    keyword: "biura nieruchomości w miastach",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -47,6 +61,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Sprzedaż mieszkania z biurem czy samemu?",
     description: "Ile kosztuje pośrednik przy sprzedaży mieszkania: kalkulator prowizji ze stawkami z cenników biur, VAT, zakres usług biura i kiedy sprzedawać samemu.",
     category: "Poradnik",
+    keyword: "sprzedaż mieszkania",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -56,6 +71,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Czy kupujący płaci prowizję biuru nieruchomości?",
     description: "Kiedy kupujący płaci prowizję biuru nieruchomości, ile wynosi i jak jej uniknąć. Stawki dla kupujących z cenników biur i co sprawdzić przed podpisem.",
     category: "Poradnik",
+    keyword: "prowizję biuru nieruchomości",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -65,6 +81,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Prowizja za wynajem mieszkania: kto płaci i ile wynosi",
     description: "Ile biuro bierze za wynajem mieszkania i kto płaci prowizję: właściciel czy najemca. Stawki z cenników biur, koszt zarządzania najmem, przykłady w złotych.",
     category: "Poradnik",
+    keyword: "prowizja za wynajem mieszkania",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -74,6 +91,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Ocena 5,0 w Google. Czy to znaczy, że biuro jest najlepsze?",
     description: "Jak czytać oceny Google biur nieruchomości: dlaczego 5,0 z kilku opinii mówi mniej niż 4,8 ze stu i na co patrzeć zamiast gwiazdek. Dane z katalogu.",
     category: "Poradnik",
+    keyword: "ocena 5,0 w Google",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -83,6 +101,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Sieć czy lokalne biuro nieruchomości?",
     description: "Biura z jednego miasta i firmy obecne w wielu miastach: oceny Google, liczba opinii, staż i jawność cenników. Lista firm z największym zasięgiem.",
     category: "Porównania",
+    keyword: "lokalne biuro nieruchomości",
     published: "2026-11-21",
     modified: "2026-11-21",
   },
@@ -92,6 +111,7 @@ export const BLOG_POSTS: BlogPost[] = [
     h1: "Najdłużej działające biura nieruchomości w Polsce",
     description: "Które biura nieruchomości są najdłużej w rejestrach, jak długo działa typowe biuro i ile jest nowych firm. Daty rejestracji z KRS i wykazu podatników VAT.",
     category: "Dane",
+    keyword: "najdłużej działające biura nieruchomości",
     published: "2026-11-21",
     modified: "2026-11-21",
   },

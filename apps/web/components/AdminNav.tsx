@@ -48,6 +48,12 @@ const ICONS: Record<string, React.ReactNode> = {
     </>
   ),
   runs: <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />,
+  blog: (
+    <>
+      <path d="M5 4h10l4 4v12H5z" />
+      <path d="M8 11h8M8 15h8M8 7h4" />
+    </>
+  ),
   audit: (
     <>
       <circle cx="12" cy="12" r="9" />

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { BLOG_PATH, BLOG_POSTS, blogPath, type BlogCategory } from "@/lib/blog";
+import { BLOG_PATH, BLOG_POSTS, blogPath, coverPath, type BlogCategory } from "@/lib/blog";
+import { getBlogOverrides, isHidden, withOverride } from "@/lib/blog-overrides";
 import { cityPairs, loadBlogData } from "@/lib/blog-stats";
 import { absoluteUrl, formatDate } from "@/lib/format";
 import { breadcrumbLd, organizationLd, pageMetadata, websiteRef } from "@/lib/seo";
@@ -31,8 +32,11 @@ const GUIDES = [
 
 export default async function BlogIndex() {
   const data = await loadBlogData().catch(() => null);
-  const pairs = data ? cityPairs(data.cities) : [];
-  const posts = [...BLOG_POSTS].sort((a, b) => (b.published > a.published ? 1 : b.published < a.published ? -1 : 0));
+  const overrides = await getBlogOverrides();
+  const pairs = (data ? cityPairs(data.cities) : []).filter((p) => !isHidden(`porownanie-${p.slug}`, overrides));
+  const posts = BLOG_POSTS.filter((p) => !isHidden(p.slug, overrides))
+    .map((p) => withOverride(p, overrides))
+    .sort((a, b) => (b.published > a.published ? 1 : b.published < a.published ? -1 : 0));
   return (
     <PublicShell>
       <JsonLd
@@ -48,6 +52,7 @@ export default async function BlogIndex() {
           blogPost: posts.map((p) => ({
             "@type": "BlogPosting",
             headline: p.h1,
+            image: absoluteUrl(coverPath(p.slug)),
             url: absoluteUrl(blogPath(p.slug)),
             datePublished: p.published,
             dateModified: p.modified,
@@ -80,6 +85,8 @@ export default async function BlogIndex() {
               {list.map((p) => (
                 <li key={p.slug}>
                   <Link href={blogPath(p.slug)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="blog-thumb" src={coverPath(p.slug)} width={1200} height={630} alt="" loading="lazy" />
                     <b>{p.h1}</b>
                     <span>{p.description}</span>
                     <small>{formatDate(p.published)}</small>

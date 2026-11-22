@@ -1,18 +1,24 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { BLOG_PATH, blogPath, relatedPosts, type BlogPost } from "@/lib/blog";
+import { BLOG_PATH, blogPath, coverPath, relatedPosts, type BlogPost } from "@/lib/blog";
+import { getBlogOverrides, isHidden, withOverride } from "@/lib/blog-overrides";
 import { formatDate } from "@/lib/format";
 import { articleLd, breadcrumbLd } from "@/lib/seo";
 
-/** Wspólna rama artykułu bloga: dane strukturalne, okruszki, nagłówek, daty i "Czytaj też". */
-export function BlogArticle({
-  post,
+/**
+ * Wspólna rama artykułu bloga: okładka, dane strukturalne, okruszki, nagłówek, daty i "Czytaj też".
+ * Wpis ukryty w panelu (/admin/blog) zwraca 404; data wpisu może być nadpisana w panelu.
+ */
+export async function BlogArticle({
+  post: basePost,
   children,
   extraLd = [],
-  path = blogPath(post.slug),
-  headline = post.h1,
+  path = blogPath(basePost.slug),
+  headline = basePost.h1,
   related = true,
+  cover = coverPath(basePost.slug.replace("/", "-")),
 }: {
   post: Pick<BlogPost, "slug" | "h1" | "description" | "published" | "modified" | "category">;
   children: React.ReactNode;
@@ -20,8 +26,15 @@ export function BlogArticle({
   path?: string;
   headline?: string;
   related?: boolean;
+  /** Ścieżka okładki (PNG 1200x630); null, żeby jej nie pokazywać. */
+  cover?: string | null;
 }) {
-  const others = related ? relatedPosts(post.slug) : [];
+  const overrides = await getBlogOverrides();
+  // klucz w ustawieniach: slug artykułu albo "porownanie-<para>" dla porównań miast
+  const key = basePost.slug.replace("/", "-");
+  if (isHidden(key, overrides)) notFound();
+  const post = { ...withOverride({ ...basePost, slug: key }, overrides), slug: basePost.slug };
+  const others = related ? relatedPosts(post.slug).filter((p) => !isHidden(p.slug, overrides)) : [];
   return (
     <PublicShell>
       <JsonLd
@@ -31,6 +44,7 @@ export function BlogArticle({
           description: post.description,
           datePublished: post.published,
           dateModified: post.modified,
+          image: cover ?? undefined,
         })}
       />
       <JsonLd
@@ -54,6 +68,11 @@ export function BlogArticle({
           przeliczamy codziennie z aktualnych danych katalogu (ostatnie przeliczenie: {formatDate(new Date())}). Oceny Google i
           cenniki biur aktualizujemy stopniowo, więc dane pojedynczego biura mogą być sprzed kilku tygodni.
         </p>
+        {cover && (
+          // Okładka generowana z kodu (tytuł i główna liczba), więc tekst alternatywny powtarza nagłówek.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="blog-cover" src={cover} width={1200} height={630} alt={`Okładka artykułu: ${headline}`} />
+        )}
         {children}
       </article>
       {others.length > 0 && (
@@ -127,5 +146,29 @@ export function Faq({ items }: { items: { q: string; a: string; node?: React.Rea
         ))}
       </div>
     </>
+  );
+}
+
+/** Lista kontrolna (np. do wydruku przed podpisaniem umowy). */
+export function Checklist({ title, items }: { title: string; items: React.ReactNode[] }) {
+  return (
+    <div className="checklist">
+      <strong>{title}</strong>
+      <ul>
+        {items.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Przykład z wyliczeniem (ramka z nagłówkiem i treścią). */
+export function Example({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="example">
+      <strong>{title}</strong>
+      {children}
+    </div>
   );
 }

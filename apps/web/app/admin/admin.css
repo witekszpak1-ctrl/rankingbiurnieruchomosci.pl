@@ -381,3 +381,11 @@
 .adm .tracking-form label .chip { margin-left: 6px; }
 .adm .inline-check { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .adm .inline-check input { width: auto; }
+
+/* Blog w panelu: ocena SEO i akcje wpisu */
+.adm td .sub, .adm ul.sub { font-size: 0.74rem; color: var(--a-muted); line-height: 1.4; margin-top: 2px; }
+.adm ul.sub { padding-left: 16px; }
+.adm td details summary { cursor: pointer; }
+.adm .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; }
+.adm .inline-form input[type="date"] { padding: 2px 6px; font: inherit; font-size: 0.8rem; }
+.adm table.tight td .row-actions:has(.inline-form) { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }

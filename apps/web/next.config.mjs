@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Czcionki okładek bloga czytane z dysku w route (assets/fonts) muszą trafić do paczki funkcji na Vercelu.
+  outputFileTracingIncludes: { "/blog/okladka/[file]": ["./assets/fonts/**"] },
   async headers() {
     return [
       {

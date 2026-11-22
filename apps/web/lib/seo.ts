@@ -102,6 +102,8 @@ export function articleLd(a: {
   datePublished: string;
   dateModified: string;
   version?: string;
+  /** Własny obrazek artykułu (ścieżka lub pełny adres); domyślnie wspólny obrazek serwisu. */
+  image?: string;
 }): Record<string, unknown> {
   const url = absoluteUrl(a.path);
   return {
@@ -112,7 +114,7 @@ export function articleLd(a: {
     description: a.description ?? undefined,
     url,
     mainEntityOfPage: url,
-    image: absoluteUrl(DEFAULT_OG_IMAGE),
+    image: a.image ? (a.image.startsWith("http") ? a.image : absoluteUrl(a.image)) : absoluteUrl(DEFAULT_OG_IMAGE),
     datePublished: a.datePublished,
     dateModified: a.dateModified < a.datePublished ? a.datePublished : a.dateModified,
     version: a.version,

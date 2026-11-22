@@ -19,6 +19,9 @@ import { nLat, nOpinii, OFFERS_SAMPLE_MAX, offersLabel, plural } from "@/lib/plu
 import { isShownOnFirmPage, priceBasis } from "@/lib/prices";
 import { firmMeta } from "@/lib/meta-texts";
 import { firmFaq } from "@/lib/firm-faq";
+import { BlogLinks } from "@/components/BlogLinks";
+import { blogPairLinks, firmBlogLinks } from "@/lib/blog-links";
+import { getBlogOverrides } from "@/lib/blog-overrides";
 import { breadcrumbLd, pageMetadata, postalAddressLd, websiteRef } from "@/lib/seo";
 import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare } from "@/lib/ranking";
 
@@ -137,6 +140,22 @@ export default async function FirmPage({ params, searchParams }: Props) {
   const position = cityRanked?.find((r) => r.listingId === listing.listingId)?.position ?? null;
   const similar = similarFirms(listing.listingId, cityRanked ?? cityListings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] })));
   const where = inCity(listing.cityName);
+  const [pairLinks, blogOverrides] = await Promise.all([blogPairLinks().catch(() => []), getBlogOverrides()]);
+  const hiddenPosts = new Set(Object.entries(blogOverrides).filter(([, o]) => o.hidden).map(([k]) => k));
+  const blogLinks = firmBlogLinks(
+    {
+      slug: listing.slug,
+      citySlug: listing.citySlug,
+      hasPublicPrices: listing.hasPublicPrices,
+      services: listing.services,
+      googleRating: listing.googleRating,
+      googleCount: listing.googleCount,
+      registryYears: listing.registryConfirmed ? yearsSince(listing.startDate) : null,
+      citiesCount: listing.cities.length,
+    },
+    pairLinks,
+    hiddenPosts,
+  );
   const faq = firmFaq({
     name: listing.name,
     cityName: listing.cityName,
@@ -529,6 +548,8 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 ))}
               </div>
             </section>
+
+            <BlogLinks title="Przydatne przed podpisaniem umowy" items={blogLinks} className="profile-section blog-links" />
 
             <section className="owner-band">
               <div>

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { BLOG_PATH, BLOG_POSTS, blogModified, blogPath } from "@/lib/blog";
+import { getBlogOverrides, isHidden, withOverride } from "@/lib/blog-overrides";
 import { cityPairs, loadBlogData } from "@/lib/blog-stats";
 import { listPublishedPaths } from "@/lib/catalog";
 import { absoluteUrl } from "@/lib/format";
@@ -21,7 +22,7 @@ const INFO_PAGES_MODIFIED: Record<string, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [entries, blog] = await Promise.all([listPublishedPaths(), loadBlogData().catch(() => null)]);
+  const [entries, blog, blogOverrides] = await Promise.all([listPublishedPaths(), loadBlogData().catch(() => null), getBlogOverrides()]);
   const newest = entries.reduce<Date | undefined>((acc, e) => (e.lastModified && (!acc || e.lastModified > acc) ? e.lastModified : acc), undefined);
   // Strona główna i lista miast zmieniają się razem z katalogiem; strony informacyjne mają datę zmiany treści.
   const staticPages = [
@@ -35,8 +36,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...Object.entries(INFO_PAGES_MODIFIED).map(([path, date]) => ({ url: absoluteUrl(path), lastModified: new Date(date) })),
     // Blog: data zmiany tekstu z lib/blog.ts (liczby odświeżają się codziennie, ale to nie zmiana treści).
     { url: absoluteUrl(BLOG_PATH), lastModified: new Date(blogModified()) },
-    ...BLOG_POSTS.map((p) => ({ url: absoluteUrl(blogPath(p.slug)), lastModified: new Date(p.modified) })),
-    ...(blog ? cityPairs(blog.cities) : []).map((p) => ({ url: absoluteUrl(blogPath(`porownanie/${p.slug}`)), lastModified: new Date(blogModified()) })),
+    ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides))
+      .map((p) => withOverride(p, blogOverrides))
+      .map((p) => ({ url: absoluteUrl(blogPath(p.slug)), lastModified: new Date(p.modified) })),
+    ...(blog ? cityPairs(blog.cities) : [])
+      .filter((p) => !isHidden(`porownanie-${p.slug}`, blogOverrides))
+      .map((p) => ({ url: absoluteUrl(blogPath(`porownanie/${p.slug}`)), lastModified: new Date(blogModified()) })),
   ];
   const dynamicPages = entries
     // strony miast z mniejszą liczbą firm niż próg są noindex, więc nie trafiają do mapy strony

@@ -896,3 +896,44 @@ nav .chips li { background: none; border: 0; padding: 0; }
 .calc-fields input:not([type="checkbox"]) { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; width: 180px; max-width: 100%; }
 .calc-fields .calc-check { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
 .calc .tablewrap { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------- wykresy bloga (styl strony: żółty i czerń na kremowym)
+   Seria 1: żółty marki (kontrast z tłem poniżej 3:1, dlatego zawsze etykiety wartości i tabela z danymi),
+   seria 2: czerń tekstu. Tekst wykresu zawsze w kolorach tekstu, nie w kolorze serii. */
+.viz { --viz-s1: #f6cd2b; --viz-s2: #121211; --viz-ink: var(--fg); --viz-muted: var(--muted); --viz-grid: #e4e2db;
+  margin: 18px 0 22px; padding: 16px 18px 10px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.viz-title { font-family: var(--display); font-weight: 750; font-size: 1.02rem; letter-spacing: -0.01em; margin: 0 0 8px; }
+.viz svg { display: block; width: 100%; height: auto; overflow: visible; }
+.viz-label, .viz-value, .viz-tick { font-family: var(--mono-font); fill: var(--viz-ink); }
+.viz-label { font-size: 13px; }
+.viz-value { font-size: 12.5px; font-weight: 600; }
+.viz-tick { font-size: 11.5px; fill: var(--viz-muted); }
+.viz-axis { stroke: var(--viz-ink); stroke-width: 1; }
+.viz-grid { stroke: var(--viz-grid); stroke-width: 1; }
+.viz-ref { stroke: var(--viz-ink); stroke-width: 1.5; stroke-dasharray: 0; opacity: 0.55; }
+.viz-stem { stroke: var(--viz-grid); stroke-width: 2; }
+.viz-bar.s1, .viz-dot.s1 { fill: var(--viz-s1); }
+.viz-bar.s2, .viz-dot.s2 { fill: var(--viz-s2); }
+.viz-dot { stroke: var(--card); stroke-width: 2; }
+.viz-dot.s1 { fill: var(--viz-s2); }
+.viz-hit { fill: transparent; }
+.viz-row:hover .viz-hit { fill: rgba(246, 205, 43, 0.12); }
+.viz-caption { color: var(--muted); font-size: 0.85rem; margin: 6px 0 4px; }
+.viz-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 0 6px; font-size: 0.88rem; }
+.viz-key { display: inline-block; width: 14px; height: 10px; border-radius: 0 3px 3px 0; margin-right: -8px; vertical-align: middle; }
+.viz-key.s1 { background: var(--viz-s1); }
+.viz-key.s2 { background: var(--viz-s2); }
+.viz-data summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 4px 0; }
+.viz-data .tablewrap { margin-top: 6px; }
+.blog-cover { display: block; width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--line); margin: 6px 0 18px; }
+.checklist { border: 2px solid var(--fg); border-radius: var(--radius); background: var(--card); padding: 14px 18px; margin: 18px 0; }
+.checklist strong { display: block; font-family: var(--mono-font); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
+.checklist ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.checklist li { padding-left: 28px; position: relative; }
+.checklist li::before { content: ""; position: absolute; left: 0; top: 0.2em; width: 16px; height: 16px; border: 2px solid var(--fg); border-radius: 4px; background: #fff; }
+.example { background: var(--yellow-soft); border-left: 4px solid var(--yellow); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+.example strong { display: block; margin-bottom: 4px; }
+.example p { margin: 4px 0; }
+.blog-list .blog-thumb { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); margin-bottom: 4px; aspect-ratio: 1200 / 630; object-fit: cover; }
+.blog-links { margin-top: 28px; }
+.blog-links .cards small { color: var(--muted); }

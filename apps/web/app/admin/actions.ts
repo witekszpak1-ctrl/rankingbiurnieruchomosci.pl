@@ -11,6 +11,7 @@ import { evaluateGate } from "@/lib/gate";
 import { REQUEST_STATUSES } from "@/lib/requests";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { getTracking, parseTrackingForm } from "@/lib/tracking";
+import { BLOG_OVERRIDES_KEY, cleanOverrides } from "@/lib/blog-overrides";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -348,4 +349,56 @@ function redactToken(value: unknown): unknown {
   const copy = { ...(value as Record<string, unknown>) };
   if (copy.metaCapiToken) copy.metaCapiToken = "(ukryty)";
   return copy;
+}
+
+/** Blog w panelu: data wpisu i ukrycie wpisu (settings.blog_overrides). Treść wpisów jest w kodzie. */
+export async function blogAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const path = "/admin/blog";
+  const key = String(formData.get("key") ?? "");
+  const action = String(formData.get("action") ?? "");
+  if (!/^[a-z0-9-]+$/.test(key)) back(path, "error", "Nieprawidłowy wpis.");
+  const published = String(formData.get("published") ?? "").trim();
+  if (action === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(published)) back(path, "error", "Podaj datę w formacie RRRR-MM-DD.");
+  let message = "Zapisano.";
+  await withTransaction(async (client) => {
+    const before = await client.query<{ value: unknown }>("select value from settings where key = $1 for update", [BLOG_OVERRIDES_KEY]);
+    const overrides = cleanOverrides(before.rows[0]?.value);
+    const current = { ...(overrides[key] ?? {}) };
+    if (action === "date") {
+      current.published = published;
+      message = `Ustawiono datę wpisu ${published}.`;
+    } else if (action === "date-reset") {
+      delete current.published;
+      message = "Przywrócono datę z kodu.";
+    } else if (action === "hide") {
+      current.hidden = true;
+      message = "Wpis ukryty: strona zwraca 404 i zniknął z listy, mapy strony i linków.";
+    } else if (action === "show") {
+      delete current.hidden;
+      message = "Wpis znów jest widoczny.";
+    } else {
+      back(path, "error", "Nieznana akcja.");
+    }
+    if (current.published || current.hidden) overrides[key] = current;
+    else delete overrides[key];
+    await client.query(
+      `insert into settings (key, value, updated_at) values ($1, $2, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [BLOG_OVERRIDES_KEY, JSON.stringify(overrides)],
+    );
+    await writeAudit(client, {
+      actor: admin,
+      action: `blog.${action}`,
+      entityType: "settings",
+      entityId: `${BLOG_OVERRIDES_KEY}:${key}`,
+      before: before.rows[0]?.value ?? null,
+      after: overrides[key] ?? null,
+    });
+  });
+  const postPath = key.startsWith("porownanie-") ? `/blog/porownanie/${key.slice("porownanie-".length)}` : `/blog/${key}`;
+  for (const p of [path, "/blog", postPath, "/", "/sitemap.xml"]) revalidatePath(p);
+  revalidatePath("/[city]", "page");
+  revalidatePath("/[city]/[firm]", "page");
+  back(path, "ok", message);
 }
