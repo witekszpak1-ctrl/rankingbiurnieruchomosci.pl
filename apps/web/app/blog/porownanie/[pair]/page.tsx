@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { a, b } = found.pair;
   return pageMetadata({
     title: `${a.name} czy ${b.name}? Porównanie biur nieruchomości 2026`,
-    description: `${a.name} i ${b.name} w liczbach: biura nieruchomości, oceny Google, staż, jawne cenniki i mediana prowizji za sprzedaż.`,
+    description: `${a.name} czy ${b.name}? Biura nieruchomości w liczbach: oceny Google, staż, usługi, jawne cenniki i mediana prowizji za sprzedaż.`,
     path: blogPath(`porownanie/${pair}`),
     type: "article",
     image: coverPath(`porownanie-${pair}`),
@@ -162,7 +162,12 @@ export default async function CityPairPage({ params }: Props) {
       related={false}
       extraLd={[faqLd(faq)]}
     >
-      <ShortAnswer>{sentences.join(" ")}</ShortAnswer>
+      <ShortAnswer>
+        <b>
+          {a.name} czy {b.name}?
+        </b>{" "}
+        {sentences.join(" ")}
+      </ShortAnswer>
 
       <h2>
         {a.name} i {b.name}: porównanie
