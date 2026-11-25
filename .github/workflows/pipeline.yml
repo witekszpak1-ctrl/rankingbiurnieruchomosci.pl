@@ -69,6 +69,11 @@ jobs:
         run: katalog import
       - name: Publikacja wpisów spełniających bramkę
         run: katalog publish-ready
+      # Bing (i wyszukiwanie w ChatGPT) dostaje od razu nowe i zmienione strony z mapy strony. Google nie obsługuje
+      # IndexNow, tam działa mapa strony w Search Console. Błąd usługi nie zatrzymuje przebiegu.
+      - name: Zgłoszenie nowych stron do Binga (IndexNow)
+        continue-on-error: true
+        run: katalog indexnow
       - name: Firmy w kolejnych miastach (oferty lub biuro w mieście)
         continue-on-error: true
         run: katalog extra-cities

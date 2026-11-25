@@ -282,6 +282,18 @@ def cmd_publish_ready(args) -> int:
     return 0
 
 
+def cmd_indexnow(args) -> int:
+    import httpx
+
+    from .indexnow import stage_indexnow
+    from .repo import Repo
+
+    settings = Settings()
+    with connect() as conn, httpx.Client(timeout=30.0, headers={"User-Agent": settings.crawler_user_agent}) as client:
+        _print(stage_indexnow(Repo(conn), client, all_urls=args.all, dry_run=args.dry_run))
+    return 0
+
+
 def cmd_bundle(args) -> int:
     from .pipeline import stage_bundle
 
@@ -436,6 +448,9 @@ def build_parser() -> argparse.ArgumentParser:
         "requeue-lost", cmd_requeue_lost,
         "zadania bez pliku paczki oznacz jako failed (tylko po pobraniu kolejki z queue-data, przed crawl-deep)",
     )
+    p = add("indexnow", cmd_indexnow, "zgłoś Bingowi (IndexNow) nowe i zmienione strony z mapy strony", vertical=False)
+    p.add_argument("--all", action="store_true", help="zgłoś wszystkie adresy z mapy strony, nie tylko zmienione")
+    p.add_argument("--dry-run", action="store_true", help="tylko policz adresy, bez wysyłki")
     p = add("bundle", cmd_bundle, "S6: przygotuj paczki dla Claude Code")
     p.add_argument("--limit", type=int, default=50)
 
