@@ -1091,6 +1091,29 @@ def test_offer_mentions_city_ignores_ordinary_words_and_own_name_in_city_set():
     assert not offer_mentions_city(text, ["swidwin"], cities)
 
 
+def test_offer_mentions_city_plural_names_only_take_plural_endings():
+    from katalog_worker.pipeline import _tokens, offer_mentions_city
+
+    cities = frozenset("zielonki marki gliwice kielce krakow".split())
+
+    def m(text, city):
+        return offer_mentions_city(_tokens(text), _tokens(city), cities)
+
+    # Z produkcji: oferty z Zielonej Góry i "zielona okolica" dodały 11 biur do miasta Zielonki.
+    for text in ("Mieszkanie na sprzedaż, Zielona Góra, os. Przyjaźni", "Centrum Zielonej Góry | 2 pokoje",
+                 "Działka Sierpnica, zielone wzgórze", "Mieszkanie w zielonej okolicy",
+                 "https://piotr-zielonka.pl/nieruchomosci/1-pok-2527m-ul-wroclawska/"):
+        assert not m(text, "Zielonki"), text
+    assert m("Dom w Zielonkach koło Krakowa", "Zielonki")
+    assert m("Działka Zielonki, 1200 m2", "Zielonki")
+    assert m("Mieszkanie w Markach", "Marki") and not m("Nowa marka na rynku", "Marki")
+    assert m("Lokal w Gliwicach", "Gliwice") and m("Dom pod Gliwicami", "Gliwice") and m("Biuro z Gliwic", "Gliwice")
+    assert m("Mieszkanie w Kielcach", "Kielce") and not m("Kielczów, dom", "Kielce")
+    # przymiotnik w nazwie odmienia się jak dotąd
+    assert m("Dom w okolicach Pruszcza Gdańskiego", "Pruszcz Gdański")
+    assert m("Mieszkanie Grodzisk Mazowiecki", "Grodzisk Mazowiecki")
+
+
 def test_city_prefix_is_shared_by_every_inflection():
     from katalog_worker.pipeline import _CITY_ENDINGS, _city_prefix, _inflects
 

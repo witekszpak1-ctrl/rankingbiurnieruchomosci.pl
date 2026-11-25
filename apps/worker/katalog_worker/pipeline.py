@@ -1264,6 +1264,14 @@ _CITY_ENDINGS = frozenset({
 # ("Kart-uzy" -> "Kart-a" to zwykłe słowo "karta", nie Kartuzy).
 _REPLACING_ENDINGS = frozenset({"ce", "cu", "ca", "cie", "niu"})
 
+# Nazwy w liczbie mnogiej ("Zielonki", "Marki", "Ząbki", "Gliwice", "Kielce") odmieniają się tylko po ucięciu
+# ostatniej litery, i to końcówkami liczby mnogiej: "w Zielonkach", "Gliwicami", "Kielcom", "z Gliwic". Końcówki
+# liczby pojedynczej dawały fałszywe trafienia: "Zielona Góra", "Zielonej Góry", "zielone wzgórze", "Zielonka".
+# Przymiotniki w nazwach ("Gdański", "Mazowiecki") to nie liczba mnoga: "Pruszcza Gdańskiego" odmienia się jak dotąd.
+_PLURAL_NAME_ENDINGS = ("ki", "ce")
+_ADJECTIVE_NAME_ENDINGS = ("ski", "cki", "zki")
+_PLURAL_ENDINGS = frozenset({"", "ach", "ami", "om"})
+
 
 def _inflection_cut(token: str, word: str) -> int | None:
     """Ile liter ucięto od słowa z nazwy miasta, żeby dostać token w odmianie; None, gdy token nie jest jego odmianą."""
@@ -1271,6 +1279,10 @@ def _inflection_cut(token: str, word: str) -> int | None:
         # krótkie słowa ("Łódź", "Góra"): tylko końcówka odmiany ("w Łodzi", "Jeleniej Górze")
         ok = len(word) >= 3 and token.startswith(word[:-1]) and len(token) <= len(word) + 2
         return (0 if token.startswith(word) else 1) if ok else None
+    if word.endswith(_PLURAL_NAME_ENDINGS) and not word.endswith(_ADJECTIVE_NAME_ENDINGS):
+        if token == word:
+            return 0
+        return 1 if token.startswith(word[:-1]) and token[len(word) - 1:] in _PLURAL_ENDINGS else None
     for cut in range(0, min(3, len(word) - 4) + 1):
         stem = word[: len(word) - cut]
         ending = token[len(stem):]
