@@ -40,6 +40,7 @@ class FetchResult:
     robots_allowed: bool
     error: str | None = None  # robots | robots_unreachable | network:<Typ> | http_<kod> | not_html | too_many_redirects
     detail: str | None = None  # szczegół błędu do diagnozy (np. przyczyna niedostępnego robots.txt)
+    via: str = "httpx"  # httpx (własny crawler) albo litescrape
 
     @property
     def ok(self) -> bool:

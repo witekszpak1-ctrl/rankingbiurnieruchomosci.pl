@@ -245,7 +245,8 @@ export default async function PrivacyPolicyPage() {
           </li>
           <li>
             Źródła: rejestry publiczne (Krajowy Rejestr Sądowy i wykaz podatników VAT prowadzony przez Ministra Finansów),
-            strona internetowa firmy, Google (oficjalne Places API) oraz wyniki wyszukiwarek internetowych.
+            strona internetowa firmy, Mapy Google oraz wyniki wyszukiwarek internetowych (pobierane przez dostawcę danych
+            LiteScrape).
           </li>
           <li>
             Cel: prowadzenie publicznie dostępnego katalogu i rankingu biur nieruchomości, który pomaga konsumentom porównać
@@ -273,8 +274,8 @@ export default async function PrivacyPolicyPage() {
 
         <h3>2.8. Opinie z Google</h3>
         <p>
-          Na profilach firm pokazujemy ocenę i wybrane opinie z Map Google, pobrane przez oficjalne Places API: nazwę autora
-          (tak jak jest widoczna w Google), ocenę, treść, datę i link do profilu autora w Google.
+          Na profilach firm pokazujemy ocenę i wybrane opinie z Map Google, pobrane przez dostawcę danych LiteScrape: nazwę
+          autora (tak jak jest widoczna w Google), ocenę, treść, datę i odpowiedź firmy, jeśli jej udzieliła.
         </p>
         <ul className="plain">
           <li>
@@ -326,9 +327,12 @@ export default async function PrivacyPolicyPage() {
                 <td>USA</td>
               </tr>
               <tr>
-                <td>Google (Places API)</td>
-                <td>wyszukanie firmy w Mapach Google oraz pobranie oceny i opinii</td>
-                <td>UE i USA</td>
+                <td>LiteScrape</td>
+                <td>
+                  wyniki wyszukiwarki Google, wyszukanie firmy w Mapach Google z oceną i opiniami oraz pobieranie stron
+                  internetowych firm
+                </td>
+                <td>według informacji dostawcy</td>
               </tr>
               <tr>
                 <td>wsrv.nl (images.weserv.nl)</td>

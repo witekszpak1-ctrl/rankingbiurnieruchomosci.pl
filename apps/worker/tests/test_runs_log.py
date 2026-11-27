@@ -112,12 +112,13 @@ def test_discover_queue_searches_next_cities_and_marks_them(db, tmp_path):
     assert result["cities"] == 2
     assert "biuro nieruchomości Kraków Podgórze" in provider.queries
     assert "biuro nieruchomości Kraków (strona 5)" in provider.queries
-    assert sum("Tarnów" in q for q in provider.queries) == 6
+    assert sum("Tarnów" in q for q in provider.queries) == 9  # 3 frazy po 3 strony (30 wyników na frazę)
     searched = {r["name"] for r in db.execute("select name from cities where last_searched_at is not null")}
     assert searched == {"Kraków", "Tarnów"}
     # drugi przebieg bierze kolejne miasto
     provider2 = _Provider()
-    stage_discover_queue(ctx, provider2, 2, {})
+    stage_discover_queue(ctx, provider2, 2, {}, pages=2)
+    # 20 wyników na frazę (ustawienie z panelu) = 2 strony na każdą z 3 fraz
     assert all("Nowy Sącz" in q for q in provider2.queries) and len(provider2.queries) == 6
 
 

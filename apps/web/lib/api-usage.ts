@@ -1,23 +1,33 @@
 /**
- * Liczniki płatnych API do panelu (/admin/koszty). Licznik Google Places prowadzi automat (apps/worker/katalog_worker/
- * api_usage.py) w settings.api_usage; zapytania do wyszukiwarek (Serper, Brave) liczymy z tabeli search_queries.
- * Miesiąc liczymy w UTC, tak jak automat.
+ * Liczniki płatnych API do panelu (/admin/koszty). Licznik LiteScrape prowadzi automat (apps/worker/katalog_worker/
+ * api_usage.py) w settings.api_usage (suma i podział: litescrape:search, :maps, :reviews, :fetch); zapytania do
+ * wyszukiwarek zapasowych (Serper, Brave) liczymy z tabeli search_queries. Miesiąc liczymy w UTC, tak jak automat.
+ * Google Places API jest wyłączone (za drogie), jego dawny licznik nie jest już pokazywany.
  */
 import { query } from "./db";
 
 export const API_USAGE_KEY = "api_usage";
-export const DEFAULT_LIMITS: Record<string, number> = { google_places: 950 };
+export const DEFAULT_LIMITS: Record<string, number> = {};
 
 export type MonthUsage = { month: string; used: number };
 export type ServiceUsage = {
-  key: "google_places" | "serper" | "brave";
+  key: "litescrape" | "serper" | "brave";
   label: string;
   used: number;
   limit: number | null;
   /** Zużycie oszacowane z danych (automat nie prowadził jeszcze licznika w tym miesiącu). */
   estimated: boolean;
   history: MonthUsage[];
+  /** Podział zużycia w bieżącym miesiącu (LiteScrape: wyszukiwanie, Mapy, opinie, strony). */
+  breakdown?: { label: string; used: number }[];
 };
+
+export const LITESCRAPE_KINDS: [string, string][] = [
+  ["search", "wyszukiwanie w Google"],
+  ["maps", "miejsca w Mapach Google"],
+  ["reviews", "opinie z Map Google"],
+  ["fetch", "strony biur"],
+];
 
 type Value = { months?: Record<string, Record<string, number>>; limits?: Record<string, number> };
 
@@ -38,18 +48,15 @@ const MONTH_START = "date_trunc('month', now() at time zone 'UTC') at time zone 
 export async function getApiUsage(): Promise<ServiceUsage[]> {
   const value = await getApiUsageValue();
   const month = monthKey();
-  const [placesSeed, searchRows] = await Promise.all([
-    query<{ n: number }>(`select count(*)::int as n from google_places where fetched_at >= ${MONTH_START}`).catch(() => [{ n: 0 }]),
-    query<{ provider: string; month: string; n: number }>(
-      `select provider, to_char(created_at at time zone 'UTC', 'YYYY-MM') as month, count(*)::int as n
-       from search_queries where provider in ('serper', 'brave') and created_at > now() - interval '13 months'
-       group by 1, 2 order by 2 desc`,
-    ).catch(() => []),
-  ]);
-  const counted = value.months?.[month]?.google_places;
-  const placesHistory = Object.entries(value.months ?? {})
-    .filter(([, v]) => typeof v.google_places === "number")
-    .map(([m, v]) => ({ month: m, used: v.google_places }))
+  const searchRows = await query<{ provider: string; month: string; n: number }>(
+    `select provider, to_char(created_at at time zone 'UTC', 'YYYY-MM') as month, count(*)::int as n
+     from search_queries where provider in ('serper', 'brave') and created_at > now() - interval '13 months'
+     group by 1, 2 order by 2 desc`,
+  ).catch(() => []);
+  const current = value.months?.[month] ?? {};
+  const lsHistory = Object.entries(value.months ?? {})
+    .filter(([, v]) => typeof v.litescrape === "number")
+    .map(([m, v]) => ({ month: m, used: v.litescrape }))
     .sort((a, b) => b.month.localeCompare(a.month));
   const search = (provider: "serper" | "brave", label: string): ServiceUsage => {
     const history = searchRows.filter((r) => r.provider === provider).map((r) => ({ month: r.month, used: r.n }));
@@ -57,14 +64,15 @@ export async function getApiUsage(): Promise<ServiceUsage[]> {
   };
   return [
     {
-      key: "google_places",
-      label: "Google Places (oceny i opinie z Map Google)",
-      used: typeof counted === "number" ? counted : placesSeed[0]?.n ?? 0,
-      limit: limitOf(value, "google_places"),
-      estimated: typeof counted !== "number",
-      history: placesHistory,
+      key: "litescrape",
+      label: "LiteScrape (Google, Mapy Google z opiniami, strony biur)",
+      used: typeof current.litescrape === "number" ? current.litescrape : 0,
+      limit: limitOf(value, "litescrape"),
+      estimated: false,
+      history: lsHistory,
+      breakdown: LITESCRAPE_KINDS.map(([kind, label]) => ({ label, used: current[`litescrape:${kind}`] ?? 0 })),
     },
-    search("serper", "Serper (wyszukiwanie nowych biur w Google)"),
+    search("serper", "Serper (zapasowa wyszukiwarka, gdy LiteScrape nie działa)"),
     search("brave", "Brave Search (zapasowa wyszukiwarka)"),
   ];
 }

@@ -13,6 +13,7 @@ import { slugify, uniqueSlug } from "@/lib/slug";
 import { getTracking, parseTrackingForm } from "@/lib/tracking";
 import { BLOG_OVERRIDES_KEY, cleanOverrides } from "@/lib/blog-overrides";
 import { API_USAGE_KEY } from "@/lib/api-usage";
+import { getLiteScrape, keyStatus, LITESCRAPE_KEY, parseLiteScrapeForm } from "@/lib/litescrape";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -409,14 +410,13 @@ export async function apiLimitAction(formData: FormData) {
   const admin = await requireAdmin();
   const path = "/admin/koszty";
   const service = String(formData.get("service") ?? "");
-  if (!["google_places", "serper", "brave"].includes(service)) back(path, "error", "Nieznana usługa.");
+  if (!["litescrape", "serper", "brave"].includes(service)) back(path, "error", "Nieznana usługa.");
   const clear = formData.get("clear") === "1";
   const raw = String(formData.get("limit") ?? "").trim();
   const limit = Number(raw);
   if (!clear && (raw === "" || !Number.isInteger(limit) || limit < 0 || limit > 1_000_000)) {
     back(path, "error", "Podaj limit jako liczbę całkowitą od 0 do 1 000 000.");
   }
-  if (clear && service === "google_places") back(path, "error", "Google Places musi mieć limit (domyślnie 950).");
   await withTransaction(async (client) => {
     await client.query(`insert into settings (key, value) values ($1, '{}'::jsonb) on conflict (key) do nothing`, [API_USAGE_KEY]);
     const before = await client.query<{ value: { limits?: Record<string, number> } }>(
@@ -439,4 +439,45 @@ export async function apiLimitAction(formData: FormData) {
   });
   revalidatePath(path);
   back(path, "ok", clear ? "Usunięto limit." : `Zapisano limit ${limit} zapytań miesięcznie. Automat użyje go przy najbliższym przebiegu.`);
+}
+
+/** Klucz LiteScrape i zakres jego użycia przez automat (settings.litescrape). Klucz nie trafia do dziennika zmian. */
+export async function liteScrapeAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const path = "/admin/koszty";
+  const current = await getLiteScrape();
+  const parsed = parseLiteScrapeForm(formData, current);
+  if (!parsed.ok) back(path, "error", parsed.message);
+  const value = (parsed as { ok: true; value: Awaited<ReturnType<typeof getLiteScrape>> }).value;
+  const keyChanged = value.apiKey !== current.apiKey;
+  // Nowy klucz sprawdzamy od razu (zapytanie o saldo jest bezpłatne), żeby literówka nie zatrzymała automatu.
+  const check = keyChanged && value.apiKey ? await keyStatus(value.apiKey) : null;
+  if (check && !check.ok) back(path, "error", `Nie zapisano klucza: ${check.message}`);
+  await withTransaction(async (client) => {
+    await client.query(
+      `insert into settings (key, value, updated_at) values ($1, $2, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [LITESCRAPE_KEY, JSON.stringify({ ...value, updated_by: admin })],
+    );
+    const safe = (v: typeof value) => ({ ...v, apiKey: v.apiKey ? `(ukryty, ...${v.apiKey.slice(-4)})` : null });
+    await writeAudit(client, {
+      actor: admin,
+      action: "litescrape.update",
+      entityType: "settings",
+      entityId: LITESCRAPE_KEY,
+      before: safe(current),
+      after: safe(value),
+    });
+  });
+  revalidatePath(path);
+  const balance = check && check.ok && check.remainingCalls != null ? ` Saldo: ${check.remainingCalls.toLocaleString("pl-PL")} zapytań.` : "";
+  back(
+    path,
+    "ok",
+    keyChanged && value.apiKey
+      ? `Zapisano i sprawdzono klucz LiteScrape.${balance} Automat użyje go przy najbliższym przebiegu.`
+      : keyChanged
+        ? "Usunięto klucz LiteScrape. Automat wraca do Serpera i własnego crawlera, oceny z Map Google się zatrzymają."
+        : "Zapisano ustawienia LiteScrape.",
+  );
 }

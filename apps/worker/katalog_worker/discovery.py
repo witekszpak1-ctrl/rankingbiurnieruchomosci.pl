@@ -56,6 +56,8 @@ def discover(
     stats: list[QueryStat] = []
     for query in queries:
         results = provider.search(query, country=country, lang=lang, count=count)
+        if getattr(provider, "skipped", False):
+            continue  # kolejna strona wyników, której Google już nie ma: bez zapytania i bez statystyk
         new_here = 0
         blocked_here = 0
         for result in results:

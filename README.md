@@ -99,7 +99,7 @@ Contents: Read and write tylko do repozytorium kolejki, ważny rok; po wygaśni�
    zapisuje je w bazie i publikuje wpisy spełniające bramkę.
 
 Wymagane w ustawieniach repozytorium: sekret `DATABASE_URL`. Zmienna `CRAWLER_USER_AGENT` jest nieobowiązkowa (domyślnie
-`KatalogBot/0.1 (+https://rankingbiurnieruchomosci.pl/bot)`, a strona `/bot` prowadzi do formularza kontaktowego). Klucze `SERPER_API_KEY` lub `BRAVE_API_KEY` są potrzebne tylko dla źródeł `serper` i `brave`. Skrypt kolejki przetestowano lokalnie na
+`KatalogBot/0.1 (+https://rankingbiurnieruchomosci.pl/bot)`, a strona `/bot` prowadzi do formularza kontaktowego). Klucz LiteScrape (wyniki Google, Mapy Google z opiniami, pobieranie stron) wpisuje się w panelu `/admin/koszty`; zmienna `LITESCRAPE_API_KEY` działa jako zapas. Klucze `SERPER_API_KEY` lub `BRAVE_API_KEY` są potrzebne tylko dla źródeł `serper` i `brave` (Serper jest też zapasem dla `auto`). Google Places API jest wyłączone. Skrypt kolejki przetestowano lokalnie na
 tymczasowym zdalnym repozytorium. Workflow pipeline przeszedł w Actions na produkcyjnej bazie (15 paczek, 14 opisów).
 
 ## Zasady

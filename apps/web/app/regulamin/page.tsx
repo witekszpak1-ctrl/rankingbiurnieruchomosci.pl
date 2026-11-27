@@ -122,8 +122,8 @@ export default function TermsPage() {
         <h2 id="p6">§ 6. Opinie</h2>
         <ol>
           <li>
-            Serwis pokazuje ocenę i opinie o Biurach pochodzące z Map Google, pobierane przez oficjalne Places API, z
-            oznaczeniem źródła. Operator nie zbiera własnych opinii od Użytkowników.
+            Serwis pokazuje ocenę i opinie o Biurach pochodzące z Map Google, pobierane przez dostawcę danych (LiteScrape), z
+            oznaczeniem źródła i bez zmian w treści. Operator nie zbiera własnych opinii od Użytkowników.
           </li>
           <li>
             Operator nie weryfikuje, czy opinie pochodzą od osób, które korzystały z usług Biura. Opinie nie są przez Operatora

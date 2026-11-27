@@ -1,13 +1,13 @@
-"""Miesięczne liczniki płatnych API z twardym limitem (Google Places, opcjonalnie Serper).
+"""Miesięczne liczniki płatnych API z limitami (LiteScrape, opcjonalnie Serper i Brave).
 
 Licznik jest w tabeli settings pod kluczem "api_usage":
-    {"months": {"2026-11": {"google_places": 812}}, "limits": {"google_places": 950, "serper": 2000}}
-Każde zapytanie do Google Places jest liczone PRZED wysłaniem (rezerwacja w transakcji z blokadą wiersza),
-więc nawet przerwany przebieg nie przekroczy limitu. Miesiąc liczymy w UTC.
+    {"months": {"2026-11": {"litescrape": 812, "litescrape:fetch": 600, "litescrape:search": 90, ...}},
+     "limits": {"litescrape": 100000, "serper": 2000}}
+LiteScrape: klient liczy udane zapytania w pamięci i dopisuje je do licznika na końcu polecenia (add), a limit
+miesięczny z panelu zamienia na budżet przebiegu. Saldo LiteScrape jest przedpłacone, więc bez doładowania i tak
+nie da się wydać więcej, niż wpłacono. Miesiąc liczymy w UTC.
 
-Dlaczego 950: zapytanie Text Search z opiniami (pole places.reviews) to w cenniku Google Maps Platform SKU
-"Text Search Enterprise + Atmosphere": 1000 darmowych zapytań miesięcznie, potem płatne. 950 zostawia zapas.
-Limit można zmienić w panelu (/admin/koszty).
+Google Places API jest wyłączone (za drogie). Historia jego licznika zostaje w ustawieniu do podglądu.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import calendar
 from datetime import datetime, timezone
 
 SETTINGS_KEY = "api_usage"
-DEFAULT_LIMITS: dict[str, int] = {"google_places": 950}
+DEFAULT_LIMITS: dict[str, int] = {}
 KEEP_MONTHS = 12
 
 
@@ -70,6 +70,21 @@ def reserve(value: dict | None, month: str, service: str, seed: int = 0, count: 
         months.pop(old, None)
     value["months"] = months
     return allowed, value, used, limit
+
+
+def add(value: dict | None, month: str, counts: dict[str, int]) -> dict:
+    """Dopisuje zużycie (bez sprawdzania limitu: zapytania już poszły). Zwraca nową wartość ustawienia."""
+    value = dict(value or {})
+    months = {k: dict(v) for k, v in (value.get("months") or {}).items()}
+    current = dict(months.get(month) or {})
+    for service, n in counts.items():
+        if n:
+            current[service] = int(current.get(service) or 0) + int(n)
+    months[month] = current
+    for old in sorted(months)[:-KEEP_MONTHS]:
+        months.pop(old, None)
+    value["months"] = months
+    return value
 
 
 def run_budget(used: int, limit: int | None, days: int, requested: int) -> int:

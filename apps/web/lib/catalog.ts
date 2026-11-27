@@ -36,6 +36,9 @@ export type GoogleReview = {
   rating: number;
   text: string;
   relative_time?: string | null;
+  /** Data opinii (ISO) i odpowiedź firmy z Map Google (LiteScrape, od 11.2026). */
+  published_at?: string | null;
+  reply?: string | null;
 };
 
 export type PriceRow = {

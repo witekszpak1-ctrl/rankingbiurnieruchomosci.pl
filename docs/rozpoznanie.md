@@ -43,7 +43,8 @@ Główne tabele (pełne definicje w `db/migrations`):
 - **`price_items`** - ceny usług (prowizje) ze stron firm.
 - **`offers`** - oferty nieruchomości ze stron firm (tytuł, adres, cena, `is_active`, `last_seen_at`).
 - **`descriptions`** - opisy firm pisane przez sesje Claude (wersje, status `validated` lub `published`).
-- **`google_places`** - ocena, liczba opinii i opinie z Google (Places API).
+- **`google_places`** - ocena, liczba opinii i opinie z Map Google (od 11.2026 przez LiteScrape, do 50 opinii z
+  treścią, datą i odpowiedzią firmy; wcześniej Places API, wyłączone jako za drogie).
 - **`crawl_pages`** - pobrane strony (zrzuty), `queue_items` - zadania kolejki opisów, `search_queries`
   i `search_results` - historia wyszukiwań.
 - **`audit_log`** - dziennik zmian (kto, co, przed i po). Z niego wiadomo, które wpisy dodał krok miast dodatkowych
@@ -71,7 +72,8 @@ Liczby z 14.11.2026:
 Kolejne etapy (`apps/worker/katalog_worker/pipeline.py`):
 
 1. **Wyszukiwanie** - `stage_discover_queue` i `stage_discover`. Zapytania "biuro nieruchomości {miasto}",
-   "agencja nieruchomości {miasto}" itd. idą do Serpera (wyniki Google, `search/serper.py`). Każda nowa domena
+   "agencja nieruchomości {miasto}" itd. idą do LiteScrape (wyniki Google, `search/litescrape.py`, liczba wyników na frazę w panelu `/admin/koszty`,
+   domyślnie 30 = 3 strony), a gdy LiteScrape nie działa, do Serpera (`search/serper.py`). Każda nowa domena
    zapisuje się przez `repo.upsert_domain(host, url, city)` z miastem wyszukiwania jako **`city_hint`**.
 2. **Sprawdzenie strony** - `stage_probe` pobiera stronę główną i klasyfikuje ją (`classify.py`, `classify_page`):
    oficjalna strona biura, portal, katalog itd.

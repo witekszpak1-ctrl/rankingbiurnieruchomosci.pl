@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from .config import Settings
@@ -45,8 +46,34 @@ def _context(args, conn):
     return Context(Repo(conn), load_vertical(args.vertical), settings.snapshots_dir, settings.queue_dir), settings
 
 
-def _fetcher(settings: Settings) -> PoliteFetcher:
-    return PoliteFetcher(settings.crawler_user_agent, min_delay_seconds=settings.crawler_min_delay_seconds)
+def _fetcher(settings: Settings, litescrape=None):
+    """Własny fetcher, a z kluczem LiteScrape (i włączonym pobieraniem stron w panelu) LiteScrape z własnym w zapasie."""
+    own = PoliteFetcher(settings.crawler_user_agent, min_delay_seconds=settings.crawler_min_delay_seconds)
+    client, config = litescrape or (None, None)
+    if client is None or not config.use_fetch:
+        return own
+    from .litescrape import LiteScrapeFetcher
+
+    return LiteScrapeFetcher(client, own, settings.crawler_user_agent)
+
+
+@contextmanager
+def _litescrape(ctx):
+    """Klient LiteScrape na czas polecenia (klucz z panelu). Na końcu zapytania trafiają do licznika miesiąca."""
+    from .litescrape import open_client
+
+    client, config = open_client(ctx.repo)
+    try:
+        yield client, config
+    except BaseException:
+        ctx.repo.conn.rollback()
+        raise
+    finally:
+        if client is not None and client.total:
+            ctx.repo.api_usage_add(client.usage())
+            _LAST["litescrape_calls"] = client.total
+            print(json.dumps({"litescrape": client.usage(), "stopped": client.disabled}, ensure_ascii=False),
+                  file=sys.stderr)
 
 
 def cmd_migrate(args) -> int:
@@ -81,18 +108,26 @@ def cmd_discover(args) -> int:
             if not args.city:
                 print("Opcja --city jest wymagana dla tego dostawcy.", file=sys.stderr)
                 return 2
-            provider, city = make_provider(args.provider, Settings()), args.city
+            city = args.city
+            provider = None
     except SearchError as exc:
         print(f"Błąd: {exc}", file=sys.stderr)
         return 2
 
     with connect() as conn:
         ctx, _ = _context(args, conn)
-        _print(
-            stage_discover(
-                ctx, provider, city, max_queries=args.max_queries, queries=queries, source_sha256=source_sha256
+        with _litescrape(ctx) as (client, _config):
+            if provider is None:
+                try:
+                    provider = make_provider(args.provider, Settings(), litescrape=client)
+                except SearchError as exc:
+                    print(f"Błąd: {exc}", file=sys.stderr)
+                    return 2
+            _print(
+                stage_discover(
+                    ctx, provider, city, max_queries=args.max_queries, queries=queries, source_sha256=source_sha256
+                )
             )
-        )
     return 0
 
 
@@ -100,16 +135,22 @@ def cmd_discover_queue(args) -> int:
     from .pipeline import stage_discover_queue
     from .search import SearchError, make_provider
 
-    try:
-        provider = make_provider(args.provider, Settings())
-    except SearchError as exc:
-        print(f"Błąd: {exc}", file=sys.stderr)
-        return 2
     districts = json.loads(Path(args.districts).read_text(encoding="utf-8")) if Path(args.districts).exists() else {}
     districts = {k: v for k, v in districts.items() if isinstance(v, list)}
     with connect() as conn:
         ctx, _ = _context(args, conn)
-        _print(stage_discover_queue(ctx, provider, args.cities, districts))
+        with _litescrape(ctx) as (client, config):
+            if not config.use_search:
+                client = None  # szukanie przez LiteScrape wyłączone w panelu: tylko zapas (Serper)
+            try:
+                provider = make_provider(args.provider, Settings(), litescrape=client)
+            except SearchError as exc:
+                _print({"skipped": str(exc)})
+                return 0
+            result = stage_discover_queue(ctx, provider, args.cities, districts, config.search_pages)
+            if getattr(provider, "switched", None):
+                result["fallback"] = f"LiteScrape niedostępny, dalej Serper: {provider.switched}"
+            _print(result)
     return 0
 
 
@@ -118,7 +159,8 @@ def cmd_probe(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        _print(stage_probe(ctx, _fetcher(settings), args.limit))
+        with _litescrape(ctx) as ls:
+            _print(stage_probe(ctx, _fetcher(settings, ls), args.limit))
     return 0
 
 
@@ -202,7 +244,8 @@ def cmd_crawl_deep(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        _print(stage_crawl_deep(ctx, _fetcher(settings), args.limit))
+        with _litescrape(ctx) as ls:
+            _print(stage_crawl_deep(ctx, _fetcher(settings, ls), args.limit))
     return 0
 
 
@@ -211,7 +254,8 @@ def cmd_offers(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        _print(stage_offers(ctx, _fetcher(settings), args.limit, dry_run=args.dry_run))
+        with _litescrape(ctx) as ls:
+            _print(stage_offers(ctx, _fetcher(settings, ls), args.limit, dry_run=args.dry_run))
     return 0
 
 
@@ -220,7 +264,8 @@ def cmd_contacts(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        _print(stage_contacts(ctx, _fetcher(settings), args.limit, only_new=args.only_new))
+        with _litescrape(ctx) as ls:
+            _print(stage_contacts(ctx, _fetcher(settings, ls), args.limit, only_new=args.only_new))
     return 0
 
 
@@ -260,7 +305,8 @@ def cmd_google_reviews(args) -> int:
 
     with connect() as conn:
         ctx, _ = _context(args, conn)
-        _print(stage_google_reviews(ctx, args.limit))
+        with _litescrape(ctx) as (client, config):
+            _print(stage_google_reviews(ctx, client, config, args.limit))
     return 0
 
 
@@ -401,11 +447,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int)
     p = add("discover", cmd_discover, "S1: znajdź domeny kandydatów")
     p.add_argument("--city", help="miasto (dla dostawcy 'file' bierze się z pliku)")
-    p.add_argument("--provider", choices=["brave", "serper", "file"], required=True)
+    p.add_argument("--provider", choices=["auto", "litescrape", "brave", "serper", "file"], required=True)
     p.add_argument("--file", help="plik JSON z wynikami wyszukiwania (dostawca 'file', bez klucza API)")
     p.add_argument("--max-queries", type=int)
     p = add("discover-queue", cmd_discover_queue, "S1: szukaj biur przez API w kolejnych miastach z kolejki panelu")
-    p.add_argument("--provider", choices=["brave", "serper"], default="serper")
+    p.add_argument("--provider", choices=["auto", "litescrape", "brave", "serper"], default="auto",
+                   help="auto = LiteScrape (klucz w panelu), a w zapasie Serper")
     p.add_argument("--cities", type=int, default=15, help="ile miast w jednym przebiegu")
     p.add_argument("--districts", default="packages/verticals/nieruchomosci/districts.json")
     p = add("probe", cmd_probe, "S3: pobierz stronę główną i kontakt, sklasyfikuj")
@@ -437,8 +484,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
     p = add("prompts", cmd_prompts, "zapisz prompt opisów z panelu do pliku dla sesji Claude", vertical=False)
     p.add_argument("--export", default="queue/prompts/describe.md")
-    p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Google (Places API, wymaga GOOGLE_PLACES_API_KEY)")
-    p.add_argument("--limit", type=int, default=100)
+    p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Map Google (LiteScrape, klucz w panelu)")
+    p.add_argument("--limit", type=int, default=400)
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
     p.add_argument("--limit", type=int, default=300)
     p.add_argument("--only-new", action="store_true", help="tylko firmy jeszcze niesprawdzone (po każdym przebiegu)")

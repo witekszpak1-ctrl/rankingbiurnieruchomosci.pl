@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: "Źródło kandydatów: file = wyniki zebrane przez Claude Code (bez klucza), serper lub brave = API"
+        description: "Źródło kandydatów: file = wyniki zebrane przez Claude Code (bez klucza), auto = LiteScrape z zapasem Serper, serper lub brave = API"
         type: choice
-        options: [file, serper, brave]
+        options: [file, auto, serper, brave]
         default: file
       city:
         description: "Miasto dla serper lub brave (puste = pomiń discover). Dla file miasto jest w pliku kandydatów"
@@ -97,11 +97,12 @@ jobs:
           for f in "${files[@]}"; do
             katalog discover --provider file --file "$f"
           done
-      # Szukanie biur przez Serper (wyniki Google) w kolejnych miastach z kolejki panelu: 15 miast na przebieg,
-      # duże miasta dokładnie (po dzielnicach). Bez klucza ten krok się nie wykonuje.
-      - name: S1 szukanie biur w kolejnych miastach (Serper)
-        if: ${{ env.SERPER_API_KEY != '' && (inputs.city || '') == '' }}
-        run: katalog discover-queue --provider serper --cities 15
+      # Szukanie biur (wyniki Google) w kolejnych miastach z kolejki panelu: 15 miast na przebieg, duże miasta
+      # dokładnie (po dzielnicach). LiteScrape z kluczem z panelu (/admin/koszty, tam też liczba wyników na frazę),
+      # a gdy go nie ma albo skończy się saldo, Serper (SERPER_API_KEY). Bez obu kluczy krok nic nie robi.
+      - name: S1 szukanie biur w kolejnych miastach (LiteScrape, w zapasie Serper)
+        if: ${{ (inputs.city || '') == '' }}
+        run: katalog discover-queue --provider auto --cities 15
       - name: S1 discover przez API wyszukiwarki
         if: ${{ (inputs.provider || 'file') != 'file' && inputs.city != '' }}
         env:

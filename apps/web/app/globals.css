@@ -394,6 +394,7 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4
 .review-meta span { color: var(--muted); font-size: 0.88rem; }
 .review-source { margin-left: auto; font-weight: 600; }
 .reviews p { margin: 6px 0 0; line-height: 1.65; white-space: pre-line; }
+.reviews .review-reply { margin-top: 10px; padding: 8px 12px; border-left: 3px solid var(--line); color: var(--muted); font-size: 0.94rem; }
 .agency-rating { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--muted); margin-top: 4px; }
 .reviews li > div { flex: 1; min-width: 0; }
 .claim { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; margin-top: 12px; }

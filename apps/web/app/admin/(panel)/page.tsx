@@ -62,7 +62,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     countNewLeads(),
     getApiUsage().catch(() => []),
   ]);
-  const places = usage.find((u) => u.key === "google_places");
+  const places = usage.find((u) => u.key === "litescrape");
   const published = firms.filter((f) => f.status === "published");
   const preparing = firms.filter((f) => ["candidate", "needs_review", "verified"].includes(f.status));
   const removed = firms.filter((f) => ["rejected", "removed"].includes(f.status));
@@ -115,8 +115,8 @@ export default async function DashboardPage({ searchParams }: Props) {
               {places.limit != null ? ` / ${places.limit.toLocaleString("pl-PL")}` : ""}
             </b>
             <span>
-              zapytań Google Places w tym miesiącu
-              {places.limit != null && places.used >= places.limit ? " (limit osiągnięty, automat zatrzymany)" : ""}
+              zapytań LiteScrape w tym miesiącu
+              {places.limit != null && places.used >= places.limit ? " (limit osiągnięty, automat na zapasie)" : ""}
             </span>
           </Link>
         )}

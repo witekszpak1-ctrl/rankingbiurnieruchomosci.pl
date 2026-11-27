@@ -433,9 +433,9 @@ export default async function RunsPage({ searchParams }: Props) {
         <p className="note">
           Sesje Claude działają w chmurze Anthropic jako zaplanowane zadanie i piszą opisy firm. Szukanie stron w Google
           robi automat GitHub przez płatne API Serper (około 1 dolar za 1000 wyszukiwań).
-          Automat GitHub to nasz program w Pythonie na serwerach GitHub Actions: pobiera strony (httpx, z poszanowaniem
-          robots.txt), czyta je (BeautifulSoup), sprawdza firmy w wykazie VAT Ministerstwa Finansów i w KRS, oceny bierze
-          z Google Places. Dane są w bazie Postgres (Neon), strona i panel na Vercel. Nic nie musi być włączone na Twoim
+          Automat GitHub to nasz program w Pythonie na serwerach GitHub Actions: pobiera strony (przez LiteScrape, a w zapasie
+          własnym crawlerem httpx, zawsze z poszanowaniem robots.txt), czyta je (BeautifulSoup), sprawdza firmy w wykazie VAT
+          Ministerstwa Finansów i w KRS, oceny i opinie bierze z Map Google przez LiteScrape. Dane są w bazie Postgres (Neon), strona i panel na Vercel. Nic nie musi być włączone na Twoim
           komputerze.
         </p>
       </details>

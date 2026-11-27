@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from katalog_worker.api_usage import days_left, limit_of, month_key, reserve, run_budget
+from katalog_worker.api_usage import add, days_left, limit_of, month_key, reserve, run_budget
 
 
 def test_month_and_days_left_in_utc():
@@ -10,8 +10,10 @@ def test_month_and_days_left_in_utc():
     assert days_left(datetime(2026, 2, 28, tzinfo=timezone.utc)) == 1
 
 
-def test_default_limit_is_950_and_settings_override_it():
-    assert limit_of({}, "google_places") == 950
+def test_no_default_limits_and_settings_set_them():
+    # Google Places jest wyłączone, LiteScrape ma przedpłacone saldo: domyślnie bez limitu.
+    assert limit_of({}, "google_places") is None
+    assert limit_of({}, "litescrape") is None
     assert limit_of({"limits": {"google_places": 500}}, "google_places") == 500
     assert limit_of({"limits": {"google_places": 0}}, "google_places") == 0
     assert limit_of({}, "serper") is None
@@ -29,8 +31,14 @@ def test_reserve_stops_exactly_at_limit_and_resets_next_month():
     assert ok and used == 1
 
 
+def test_add_counts_without_limit_check():
+    value = add({"limits": {"litescrape": 1}}, "2026-11", {"litescrape": 5, "litescrape:fetch": 5, "x": 0})
+    value = add(value, "2026-11", {"litescrape": 2})
+    assert value["months"]["2026-11"] == {"litescrape": 7, "litescrape:fetch": 5}
+
+
 def test_reserve_uses_seed_when_month_has_no_counter():
-    ok, value, used, limit = reserve({}, "2026-11", "google_places", seed=2045)
+    ok, value, used, limit = reserve({"limits": {"google_places": 950}}, "2026-11", "google_places", seed=2045)
     assert not ok and used == 2045 and limit == 950
     assert value["months"]["2026-11"]["google_places"] == 2045
 
@@ -61,28 +69,23 @@ def test_repo_reserve_counts_in_settings_and_seeds_from_google_places(db):
     results = [repo.api_usage_reserve("google_places")[0] for _ in range(3)]
     assert results == [True, True, False]
     assert repo.api_usage_status("google_places") == (3, 3)
+    repo.api_usage_add({"litescrape": 4, "litescrape:maps": 4})
+    repo.api_usage_add({"litescrape": 1})
+    assert repo.api_usage_status("litescrape") == (5, None)
     value = db.execute("select value from settings where key = 'api_usage'").fetchone()["value"]
     assert value["limits"] == {"google_places": 3}
-    assert list(value["months"].values())[0]["google_places"] == 3
+    assert list(value["months"].values())[0]["litescrape:maps"] == 4
 
 
-def test_google_reviews_stage_stops_at_limit(db, monkeypatch):
+def test_google_reviews_stage_without_key_does_nothing(db):
     from katalog_worker import pipeline
-    from katalog_worker.google_places import PlaceResult
+    from katalog_worker.litescrape import LiteScrapeConfig
     from katalog_worker.repo import Repo
-
-    repo = Repo(db)
-    db.execute("""insert into settings (key, value) values ('api_usage', '{"limits": {"google_places": 0}}'::jsonb)""")
-    db.commit()
-    monkeypatch.setenv("GOOGLE_PLACES_API_KEY", "test")
-    calls = []
-    monkeypatch.setattr("katalog_worker.google_places.fetch_place", lambda *a, **k: calls.append(a) or PlaceResult(status="not_found"))
 
     class Ctx:
         pass
 
     ctx = Ctx()
-    ctx.repo = repo
-    out = pipeline.stage_google_reviews(ctx, limit=100)
-    assert out["stopped"].startswith("osiągnięty miesięczny limit")
-    assert calls == []
+    ctx.repo = Repo(db)
+    out = pipeline.stage_google_reviews(ctx, None, LiteScrapeConfig(), limit=100)
+    assert out["skipped"].startswith("brak klucza LiteScrape")

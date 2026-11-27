@@ -180,22 +180,25 @@ def _pages(query: str, pages: int) -> list[str]:
     return [query] + [f"{query} (strona {n})" for n in range(2, pages + 1)]
 
 
-def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[str]]) -> list[str]:
+def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[str]], pages: int = 3) -> list[str]:
     """Zapytania tak, jak szuka klient: "biuro nieruchomości", "agencja nieruchomości", "pośrednik nieruchomości",
     z kolejnymi stronami wyników Google zamiast fraz typu "sprzedaż domów", które zwracają deweloperów i portale.
-    Zwykłe miasto: 6 zapytań. Duże: więcej stron wyników i po jednym zapytaniu na dzielnicę."""
+
+    pages: stron wyników (po 10) na frazę, z panelu (LiteScrape: wyników na frazę, domyślnie 30 = 3 strony).
+    Duże miasto (dokładnie): dwie strony więcej na główne frazy i po jednej frazie na dzielnicę."""
+    pages = max(1, min(30, pages))
     if not deep:
-        return _pages(f"biuro nieruchomości {city}", 3) + _pages(f"agencja nieruchomości {city}", 2) + [
-            f"pośrednik nieruchomości {city}"
-        ]
+        return (_pages(f"biuro nieruchomości {city}", pages) + _pages(f"agencja nieruchomości {city}", pages)
+                + _pages(f"pośrednik nieruchomości {city}", pages))
+    main = min(30, pages + 2)
     queries = (
-        _pages(f"biuro nieruchomości {city}", 5)
-        + _pages(f"agencja nieruchomości {city}", 4)
-        + _pages(f"pośrednik nieruchomości {city}", 2)
-        + _pages(f"biura nieruchomości {city}", 2)
+        _pages(f"biuro nieruchomości {city}", main)
+        + _pages(f"agencja nieruchomości {city}", main)
+        + _pages(f"pośrednik nieruchomości {city}", main)
+        + _pages(f"biura nieruchomości {city}", main)
     )
     for district in districts.get(city, []):
-        queries.append(f"biuro nieruchomości {city} {district}")
+        queries += _pages(f"biuro nieruchomości {city} {district}", pages)
     return queries
 
 
@@ -211,15 +214,17 @@ def cities_to_search(ctx: Context, limit: int) -> list[dict]:
     return out
 
 
-def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, districts: dict[str, list[str]]) -> dict:
+def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, districts: dict[str, list[str]],
+                         pages: int = 3) -> dict:
     """Szuka biur przez API wyszukiwarki w kolejnych miastach z kolejki (zamiast plików od Claude)."""
     totals: Counter = Counter()
     done = []
     for city in cities_to_search(ctx, cities):
-        queries = city_queries(ctx, city["name"], city["deep"], districts)
-        # Opcjonalny miesięczny limit zapytań do wyszukiwarki (ustawiany w panelu, /admin/koszty).
+        queries = city_queries(ctx, city["name"], city["deep"], districts, pages)
+        # Opcjonalny miesięczny limit zapytań do wyszukiwarki (ustawiany w panelu, /admin/koszty). Limit LiteScrape
+        # pilnuje sam klient (jeden licznik dla wyszukiwania, Map i pobierania stron).
         used, month_limit = ctx.repo.api_usage_status(provider.name)
-        if month_limit is not None and used + len(queries) > month_limit:
+        if provider.name != "litescrape" and month_limit is not None and used + len(queries) > month_limit:
             totals["stopped_limit"] += 1
             done.append(f"limit {provider.name}: {used}/{month_limit} zapytań w tym miesiącu")
             break
@@ -1122,44 +1127,48 @@ def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300, only_
 # ----------------------------------------------------------------------------- opinie Google
 
 
-def stage_google_reviews(ctx: Context, limit: int = 100, max_age_days: int = 30) -> dict:
-    """Ocena i opinie z Google dla firm w katalogu (najpierw nigdy niepobrane, potem najdawniej odświeżane).
+def stage_google_reviews(ctx: Context, client, config, limit: int = 400, max_age_days: int = 30) -> dict:
+    """Ocena i opinie z Map Google (LiteScrape) dla firm w katalogu: najpierw nigdy niepobrane, potem najdawniej
+    odświeżane. Dwa zapytania na firmę (miejsce i opinie), kilka firm naraz. Bez klucza LiteScrape nic nie robi.
 
-    Bez klucza API nic nie robi. Każde zapytanie jest liczone w miesięcznym liczniku (api_usage.py) przed wysłaniem:
-    po osiągnięciu limitu (domyślnie 950, darmowa pula Google to 1000) etap się zatrzymuje do następnego miesiąca.
-    Reszta limitu jest rozkładana równo na pozostałe dni miesiąca.
+    Google Places API jest wyłączone (za drogie). Zużycie liczy klient LiteScrape, zapis w liczniku robi wywołujący.
     """
-    import os
+    from .google_maps import fetch_place
 
-    from .api_usage import days_left, run_budget
-    from .google_places import fetch_place
-
-    if not os.environ.get("GOOGLE_PLACES_API_KEY"):
-        return {"skipped": "brak GOOGLE_PLACES_API_KEY"}
+    if client is None:
+        return {"skipped": "brak klucza LiteScrape (panel: /admin/koszty)"}
+    if not config.use_maps:
+        return {"skipped": "oceny z Map Google wyłączone w panelu"}
     repo = ctx.repo
-    used, month_limit = repo.api_usage_status("google_places")
-    budget = run_budget(used, month_limit, days_left(), limit)
+    rows = list(repo.brands_for_google_reviews(limit, max_age_days))
     counts: Counter = Counter()
-    if budget <= 0:
-        return {"stopped": "osiągnięty miesięczny limit zapytań Google Places", "month_used": used, "month_limit": month_limit}
-    for row in repo.brands_for_google_reviews(budget, max_age_days):
-        allowed, used, month_limit = repo.api_usage_reserve("google_places")
-        if not allowed:
-            counts["stopped_limit"] += 1
-            break
-        result = fetch_place(
-            row["name"], row["city"], row["website"],
-            lambda found: name_similarity(row["name"], found) >= 0.6,
+
+    def work(row: dict):
+        if not client.available:
+            return None
+        return fetch_place(
+            client, row["name"], row["city"], row["website"],
+            lambda found: name_similarity(row["name"], found) >= 0.6, config.reviews_per_place,
         )
-        repo.save_google_place(str(row["brand_id"]), result)
-        counts[result.status] += 1
-        counts["reviews"] += len(result.reviews)
-        repo.conn.commit()
-        if result.http_status in (403, 429):
-            # brak uprawnień albo limit po stronie Google: nie wysyłamy kolejnych zapytań w tym przebiegu
-            counts["stopped_google_quota"] += 1
-            break
-    return {**dict(counts), "run_budget": budget, "month_used": used, "month_limit": month_limit}
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(work, row): row for row in rows}
+        for future in as_completed(futures):
+            row, result = futures[future], future.result()
+            if result is None:
+                counts["skipped_unavailable"] += 1
+                continue
+            if result.unavailable and result.status == "error":
+                counts["stopped_litescrape"] += 1
+                continue  # klucz odrzucony albo brak salda: nie oznaczamy firmy jako błędnej
+            repo.save_google_place(str(row["brand_id"]), result)
+            counts[result.status] += 1
+            counts["reviews"] += len(result.reviews)
+            repo.conn.commit()
+    out = {**dict(counts), "firms": len(rows), "litescrape_calls": client.total}
+    if client.disabled:
+        out["litescrape_stopped"] = client.disabled
+    return out
 
 
 # ----------------------------------------------------------------------------- publikacja

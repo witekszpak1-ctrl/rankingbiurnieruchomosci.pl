@@ -607,6 +607,23 @@ class Repo:
             )
         return allowed, used, limit
 
+    def api_usage_add(self, counts: dict[str, int]) -> None:
+        """Dopisuje zużycie do licznika miesiąca (np. zapytania LiteScrape po zakończonym poleceniu)."""
+        from .api_usage import SETTINGS_KEY, add, month_key
+
+        if not any(counts.values()):
+            return
+        self.conn.commit()
+        with self.conn.transaction():
+            self.conn.execute(
+                "insert into settings (key, value) values (%s, '{}'::jsonb) on conflict (key) do nothing", (SETTINGS_KEY,)
+            )
+            row = self.conn.execute("select value from settings where key = %s for update", (SETTINGS_KEY,)).fetchone()
+            new_value = add(row["value"] if row else {}, month_key(), counts)
+            self.conn.execute(
+                "update settings set value = %s, updated_at = now() where key = %s", (Jsonb(new_value), SETTINGS_KEY)
+            )
+
     def listings_ready_to_publish(self, min_facts: int, limit: int) -> list[dict]:
         """Wpisy spełniające bramkę publikacji: domena zweryfikowana, zwalidowany opis, minimum faktów."""
         return self.conn.execute(
@@ -836,7 +853,10 @@ class Repo:
             """insert into google_places (brand_id, place_id, rating, rating_count, maps_url, reviews, status)
                values (%s, %s, %s, %s, %s, %s, %s)
                on conflict (brand_id) do update set place_id = excluded.place_id, rating = excluded.rating,
-                 rating_count = excluded.rating_count, maps_url = excluded.maps_url, reviews = excluded.reviews,
+                 rating_count = excluded.rating_count, maps_url = excluded.maps_url,
+                 -- opinie nie doszły (chwilowy błąd drugiego zapytania): zostają poprzednie
+                 reviews = case when jsonb_array_length(excluded.reviews) = 0 and coalesce(excluded.rating_count, 0) > 0
+                                then google_places.reviews else excluded.reviews end,
                  status = excluded.status, fetched_at = now()""",
             (brand_id, result.place_id, result.rating, result.rating_count, result.maps_url,
              Jsonb(result.reviews), result.status),

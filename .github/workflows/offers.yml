@@ -36,14 +36,14 @@ jobs:
       - run: pip install -e apps/worker
       - name: Migracje
         run: katalog migrate
-      # Opinie Google najpierw: szybkie (jedno zapytanie na firmę), a nie mogą czekać na długie kroki crawlera.
-      # Miesięczny licznik zapytań z twardym limitem (domyślnie 950, darmowa pula Google to 1000), reszta limitu
-      # rozkładana na pozostałe dni miesiąca; podgląd i zmiana limitu w panelu: /admin/koszty.
-      - name: Opinie z Google (Places API, gdy jest klucz)
+      # Oceny i opinie z Map Google najpierw: szybkie (dwa zapytania LiteScrape na firmę, kilka firm naraz), a nie
+      # mogą czekać na długie kroki crawlera. Klucz LiteScrape jest w panelu (/admin/koszty), tam też licznik i limit.
+      # Google Places API jest wyłączone (za drogie).
+      - name: Oceny i opinie z Map Google (LiteScrape)
         if: ${{ !inputs.dry_run }}
-        env:
-          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
-        run: katalog google-reviews --limit 100
+        timeout-minutes: 30
+        continue-on-error: true
+        run: katalog google-reviews --limit 400
       - name: Oferty ze stron biur
         timeout-minutes: 45
         continue-on-error: true

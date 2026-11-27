@@ -55,6 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const REVIEWS_VISIBLE = 3;
+const REVIEWS_MAX = 20; // tyle opinii pokazujemy na profilu, w bazie jest do 50
 const pts = (n: number) => n.toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 function reviewItem(r: GoogleReview, i: number) {
@@ -71,6 +72,11 @@ function reviewItem(r: GoogleReview, i: number) {
         </div>
         <Stars value={r.rating} size={16} />
         <p>{r.text}</p>
+        {r.reply && (
+          <p className="review-reply">
+            <b>Odpowiedź biura:</b> {r.reply}
+          </p>
+        )}
       </div>
     </li>
   );
@@ -298,9 +304,9 @@ export default async function FirmPage({ params, searchParams }: Props) {
                 {listing.google.reviews.length > REVIEWS_VISIBLE && (
                   <details className="reviews-more">
                     <summary>
-                      Pokaż więcej opinii ({listing.google.reviews.length - REVIEWS_VISIBLE})
+                      Pokaż więcej opinii ({Math.min(REVIEWS_MAX, listing.google.reviews.length) - REVIEWS_VISIBLE})
                     </summary>
-                    <ul className="reviews">{listing.google.reviews.slice(REVIEWS_VISIBLE).map(reviewItem)}</ul>
+                    <ul className="reviews">{listing.google.reviews.slice(REVIEWS_VISIBLE, REVIEWS_MAX).map(reviewItem)}</ul>
                   </details>
                 )}
                 <p className="note">
