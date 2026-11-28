@@ -89,6 +89,13 @@ describe("zapytania katalogu są ograniczone do branży portalu", () => {
     expect(await runAll()).toEqual([]);
   });
 
+  it.each(["oze", "remonty", "budowlane", "warsztaty", "przeprowadzki", "weterynarze"])("portal %s", async (slug) => {
+    vi.stubEnv("PORTAL", slug);
+    expect(await runAll()).toEqual([]);
+    expect(sql.join("\n")).toContain(`slug = '${slug}'`);
+    expect(sql.join("\n")).not.toContain("slug = 'nieruchomosci'");
+  });
+
   it("portal rachunkowe filtruje po własnym slugu, nie po slugu nieruchomości", async () => {
     vi.stubEnv("PORTAL", "rachunkowe");
     const catalog = await import("../lib/catalog");

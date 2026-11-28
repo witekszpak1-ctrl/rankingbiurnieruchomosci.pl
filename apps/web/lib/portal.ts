@@ -13,6 +13,12 @@
 import { nounForm, type Noun3 } from "./noun";
 import { nieruchomosci } from "../portals/nieruchomosci";
 import { rachunkowe } from "../portals/rachunkowe";
+import { oze } from "../portals/oze";
+import { remonty } from "../portals/remonty";
+import { budowlane } from "../portals/budowlane";
+import { warsztaty } from "../portals/warsztaty";
+import { przeprowadzki } from "../portals/przeprowadzki";
+import { weterynarze } from "../portals/weterynarze";
 
 export type PortalFirmTerms = Noun3 & {
   /** Dopełniacz liczby pojedynczej: "biura" (np. "z 1 biura"). */
@@ -227,6 +233,12 @@ export const DEFAULT_PORTAL_SLUG = "nieruchomosci";
 export const PORTALS: Record<string, PortalConfig> = {
   [nieruchomosci.slug]: nieruchomosci,
   [rachunkowe.slug]: rachunkowe,
+  [oze.slug]: oze,
+  [remonty.slug]: remonty,
+  [budowlane.slug]: budowlane,
+  [warsztaty.slug]: warsztaty,
+  [przeprowadzki.slug]: przeprowadzki,
+  [weterynarze.slug]: weterynarze,
 };
 
 function normalizeHost(host: string): string {

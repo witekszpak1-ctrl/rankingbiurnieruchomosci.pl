@@ -1,0 +1,113 @@
+# Konfiguracja branży: firmy przeprowadzkowe (portal z docs/ops/DECISIONS.md). Pakiet jest gotowy, ale zbieranie danych
+# (płatne zapytania LiteScrape) rusza dopiero po zgodzie właściciela na budżet i po zakupie domeny.
+# Opis, źródła danych i uwagi prawne: docs/geo/branze-3-8.md. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: przeprowadzki
+name: Firmy przeprowadzkowe
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # 49.42.Z (działalność usługowa związana z przeprowadzkami): kod właściwy dla branży, pewność wysoka.
+  # Niepewne i poza listą wejściową: 49.41.Z (transport drogowy towarów: tak rejestruje się wiele małych ekip
+  # z samochodem dostawczym), 52.29.C (pozostała działalność wspomagająca transport), 52.10.B (magazyny): bez nich lista
+  # jest niekompletna. Kody dla nowej klasyfikacji PKD 2025 do sprawdzenia w rejestrze.
+  pkd: ["49.42.Z"]
+  expected_pkd: ["49.42.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - przeprowadzk
+  - transport mebli
+  - wniesien
+  - pakowanie
+  - przewóz mebli
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - firma przeprowadzkowa
+    - przeprowadzki
+    - transport mebli
+    - przeprowadzki mieszkań
+  specializations:
+    - przeprowadzki mieszkań
+    - przeprowadzki biur
+    - przeprowadzki międzynarodowe
+    - transport pianin
+    - wniesienie mebli
+    - pakowanie i materiały
+    - magazynowanie
+    - utylizacja mebli
+    - przeprowadzki z dźwigiem
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "firma przeprowadzkowa {city}"
+    - "przeprowadzki {city}"
+    - "transport mebli {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza.
+  deep_phrases:
+    - "firma przeprowadzkowa {city}"
+    - "przeprowadzki {city}"
+    - "transport mebli {city}"
+    - "przeprowadzki mieszkań {city}"
+  # Bez fraz na dzielnice: dzielnice nic nie wnoszą (firmy obsługują całe miasto i okolice), więc nie ma pliku districts.json.
+  maps_phrase: "firma przeprowadzkowa"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 5   # niższy próg niż w innych branżach (5): strony firm przeprowadzkowych są zwykle krótkie; do zweryfikowania na próbce
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za metr kwadratowy, godzinę, kondygnację itp. (szczegół w polu conditions wyniku).
+  services:
+    - name: stawka godzinowa (ekipa z samochodem)
+      unit: other
+      note: "zł za godzinę: liczba osób i rodzaj samochodu w cytacie"
+    - name: przeprowadzka mieszkania 2-pokojowego
+      unit: pln
+      note: "cena orientacyjna lub od: warunki (piętro, odległość) w cytacie"
+    - name: przeprowadzka biura
+      unit: other
+      note: "cena za m2 lub za stanowisko: warunek w cytacie"
+    - name: transport pianina
+      unit: pln
+    - name: pakowanie i materiały
+      unit: pln
+    - name: wniesienie (za kondygnację)
+      unit: other
+      note: "cena za piętro lub kondygnację"
+    - name: magazynowanie (za m2 miesięcznie)
+      unit: pln_per_month
+
+# Domeny, które w tej branży nigdy nie są stroną jednej firmy (katalogi, portale ogłoszeniowe, media, sklepy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/): nie wszystkie domeny są sprawdzone, uzupełniać po próbce.
+blocklist:
+  oferteo.pl: directory
+  fixly.pl: directory
+  zumi.pl: directory
+  panoramafirm.pl: directory
+  pkt.pl: directory
+  oferia.pl: marketplace
+  trans.eu: marketplace
+  timocom.com: marketplace
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy, z Map Google albo z rejestru. Płatność (profil Premium, reklama)
+# nie wpływa na wynik: punktacja nie ma dostępu do informacji o płatnościach (decyzja z docs/ops/DECISIONS.md).
+ranking:
+  weights:
+    jawnosc_cennika: 20       # stawki godzinowe lub widełki cen na stronie (price_items): główna przewaga, bo klienci boją się dopłat po fakcie
+    zakres_uslug: 12          # mieszkania, biura, pianina, magazynowanie, pakowanie, wnoszenie, utylizacja, przeprowadzki zagraniczne: z cytatem
+    ubezpieczenie: 18         # jawna informacja o ubezpieczeniu przewożonych rzeczy i odpowiedzialności przewoźnika (z cytatem): w tej branży najważniejszy sygnał zaufania, bo szkody są realnym ryzykiem
+    flota_i_ekipa: 8          # deklarowana flota, wielkość ekipy, sprzęt (pasy, wózki, dźwig): tylko jawne dane ze strony
+    opinie_google: 14         # ocena i liczba opinii z Map Google (po zebraniu próby)
+    staz: 8                   # data wpisu do rejestru (CEIDG, KRS): długość działania
+    spojnosc_danych: 8        # zgodność nazwa-adres-telefon strony z rejestrem, aktywna strona, HTTPS
+    zasieg: 4                 # obsługiwane obszary: miasto, kraj, zagranica (jawna deklaracja)
+    czas_reakcji: 6           # czas reakcji na zapytania z portalu (po zebraniu danych z leadów)
+    jakosc_techniczna: 2      # szybkość i mobilność strony

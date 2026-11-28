@@ -1,0 +1,117 @@
+# Konfiguracja branży: firmy remontowe i wykończeniowe (portal z docs/ops/DECISIONS.md). Pakiet jest gotowy, ale zbieranie danych
+# (płatne zapytania LiteScrape) rusza dopiero po zgodzie właściciela na budżet i po zakupie domeny.
+# Opis, źródła danych i uwagi prawne: docs/geo/branze-3-8.md. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: remonty
+name: Firmy remontowe i wykończeniowe
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # Grupa 43.3 (roboty budowlane wykończeniowe): 43.31.Z tynkowanie, 43.32.Z zakładanie stolarki budowlanej, 43.33.Z
+  # posadzki i tapetowanie, 43.34.Z malowanie i szklenie, 43.39.Z pozostałe roboty wykończeniowe. Pewność wysoka dla grupy,
+  # ale remonty "pod klucz" prowadzą też firmy z 41.20.Z (wznoszenie budynków), 43.29.Z (pozostałe instalacje budowlane)
+  # i 43.99.Z (pozostałe specjalistyczne roboty budowlane): te trzy są niepewne i poza listą wejściową. Rejestr jest
+  # niekompletny (wiele ekip pracuje bez strony), a kody dla nowej klasyfikacji PKD 2025 do sprawdzenia w rejestrze.
+  pkd: ["43.31.Z", "43.32.Z", "43.33.Z", "43.34.Z", "43.39.Z"]
+  expected_pkd: ["43.31.Z", "43.32.Z", "43.33.Z", "43.34.Z", "43.39.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - remont
+  - wykończ
+  - wykoncz
+  - malowan
+  - gładzi
+  - płytk
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - firma remontowa
+    - remont mieszkania
+    - usługi remontowe
+    - wykończenie wnętrz
+  specializations:
+    - remont łazienki
+    - remont mieszkania pod klucz
+    - remont kuchni
+    - gładzie i malowanie
+    - układanie płytek
+    - montaż podłóg
+    - wykończenie mieszkań deweloperskich
+    - remont domu
+    - remont biura
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "firma remontowa {city}"
+    - "remont mieszkania {city}"
+    - "usługi remontowe {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza.
+  deep_phrases:
+    - "firma remontowa {city}"
+    - "remont mieszkania {city}"
+    - "usługi remontowe {city}"
+    - "wykończenie mieszkań {city}"
+  # Bez fraz na dzielnice: dzielnice nic nie wnoszą (firmy obsługują całe miasto i okolice), więc nie ma pliku districts.json.
+  maps_phrase: "firma remontowa"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 6   # propozycja jak w pozostałych branżach
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za metr kwadratowy, godzinę, kondygnację itp. (szczegół w polu conditions wyniku).
+  services:
+    - name: remont mieszkania pod klucz (za m2)
+      unit: other
+      note: "cena za metr kwadratowy powierzchni"
+    - name: remont łazienki od
+      unit: pln
+    - name: malowanie ścian (za m2)
+      unit: other
+      note: "cena za metr kwadratowy, z materiałem lub bez"
+    - name: gładzie gipsowe (za m2)
+      unit: other
+      note: "cena za metr kwadratowy"
+    - name: układanie płytek (za m2)
+      unit: other
+      note: "cena za metr kwadratowy, bez materiału"
+    - name: montaż podłogi (za m2)
+      unit: other
+      note: "cena za metr kwadratowy, bez materiału"
+
+# Domeny, które w tej branży nigdy nie są stroną jednej firmy (katalogi, portale ogłoszeniowe, media, sklepy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/): nie wszystkie domeny są sprawdzone, uzupełniać po próbce.
+blocklist:
+  oferteo.pl: directory
+  fixly.pl: directory
+  zumi.pl: directory
+  panoramafirm.pl: directory
+  pkt.pl: directory
+  oferia.pl: marketplace
+  muratordom.pl: media
+  budujemydom.pl: media
+  leroymerlin.pl: irrelevant
+  castorama.pl: irrelevant
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy, z Map Google albo z rejestru. Płatność (profil Premium, reklama)
+# nie wpływa na wynik: punktacja nie ma dostępu do informacji o płatnościach (decyzja z docs/ops/DECISIONS.md).
+ranking:
+  weights:
+    staz: 8                   # data wpisu do rejestru (KRS, CEIDG): długość działania
+    jawnosc_cennika: 18       # stawki za metr lub cena za zakres na stronie (price_items): główna przewaga porównywarki, bo wyceny w tej branży bywają nieprzejrzyste
+    zakres_uslug: 12          # łazienki, kuchnie, mieszkania pod klucz, malowanie, podłogi, instalacje: szerokość oferty z cytatem
+    realizacje: 12            # opisane realizacje (zakres, metraż, miejscowość) i zdjęcia realizacji na stronie
+    gwarancja: 10             # jawny okres gwarancji na wykonane prace, tylko deklaracje z cytatem
+    ubezpieczenie_oc: 7       # jawna informacja o ubezpieczeniu odpowiedzialności wykonawcy (z cytatem)
+    opinie_google: 12         # ocena i liczba opinii z Map Google (po zebraniu próby)
+    spojnosc_danych: 8        # zgodność nazwa-adres-telefon strony z rejestrem, aktywna strona, HTTPS
+    skala: 5                  # liczba ekip, lata doświadczenia, liczba zrealizowanych remontów, jeśli jawne
+    jakosc_techniczna: 3      # szybkość i mobilność strony
+    czas_reakcji: 5           # czas reakcji na zapytania z portalu (po zebraniu danych z leadów)

@@ -1,0 +1,126 @@
+# Konfiguracja branży: warsztaty samochodowe (portal z docs/ops/DECISIONS.md). Pakiet jest gotowy, ale zbieranie danych
+# (płatne zapytania LiteScrape) rusza dopiero po zgodzie właściciela na budżet i po zakupie domeny.
+# Opis, źródła danych i uwagi prawne: docs/geo/branze-3-8.md. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: warsztaty
+name: Warsztaty samochodowe
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # 45.20.Z (konserwacja i naprawa pojazdów samochodowych, z wyłączeniem motocykli): główny kod warsztatów, pewność wysoka.
+  # Niepewne i poza listą wejściową: 45.40.Z (motocykle: inna branża), 71.20.B (badania techniczne, stacje kontroli
+  # pojazdów: diagnosta to inna działalność, ale wiele warsztatów ma stację), 45.31.Z i 45.32.Z (handel częściami).
+  # Kody dla nowej klasyfikacji PKD 2025 do sprawdzenia w rejestrze.
+  # WAŻNE: większość warsztatów to jednoosobowe działalności (CEIDG), często bez strony, a rejestr nie zawiera strony WWW.
+  pkd: ["45.20.Z"]
+  expected_pkd: ["45.20.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - warsztat
+  - mechanik
+  - serwis samochod
+  - naprawa samochod
+  - wulkaniz
+  - diagnostyk
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - warsztat samochodowy
+    - mechanik samochodowy
+    - serwis samochodowy
+    - naprawa samochodów
+  specializations:
+    - wymiana oleju
+    - diagnostyka komputerowa
+    - serwis klimatyzacji samochodowej
+    - wymiana rozrządu
+    - hamulce
+    - zawieszenie
+    - wulkanizacja
+    - geometria kół
+    - serwis hybryd
+    - naprawa skrzyń biegów
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "warsztat samochodowy {city}"
+    - "mechanik samochodowy {city}"
+    - "serwis samochodowy {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza.
+  deep_phrases:
+    - "warsztat samochodowy {city}"
+    - "mechanik samochodowy {city}"
+    - "serwis samochodowy {city}"
+    - "naprawa samochodów {city}"
+  # Usługa lokalna (klient szuka blisko siebie): jedna fraza na dzielnicę przy dokładnym przeszukaniu (plik districts.json).
+  district_phrase: "warsztat samochodowy {city} {district}"
+  maps_phrase: "warsztat samochodowy"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 5   # niższy próg niż w innych branżach (5): strony warsztatów są krótkie; do zweryfikowania na próbce
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za metr kwadratowy, godzinę, kondygnację itp. (szczegół w polu conditions wyniku).
+  services:
+    - name: roboczogodzina
+      unit: other
+      note: "stawka za godzinę pracy mechanika"
+    - name: wymiana oleju z filtrem
+      unit: pln
+      note: "z olejem lub sama robocizna: warunek w cytacie"
+    - name: wymiana klocków hamulcowych (oś)
+      unit: pln
+      note: "robocizna za oś"
+    - name: wymiana rozrządu
+      unit: pln
+      note: "robocizna lub zestaw z częściami: warunek w cytacie"
+    - name: serwis klimatyzacji (napełnienie)
+      unit: pln
+    - name: diagnostyka komputerowa
+      unit: pln
+    - name: geometria kół
+      unit: pln
+    - name: wymiana opon (komplet)
+      unit: pln
+      note: "cena za komplet kół, rozmiar w cytacie"
+
+# Domeny, które w tej branży nigdy nie są stroną jednej firmy (katalogi, portale ogłoszeniowe, media, sklepy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/): nie wszystkie domeny są sprawdzone, uzupełniać po próbce.
+blocklist:
+  oferteo.pl: directory
+  fixly.pl: directory
+  zumi.pl: directory
+  panoramafirm.pl: directory
+  pkt.pl: directory
+  oferia.pl: marketplace
+  otomoto.pl: marketplace
+  autocentrum.pl: directory
+  motointegrator.com: marketplace
+  oponeo.pl: marketplace
+  autokult.pl: media
+  motofakty.pl: media
+  inter-cars.pl: irrelevant
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy, z Map Google albo z rejestru. Płatność (profil Premium, reklama)
+# nie wpływa na wynik: punktacja nie ma dostępu do informacji o płatnościach (decyzja z docs/ops/DECISIONS.md).
+ranking:
+  weights:
+    jawnosc_cennika: 16       # stawka roboczogodziny i ceny typowych napraw na stronie (price_items): główna przewaga, bo klient chce znać koszt przed wizytą
+    zakres_uslug: 12          # mechanika, elektryka, klimatyzacja, wulkanizacja, diagnostyka, blacharstwo: szerokość oferty z cytatem
+    specjalizacje: 10         # marki, hybrydy i auta elektryczne, skrzynie biegów: tylko deklaracje ze strony, z cytatem
+    gwarancja_na_naprawy: 10  # jawna gwarancja na wykonane naprawy i części (z cytatem)
+    opinie_google: 20         # ocena i liczba opinii z Map Google: w tej branży główne źródło zaufania i często jedyne, które firma ma; po zebraniu próby
+    staz: 6                   # data wpisu do rejestru (CEIDG, KRS): długość działania
+    spojnosc_danych: 8        # zgodność nazwa-adres-telefon i godzin otwarcia (strona, Mapy, rejestr), aktywna strona, HTTPS
+    wyposazenie: 6            # deklarowane wyposażenie (diagnostyka, stanowiska, sprzęt do klimatyzacji, hybryd): tylko z cytatem
+    ubezpieczenie_oc: 4       # jawna informacja o ubezpieczeniu odpowiedzialności warsztatu (z cytatem)
+    czas_reakcji: 4           # czas reakcji na zapytania z portalu (po zebraniu danych z leadów)
+    jakosc_techniczna: 4      # szybkość i mobilność strony (klient szuka warsztatu z telefonu)

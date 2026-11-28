@@ -70,6 +70,13 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [ ] Próbka 200 biur rachunkowych i raport jakości (zgoda na 2 USD, po robocie wielobranżowym; najpierw 1 miasto)
 - [!] Domena portalu biur rachunkowych (właściciel)
 - [ ] Kolejne branże według tabeli w DECISIONS.md (nr 3-18), po jednej, każda przez bramkę jakości
+  - [x] Pakiety branż i konfiguracje portali nr 3-8 gotowe (28.11): `oze`, `remonty`, `budowlane`, `warsztaty`, `przeprowadzki`,
+        `weterynarze` (`packages/verticals/<slug>/`, `apps/web/portals/<slug>.ts`, motyw w `globals.css`, testy). Nazwy marek robocze,
+        domeny TBD. Opis, kody PKD z oceną pewności, szacunek zapytań i uwagi prawne: `docs/geo/branze-3-8.md`
+  - [ ] Warsztaty bez własnej strony: etap odkrywania firm z Map Google i wpis firmy bez domeny i NIP (zmiana schematu: właściciel bazy), po pomiarze odsetka firm ze stroną w 1 mieście
+  - [ ] Weterynarze: opinia prawna (reklama i ranking lekarzy weterynarii) przed publikacją
+  - [ ] Logo, ikony i obrazek do udostępniania per portal 3-8; teksty wspólnych stron jeszcze z rzeczownikami "biuro" (np. przycisk wyszukiwania)
+  - [!] Domeny i nazwy marek portali 3-8 (właściciel), zgoda na budżet LiteScrape per branża (ok. 0,7 USD na próbkę 200 firm, `docs/geo/branze-3-8.md`)
 
 ## Koszty
 

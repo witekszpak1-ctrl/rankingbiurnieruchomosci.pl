@@ -1,0 +1,112 @@
+/**
+ * Portal nr 7: firmy przeprowadzkowe. "Nowy Adres" to nazwa robocza, domena: TBD (decyzja właściciela).
+ * Dane: branża "przeprowadzki" w bazie (listings.vertical_id). Typ schema.org: MovingCompany.
+ */
+import { servicePortal } from "./service-portal";
+
+export const przeprowadzki = servicePortal({
+  slug: "przeprowadzki",
+  brand: "Nowy Adres",
+  descriptor: "firmy przeprowadzkowe",
+  shortName: "NA",
+  schemaType: "MovingCompany",
+  profileAnchor: "firma",
+  trackingContentType: "firma_przeprowadzkowa",
+  catalogView: {
+    goals: {},
+    filters: {
+      biura: { label: "Przeprowadzki biur", group: "office" },
+      pianina: { label: "Pianina i ciężkie rzeczy", group: "piano" },
+      cennik: { label: "Jawny cennik", group: null },
+    },
+  },
+  serviceGroups: [
+    { key: "flat", label: "przeprowadzki mieszkań i domów", re: /mieszka|\bdom(u|ów|y)\b|prywatn/i },
+    { key: "office", label: "przeprowadzki biur", re: /\bbiur|przedsiębiorstw|firmow/i },
+    { key: "piano", label: "transport pianin i ciężkich rzeczy", re: /pianin|fortepian|sejf|ciężk/i },
+    { key: "packing", label: "pakowanie i materiały", re: /pakow|karton|materiał/i },
+    { key: "storage", label: "magazynowanie", re: /magazyn|składowan/i },
+    { key: "intl", label: "przeprowadzki zagraniczne", re: /międzynarod|zagranic|europ/i },
+    { key: "disposal", label: "wywóz i utylizacja mebli", re: /utyliz|wywóz|wywoz|gabaryt/i },
+    { key: "carry", label: "wnoszenie i dźwig", re: /wnosz|wniesien|dźwig|winda/i },
+  ],
+  terms: {
+    firm: { one: "firma", few: "firmy", many: "firm", genOne: "firmy" },
+    phrase: {
+      one: "firma przeprowadzkowa",
+      few: "firmy przeprowadzkowe",
+      many: "firm przeprowadzkowych",
+      genOne: "firmy przeprowadzkowej",
+      datOne: "firmie przeprowadzkowej",
+      locPl: "firmach przeprowadzkowych",
+    },
+    domainGen: "przeprowadzek",
+    expert: "ekipa",
+    expertFull: "ekipa przeprowadzkowa",
+    synonym: { few: "firmy", gen: "firm" },
+    fee: { nom: "cena przeprowadzki", nomPl: "ceny przeprowadzek", genPl: "przeprowadzek" },
+    company: { one: "firma", few: "firmy", many: "firm" },
+  },
+  headerCta: "Znajdź firmę",
+  forFirms: "Dla firm",
+  none: "Żadna z",
+  homeHeroLead:
+    "Porównaj firmy przeprowadzkowe w swoim mieście według stażu, jawnych cenników i zakresu usług: przeprowadzki mieszkań i biur, transport mebli, pakowanie. Potem poproś wybraną firmę o wycenę jednym formularzem.",
+  priceThing: "przeprowadzka mieszkania",
+  noRatesTail: "cenę przeprowadzki trzeba ustalić bezpośrednio z firmą.",
+  contractName: "umowa przeprowadzki",
+  leadCta: "Poproś o wycenę",
+  notPartyShort:
+    "Nie jesteśmy firmą przeprowadzkową ani przewoźnikiem i nie jesteśmy stroną umów, które zawierasz z firmami.",
+  notPartyLong:
+    "Operator nie świadczy usług przeprowadzkowych ani przewozu i nie jest stroną umów zawieranych między Użytkownikami a Firmami.",
+  serviceExamples: "przeprowadzki mieszkań i biur, transport mebli i pianin, pakowanie, magazynowanie i inne",
+  priceSectionHeading: "Ceny przeprowadzek i usług",
+  leadTopics: {
+    kupno: "Przeprowadzka mieszkania",
+    sprzedaz: "Przeprowadzka biura",
+    wynajem: "Transport pianina lub ciężkich rzeczy",
+    najem: "Pakowanie i magazynowanie",
+    wycena: "Wycena przeprowadzki",
+    inne: "Inna sprawa",
+  },
+  leadMessage: (topic, where) => {
+    switch (topic) {
+      case "kupno":
+        return `Dzień dobry, planuję przeprowadzkę mieszkania ${where}. Proszę o kontakt i wycenę.`;
+      case "sprzedaz":
+        return `Dzień dobry, planuję przeprowadzkę biura ${where}. Proszę o kontakt i wycenę.`;
+      case "wynajem":
+        return `Dzień dobry, potrzebuję transportu pianina lub ciężkich rzeczy ${where}. Proszę o kontakt i wycenę.`;
+      case "najem":
+        return `Dzień dobry, potrzebuję pakowania i magazynowania rzeczy ${where}. Proszę o kontakt i wycenę.`;
+      case "wycena":
+        return `Dzień dobry, proszę o wycenę przeprowadzki ${where} i kontakt w tej sprawie.`;
+      case "inne":
+        return "Dzień dobry, proszę o kontakt w sprawie usług firmy.";
+      default:
+        return "Dzień dobry, proszę o informacje o usługach i cenniku firmy oraz o kontakt.";
+    }
+  },
+  guide: (c, h) => [
+    `Zacznij od zakresu. Przeprowadzka mieszkania, biura, transport pianina i przewóz samych mebli to różne usługi. Ustal, czy potrzebujesz też pakowania, demontażu i montażu mebli, wniesienia albo magazynowania.${h.groups}`,
+    `Poproś o wycenę na piśmie i ustal, jak liczona jest cena: stawka za godzinę, ryczałt za całość czy cena za pomieszczenie. Zapytaj o dopłaty (piętra bez windy, dojazd, materiały do pakowania, czas oczekiwania). ${h.prices} Sprawdź, czy kwota jest netto czy brutto.`,
+    `Zapytaj o ubezpieczenie: czy przewożone rzeczy są ubezpieczone, do jakiej kwoty, co obejmuje polisa i jak zgłosić szkodę. Spisz z ekipą stan rzeczy przed i po przewozie.`,
+    `Przeczytaj umowę lub potwierdzenie zlecenia: termin, adresy załadunku i rozładunku, zakres, cenę, zaliczkę i odpowiedzialność za szkody. Zapytaj, czy ekipa jest stała, a nie dobierana w dniu przeprowadzki, i jakim samochodem przyjedzie.`,
+    `Na koniec sprawdź firmę w rejestrze. ${h.registry}`,
+  ],
+  trust: {
+    question: "Jak sprawdzić wiarygodność firmy przeprowadzkowej?",
+    answer: (c) =>
+      `Poproś o NIP i sprawdź go w wykazie podatników VAT lub w KRS, przeczytaj umowę oraz zapytaj o ubezpieczenie przewożonych rzeczy i sposób zgłaszania szkód. W naszym katalogu ${
+        c.confirmed === c.n ? "wszystkie firmy z tego miasta mają" : `${c.confirmed} z ${c.unitsGen(c.n)} ${c.where} ma`
+      } potwierdzenie w rejestrze, oznaczone na profilu.`,
+  },
+  factors: {
+    question: "Od czego zależy cena przeprowadzki?",
+    answer:
+      "Od ilości rzeczy i mebli, odległości, liczby osób w ekipie i rodzaju samochodu, pięter i dostępności windy, pakowania i materiałów, demontażu mebli oraz ciężkich przedmiotów, takich jak pianino. Cena bywa podawana jako stawka za godzinę, ryczałt albo cena za pomieszczenie, netto lub brutto.",
+  },
+  feeNoPrices: (where) =>
+    `Firmy ${where} w naszym katalogu nie publikują cen usług, więc koszt trzeba ustalić z wybraną firmą. Poproś o wycenę na piśmie i sprawdź, czy zawiera dojazd, wniesienie, materiały i VAT.`,
+});

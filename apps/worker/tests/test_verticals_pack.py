@@ -169,3 +169,115 @@ def test_every_pack_has_required_files(slug):
     for name in ("vertical.yaml", "cities.txt", "prompts/describe.md", "prompts/classify.md", "prompts/daily.md",
                  "prompts/candidates.md"):
         assert (base / name).exists(), name
+
+
+# ------------------------------------------------------------------ branże 3-8 (portale: oze, remonty, budowlane, warsztaty, przeprowadzki, weterynarze)
+
+NEW_PACKS = {
+    # slug: (kody PKD, fraza miasta, fraza Map Google, czy pakiet ma frazy na dzielnice)
+    "oze": (["43.21.Z", "43.22.Z"], "fotowoltaika Wrocław", "fotowoltaika pompy ciepła klimatyzacja", False),
+    "remonty": (["43.31.Z", "43.32.Z", "43.33.Z", "43.34.Z", "43.39.Z"], "firma remontowa Wrocław", "firma remontowa", False),
+    "budowlane": (["41.20.Z"], "firma budowlana Wrocław", "firma budowlana", False),
+    "warsztaty": (["45.20.Z"], "warsztat samochodowy Wrocław", "warsztat samochodowy", True),
+    "przeprowadzki": (["49.42.Z"], "firma przeprowadzkowa Wrocław", "firma przeprowadzkowa", False),
+    "weterynarze": (["75.00.Z"], "klinika weterynaryjna Wrocław", "klinika weterynaryjna", True),
+}
+UNITS = {"percent", "pln", "pln_per_month", "other"}  # check w db/migrations/0001_init.sql
+FORBIDDEN_IN_PACKS = ("nieruchomo",)
+
+
+@pytest.mark.parametrize("slug", sorted(NEW_PACKS))
+def test_new_pack_loads(slug):
+    pkd, _, _, _ = NEW_PACKS[slug]
+    vertical = load_vertical(slug)
+    assert vertical.slug == slug
+    assert vertical.domain == "TBD"
+    assert vertical.registry.pkd == pkd
+    assert vertical.registry.expected_pkd == pkd
+    assert vertical.keywords and all(k == k.lower() for k in vertical.keywords)
+    assert vertical.publication.min_facts >= 1
+    assert sum(vertical.ranking.weights.values()) == 100
+    assert {"jawnosc_cennika", "opinie_google", "spojnosc_danych", "czas_reakcji"} <= set(vertical.ranking.weights)
+    # płatność nie może wpływać na wynik: żaden parametr nie odnosi się do płatnych pozycji
+    assert not any(w in name for name in vertical.ranking.weights for w in ("premium", "platn", "reklam"))
+    services = vertical.pricing["services"]
+    assert len(services) >= 5
+    assert {s["unit"] for s in services} <= UNITS
+    assert all(s["name"] for s in services)
+    # blocklista zawiera typowe portale usługowe i tylko dopuszczalne etykiety
+    merged = {**DEFAULT_BLOCKLIST, **vertical.blocklist}
+    assert {"oferteo.pl", "fixly.pl", "zumi.pl", "panoramafirm.pl", "pkt.pl"} <= set(vertical.blocklist)
+    assert set(merged.values()) <= {"directory", "marketplace", "media", "irrelevant"}
+
+
+@pytest.mark.parametrize("slug", sorted(NEW_PACKS))
+def test_new_pack_queries_for_one_city_without_network(slug):
+    _, city_phrase, maps, districts = NEW_PACKS[slug]
+    vertical = load_vertical(slug)
+    queries = build_queries(vertical.search, "Wrocław")
+    assert city_phrase in queries
+    assert len(queries) == len({q.casefold() for q in queries})
+    assert len(queries) <= vertical.search.max_queries_per_city
+    assert all("Wrocław" in q for q in queries)
+    assert not any("nieruchomo" in q for q in queries)
+
+    ctx = _ctx(slug)
+    base = city_queries(ctx, "Wrocław", False, {}, pages=2)
+    assert len(base) == 3 * 2 and base[0] == city_phrase and base[1].endswith("(strona 2)")
+    deep = city_queries(ctx, "Wrocław", True, {"Wrocław": ["Krzyki", "Psie Pole"]}, pages=1)
+    main = 4 * 3  # cztery frazy po trzy strony przy pages=1 (dwie strony więcej na główne frazy)
+    if districts:
+        assert len(deep) == main + 2 and deep[-1].endswith("Psie Pole")
+        assert vertical.search.district_phrase and "{district}" in vertical.search.district_phrase
+        assert (verticals_dir() / slug / "districts.json").exists()
+    else:
+        assert len(deep) == main and vertical.search.district_phrase is None
+    assert ctx.vertical.search.maps_label() == maps
+
+
+@pytest.mark.parametrize("slug", sorted(NEW_PACKS))
+def test_new_pack_files_prompts_and_schema(slug):
+    import json
+
+    base = verticals_dir() / slug
+    for name in ("vertical.yaml", "cities.txt", "prompts/describe.md", "prompts/classify.md", "prompts/daily.md",
+                 "prompts/candidates.md", "golden/README.md"):
+        assert (base / name).exists(), name
+    assert read_city_list(base / "cities.txt") == read_city_list(vertical_path("nieruchomosci", "cities.txt"))
+    for path in base.rglob("*"):
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            assert not any(d in text for d in LONG_DASHES), path
+            if path.suffix in {".md", ".yaml"}:
+                assert not any(w in text.replace("rankingbiurnieruchomosci.pl", "").lower() for w in FORBIDDEN_IN_PACKS), path
+    describe = (base / "prompts" / "describe.md").read_text(encoding="utf-8")
+    original = (verticals_dir() / "nieruchomosci" / "prompts" / "describe.md").read_text(encoding="utf-8")
+    block = lambda t: re.search(r"```json\n(.*?)```", t, re.S).group(1)  # noqa: E731
+    assert set(json.loads(block(describe))) == set(json.loads(block(original)))
+    for key in ("schema_version", "bundle_sha256", "claims", "fact_ids", "candidate_id", "tax_mode"):
+        assert key in describe
+    assert f"queue/results/{slug}/describe/" in describe
+    classify = (base / "prompts" / "classify.md").read_text(encoding="utf-8")
+    assert '"label": "official"' in classify and "evidence_quote" in classify
+    # zestaw wzorcowy nie zawiera wymyślonych danych
+    assert not (base / "golden" / "domains.csv").exists()
+    assert not (base / "golden" / "entities.csv").exists()
+
+
+def test_veterinary_pack_marks_regulated_profession_and_does_not_rate_treatment():
+    base = verticals_dir() / "weterynarze"
+    describe = (base / "prompts" / "describe.md").read_text(encoding="utf-8")
+    classify = (base / "prompts" / "classify.md").read_text(encoding="utf-8")
+    assert "zawód regulowany" in describe and "zawód regulowany" in classify.lower()
+    assert "Nie oceniasz jakości leczenia" in describe
+    # żaden parametr rankingu nie ocenia skuteczności leczenia
+    weights = load_vertical("weterynarze").ranking.weights
+    assert not any(w in name for name in weights for w in ("skutecz", "jakosc_leczenia", "wyleczen"))
+
+
+def test_workshops_pack_documents_missing_website_gap():
+    # warsztaty często nie mają strony: pakiet ma niższy próg faktów i dzielnice, a luka jest opisana w yaml-u
+    vertical = load_vertical("warsztaty")
+    assert vertical.publication.min_facts == 5
+    text = (verticals_dir() / "warsztaty" / "vertical.yaml").read_text(encoding="utf-8")
+    assert "bez strony" in text

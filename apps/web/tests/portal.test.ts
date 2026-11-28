@@ -16,8 +16,17 @@ import {
   PORTALS,
   type PortalConfig,
 } from "../lib/portal";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+import { budowlane } from "../portals/budowlane";
 import { nieruchomosci } from "../portals/nieruchomosci";
+import { oze } from "../portals/oze";
+import { przeprowadzki } from "../portals/przeprowadzki";
 import { rachunkowe } from "../portals/rachunkowe";
+import { remonty } from "../portals/remonty";
+import { warsztaty } from "../portals/warsztaty";
+import { weterynarze } from "../portals/weterynarze";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -220,5 +229,190 @@ describe("teksty meta z konfiguracji nie zmieniły treści", () => {
     expect(m.description).toBe(
       "Biuro nieruchomości Zeta Invest we Wrocławiu. Sprawdź wynik 71/100 w rankingu, prowizje, zakres usług, aktualne oferty i dane kontaktowe biura.",
     );
+  });
+});
+
+/** Portale nr 3-8: wszystkie ładują się z rejestru, mają poprawną odmianę, typy schema.org i własny motyw. */
+describe("portale 3-8 (oze, remonty, budowlane, warsztaty, przeprowadzki, weterynarze)", () => {
+  // oczekiwane formy: nFirmPhrase dla 1, 2, 5, 12, 22, 25 (odmiana przez liczebnik) i formy przypadków
+  const expected: Record<
+    string,
+    { portal: PortalConfig; phrases: string[]; genOne: string; datOne: string; locPl: string; units: string[]; schema: string }
+  > = {
+    oze: {
+      portal: oze,
+      phrases: ["1 firma instalacyjna", "2 firmy instalacyjne", "5 firm instalacyjnych", "12 firm instalacyjnych", "22 firmy instalacyjne", "25 firm instalacyjnych"],
+      genOne: "firmy instalacyjnej",
+      datOne: "firmie instalacyjnej",
+      locPl: "firmach instalacyjnych",
+      units: ["1 firma", "2 firmy", "5 firm", "22 firmy"],
+      schema: "HomeAndConstructionBusiness",
+    },
+    remonty: {
+      portal: remonty,
+      phrases: ["1 firma remontowa", "2 firmy remontowe", "5 firm remontowych", "12 firm remontowych", "22 firmy remontowe", "25 firm remontowych"],
+      genOne: "firmy remontowej",
+      datOne: "firmie remontowej",
+      locPl: "firmach remontowych",
+      units: ["1 firma", "3 firmy", "7 firm", "24 firmy"],
+      schema: "GeneralContractor",
+    },
+    budowlane: {
+      portal: budowlane,
+      phrases: ["1 firma budowlana", "2 firmy budowlane", "5 firm budowlanych", "12 firm budowlanych", "22 firmy budowlane", "25 firm budowlanych"],
+      genOne: "firmy budowlanej",
+      datOne: "firmie budowlanej",
+      locPl: "firmach budowlanych",
+      units: ["1 firma", "4 firmy", "6 firm", "23 firmy"],
+      schema: "GeneralContractor",
+    },
+    warsztaty: {
+      portal: warsztaty,
+      phrases: ["1 warsztat samochodowy", "2 warsztaty samochodowe", "5 warsztatów samochodowych", "12 warsztatów samochodowych", "22 warsztaty samochodowe", "25 warsztatów samochodowych"],
+      genOne: "warsztatu samochodowego",
+      datOne: "warsztatowi samochodowemu",
+      locPl: "warsztatach samochodowych",
+      units: ["1 warsztat", "2 warsztaty", "5 warsztatów", "22 warsztaty"],
+      schema: "AutoRepair",
+    },
+    przeprowadzki: {
+      portal: przeprowadzki,
+      phrases: ["1 firma przeprowadzkowa", "2 firmy przeprowadzkowe", "5 firm przeprowadzkowych", "12 firm przeprowadzkowych", "22 firmy przeprowadzkowe", "25 firm przeprowadzkowych"],
+      genOne: "firmy przeprowadzkowej",
+      datOne: "firmie przeprowadzkowej",
+      locPl: "firmach przeprowadzkowych",
+      units: ["1 firma", "2 firmy", "5 firm", "22 firmy"],
+      schema: "MovingCompany",
+    },
+    weterynarze: {
+      portal: weterynarze,
+      phrases: ["1 klinika weterynaryjna", "2 kliniki weterynaryjne", "5 klinik weterynaryjnych", "12 klinik weterynaryjnych", "22 kliniki weterynaryjne", "25 klinik weterynaryjnych"],
+      genOne: "kliniki weterynaryjnej",
+      datOne: "klinice weterynaryjnej",
+      locPl: "klinikach weterynaryjnych",
+      units: ["1 klinika", "2 kliniki", "5 klinik", "22 kliniki"],
+      schema: "VeterinaryCare",
+    },
+  };
+
+  const SCHEMA_ORG_TYPES = new Set([
+    "AccountingService", "AutoRepair", "GeneralContractor", "HomeAndConstructionBusiness", "HVACBusiness", "MovingCompany", "RealEstateAgent", "VeterinaryCare",
+  ]);
+
+  const ctx = (n: number) => ({
+    where: "w Krakowie",
+    n,
+    withPrices: 2,
+    confirmed: n,
+    units: (k: number) => `${k} ${nounForm(k, { one: "x", few: "y", many: "z" })}`,
+    unitsGen: (k: number) => `${k} ${nounForm(k, { one: "x", few: "y", many: "z" })}`,
+    groups: [{ label: "grupa", count: 2 }],
+  });
+
+  it("każdy portal jest w rejestrze i zgadza się slug, branża i motyw", () => {
+    for (const [slug, { portal }] of Object.entries(expected)) {
+      expect(PORTALS[slug]).toBe(portal);
+      expect(portalBySlug(slug)).toBe(portal);
+      expect(portal.slug).toBe(slug);
+      expect(portal.verticalSlug).toBe(slug);
+      expect(portal.themeId).toBe(slug);
+      expect(portal.siteUrl).toBe("https://tbd.invalid");
+      expect(portal.domains).toEqual([]);
+      // pakiet branży istnieje (konfiguracja, miasta, prompty)
+      const pack = join(process.cwd(), "..", "..", "packages", "verticals", slug);
+      expect(existsSync(join(pack, "vertical.yaml"))).toBe(true);
+      expect(existsSync(join(pack, "prompts", "describe.md"))).toBe(true);
+    }
+    expect(Object.keys(PORTALS).sort()).toEqual(
+      ["budowlane", "nieruchomosci", "oze", "przeprowadzki", "rachunkowe", "remonty", "warsztaty", "weterynarze"],
+    );
+  });
+
+  it("nazwy robocze są różne i żaden portal nie powtarza schematu 'Ranking ...'", () => {
+    const names = Object.values(PORTALS).map((p) => p.brandName);
+    expect(new Set(names).size).toBe(names.length);
+    const themes = Object.values(PORTALS).map((p) => p.themeId);
+    expect(new Set(themes).size).toBe(themes.length);
+    for (const slug of Object.keys(expected)) {
+      expect(PORTALS[slug].brandName).not.toMatch(/^Ranking/);
+      expect(PORTALS[slug].shortName.length).toBeGreaterThan(1);
+    }
+  });
+
+  it("odmiana fraz przez liczebnik i przypadki", () => {
+    for (const { portal, phrases, genOne, datOne, locPl } of Object.values(expected)) {
+      expect([1, 2, 5, 12, 22, 25].map((n) => nFirmPhrase(n, portal))).toEqual(phrases);
+      expect(portal.terms.phrase.genOne).toBe(genOne);
+      expect(portal.terms.phrase.datOne).toBe(datOne);
+      expect(portal.terms.phrase.locPl).toBe(locPl);
+      expect(capitalize(firmPhrase("few", portal))).toBe(capitalize(portal.terms.phrase.few));
+    }
+  });
+
+  it("licznik jednostki katalogu (firma, warsztat, klinika)", () => {
+    for (const { portal, units } of Object.values(expected)) {
+      const counts = units.map((u) => Number(u.split(" ")[0]));
+      expect(counts.map((n) => `${n} ${nounForm(n, portal.terms.firm)}`)).toEqual(units);
+    }
+  });
+
+  it("typ schema.org jest poprawny, funkcje wyłączone, brak tekstów innych branż", () => {
+    for (const { portal, schema } of Object.values(expected)) {
+      expect(portal.schema.firmType).toBe(schema);
+      expect(SCHEMA_ORG_TYPES.has(portal.schema.firmType)).toBe(true);
+      expect(Object.values(portal.features).every((v) => v === false)).toBe(true);
+      const dump = JSON.stringify(portal, (_k, v) => (typeof v === "function" ? v.toString() : v instanceof RegExp ? v.source : v));
+      expect(dump).not.toMatch(/nieruchomo|pośrednik|prowizj|rachunk|księgow/i);
+      expect(dump).not.toMatch(/[\u2013\u2014]/);
+    }
+  });
+
+  it("teksty miasta składają się bez pustych miejsc i bez długich myślników", () => {
+    for (const { portal } of Object.values(expected)) {
+      const c = ctx(5);
+      const parts = [
+        ...portal.texts.city.guide(c),
+        portal.texts.city.noPrices(c),
+        portal.texts.city.somePrices(c, 40, 35, 0),
+        portal.texts.city.priceNote("1 grudnia 2026"),
+        portal.texts.city.priceNote(null),
+        portal.texts.city.priceHeading("w Krakowie"),
+        portal.texts.city.faq.feeQuestion("w Krakowie"),
+        portal.texts.city.faq.feeNoPrices("w Krakowie"),
+        portal.texts.city.faq.trustAnswer(c),
+        portal.texts.city.faq.trustAnswer(ctx(1)),
+        portal.texts.firmNoRates("Przykładowa"),
+        portal.texts.lead.message("kupno", "w Krakowie"),
+        portal.texts.lead.message("", "w Krakowie"),
+      ];
+      for (const part of parts) {
+        expect(part).not.toMatch(/undefined|NaN|\[object/);
+        expect(part).not.toMatch(/[\u2013\u2014]/);
+        expect(part.trim().length).toBeGreaterThan(20);
+      }
+      // wszystkie sześć tematów formularza ma etykietę i wiadomość
+      for (const topic of ["kupno", "sprzedaz", "wynajem", "najem", "wycena", "inne"] as const) {
+        expect(portal.texts.lead.topics[topic].length).toBeGreaterThan(3);
+        expect(portal.texts.lead.message(topic, "we Wrocławiu").length).toBeGreaterThan(20);
+      }
+    }
+  });
+
+  it("czyta PORTAL=<slug> dla każdego nowego portalu i meta teksty używają jego odmiany", () => {
+    for (const [slug, { portal }] of Object.entries(expected)) {
+      vi.stubEnv("PORTAL", slug);
+      expect(currentPortal()).toBe(portal);
+      expect(firmPhrase("many")).toBe(portal.terms.phrase.many);
+      expect(nFirmPhrase(3)).toBe(`3 ${portal.terms.phrase.few}`);
+      vi.stubEnv("PORTAL", "");
+    }
+  });
+
+  it("adresy funkcji wyłączonych dają 404 także w nowych portalach", () => {
+    for (const { portal } of Object.values(expected)) {
+      expect(isPathDisabled("/oferty", portal)).toBe(true);
+      expect(isPathDisabled("/blog", portal)).toBe(true);
+      expect(isPathDisabled("/ranking", portal)).toBe(false);
+    }
   });
 });

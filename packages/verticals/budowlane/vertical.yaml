@@ -1,0 +1,121 @@
+# Konfiguracja branży: firmy budowlane (budowa domów) (portal z docs/ops/DECISIONS.md). Pakiet jest gotowy, ale zbieranie danych
+# (płatne zapytania LiteScrape) rusza dopiero po zgodzie właściciela na budżet i po zakupie domeny.
+# Opis, źródła danych i uwagi prawne: docs/geo/branze-3-8.md. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: budowlane
+name: Firmy budowlane (budowa domów)
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # 41.20.Z (roboty budowlane związane ze wznoszeniem budynków mieszkalnych i niemieszkalnych): główny kod wykonawców
+  # domów, pewność wysoka. UWAGA: 41.10.Z (realizacja projektów budowlanych, czyli deweloperzy) to inna działalność:
+  # deweloperów nie ma w tym portalu i ten kod nie wchodzi na listę wejściową. Niepewne i poza listą: 43.99.Z (pozostałe
+  # specjalistyczne roboty budowlane), 43.91.Z (roboty dekarskie), 43.12.Z (przygotowanie terenu), 71.11.Z (projektowanie),
+  # bo wykonawcy bywają zarejestrowani pod innym kodem. Kody dla nowej klasyfikacji PKD 2025 do sprawdzenia w rejestrze.
+  pkd: ["41.20.Z"]
+  expected_pkd: ["41.20.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - budowa domów
+  - budowa domu
+  - domów jednorodzinnych
+  - stan surowy
+  - pod klucz
+  - roboty budowlane
+  - generalny wykonawca
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - firma budowlana
+    - budowa domów
+    - generalny wykonawca
+    - budowa domu pod klucz
+  specializations:
+    - stan surowy otwarty
+    - stan surowy zamknięty
+    - dom pod klucz
+    - stan deweloperski
+    - dom energooszczędny
+    - dom szkieletowy
+    - dom murowany
+    - dom z projektu indywidualnego
+    - kierownik budowy
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "firma budowlana {city}"
+    - "budowa domów {city}"
+    - "budowa domu pod klucz {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza.
+  deep_phrases:
+    - "firma budowlana {city}"
+    - "budowa domów {city}"
+    - "budowa domu pod klucz {city}"
+    - "generalny wykonawca {city}"
+  # Bez fraz na dzielnice: dzielnice nic nie wnoszą (firmy obsługują całe miasto i okolice), więc nie ma pliku districts.json.
+  maps_phrase: "firma budowlana"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 6   # propozycja jak w pozostałych branżach
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za metr kwadratowy, godzinę, kondygnację itp. (szczegół w polu conditions wyniku).
+  services:
+    - name: stan surowy otwarty (za m2)
+      unit: other
+      note: "cena za metr kwadratowy: rodzaj powierzchni i warunki w cytacie"
+    - name: stan surowy zamknięty (za m2)
+      unit: other
+      note: "cena za metr kwadratowy"
+    - name: stan deweloperski (za m2)
+      unit: other
+      note: "cena za metr kwadratowy"
+    - name: dom pod klucz (za m2)
+      unit: other
+      note: "cena za metr kwadratowy"
+    - name: kierownik budowy
+      unit: pln
+    - name: dom pod klucz, cena orientacyjna od
+      unit: pln
+      note: "cena łączna dla wskazanego metrażu: metraż w cytacie"
+
+# Domeny, które w tej branży nigdy nie są stroną jednej firmy (katalogi, portale ogłoszeniowe, media, sklepy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/): nie wszystkie domeny są sprawdzone, uzupełniać po próbce.
+blocklist:
+  oferteo.pl: directory
+  fixly.pl: directory
+  zumi.pl: directory
+  panoramafirm.pl: directory
+  pkt.pl: directory
+  oferia.pl: marketplace
+  muratordom.pl: media
+  budujemydom.pl: media
+  archon.pl: irrelevant
+  z500.pl: irrelevant
+  leroymerlin.pl: irrelevant
+  castorama.pl: irrelevant
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy, z Map Google albo z rejestru. Płatność (profil Premium, reklama)
+# nie wpływa na wynik: punktacja nie ma dostępu do informacji o płatnościach (decyzja z docs/ops/DECISIONS.md).
+ranking:
+  weights:
+    staz: 10                  # data wpisu do rejestru (KRS, CEIDG): budowa domu trwa lata, więc długość działania firmy ma znaczenie
+    jawnosc_cennika: 12       # cena za metr lub przykładowy kosztorys na stronie (price_items): główna przewaga porównywarki, choć wyceny są indywidualne
+    zakres_uslug: 10          # stan surowy otwarty i zamknięty, stan deweloperski, pod klucz, projekt, kierownik budowy: z cytatem
+    realizacje: 14            # opisane zrealizowane domy (metraż, technologia, miejscowość) na stronie firmy: najlepiej sprawdzalny sygnał w tej branży
+    gwarancja: 8              # jawny okres gwarancji na wykonane prace, tylko deklaracje z cytatem
+    ubezpieczenie_oc: 10      # jawna informacja o ubezpieczeniu odpowiedzialności wykonawcy i ubezpieczeniu budowy (z cytatem): ryzyko finansowe jest tu największe
+    uprawnienia: 8            # uprawnienia budowlane kadry, członkostwo w izbie lub stowarzyszeniu: tylko deklaracje ze strony, z cytatem
+    opinie_google: 10         # ocena i liczba opinii z Map Google (po zebraniu próby)
+    spojnosc_danych: 6        # zgodność nazwa-adres-telefon strony z rejestrem, aktywna strona, HTTPS
+    skala: 6                  # liczba zrealizowanych domów, ekip, lata doświadczenia, jeśli jawne
+    czas_reakcji: 3           # czas reakcji na zapytania z portalu (po zebraniu danych z leadów)
+    jakosc_techniczna: 3      # szybkość i mobilność strony

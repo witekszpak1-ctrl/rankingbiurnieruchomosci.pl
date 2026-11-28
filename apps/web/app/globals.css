@@ -1079,3 +1079,482 @@ html[data-theme="rachunkowe"] .mnav-cta { background: #fff; color: var(--fg); bo
 .preview-banner { background: var(--warn-soft); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin: 12px 0; }
 .audit-box { margin-top: 16px; background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 8px; }
 .audit-box p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+/* ===== Motywy portali 3-8 (generowane: początek) ===== */
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Motywy portali 3-8 (docs/geo/branze-3-8.md). Każdy portal ma własną paletę, krój i język kształtów (zaokrąglenia,
+   nagłówek, sekcja otwierająca), żeby portale nie wyglądały na jedną stronę. Czcionki tylko z już zainstalowanych
+   pakietów (Archivo, Instrument Sans, IBM Plex Mono ładowane dla każdego portalu) albo systemowe.
+   oze: oze (Prąd i Ciepło): słońce i niebo, ciemny nagłówek i sekcja otwierająca, bardzo zaokrąglone kształty.
+     Kontrast (WCAG): najniższy z 20 sprawdzonych par 5.5:1 (próg dla tekstu 4,5:1), tekst na tle 14.4:1,
+     pomocniczy 6.5:1, przycisk 8.1:1.
+   remonty: remonty (Odnowa Domu): terakota i krem, jasny nagłówek z grubą górną krawędzią, ostre rogi.
+     Kontrast (WCAG): najniższy z 20 sprawdzonych par 5.0:1 (próg dla tekstu 4,5:1), tekst na tle 14.3:1,
+     pomocniczy 6.9:1, przycisk 6.3:1.
+   budowlane: budowlane (Pod Klucz): grafit i żółć ostrzegawcza, ciemny nagłówek, kwadratowe rogi, nagłówki wersalikami.
+     Kontrast (WCAG): najniższy z 20 sprawdzonych par 5.2:1 (próg dla tekstu 4,5:1), tekst na tle 14.7:1,
+     pomocniczy 5.7:1, przycisk 9.6:1.
+   warsztaty: warsztaty (Pod Maską): stal i czerwień, ciemny nagłówek z czerwoną krawędzią, krój maszynowy w nagłówkach.
+     Kontrast (WCAG): najniższy z 20 sprawdzonych par 5.0:1 (próg dla tekstu 4,5:1), tekst na tle 15.9:1,
+     pomocniczy 6.3:1, przycisk 5.0:1.
+   przeprowadzki: przeprowadzki (Nowy Adres): indygo i tektura, jasny nagłówek, bardzo okrągłe kształty, zaokrąglony krój.
+     Kontrast (WCAG): najniższy z 20 sprawdzonych par 5.4:1 (próg dla tekstu 4,5:1), tekst na tle 15.1:1,
+     pomocniczy 6.7:1, przycisk 7.9:1.
+   weterynarze: weterynarze (Cztery Łapy): mięta i koral, jasny nagłówek, miękkie zaokrąglenia, bezszeryfowy krój.
+     Kontrast (WCAG): najniższy z 20 sprawdzonych par 5.2:1 (próg dla tekstu 4,5:1), tekst na tle 13.2:1,
+     pomocniczy 6.3:1, przycisk 6.2:1.
+   --------------------------------------------------------------------------------------------------------------- */
+html[data-theme="oze"] {
+  --bg: #fbf7ec;
+  --fg: #10263b;
+  --muted: #4b5b6b;
+  --line: #e4dcc4;
+  --card: #ffffff;
+  --paper-2: #f2ecd9;
+  --accent: #0b5394;
+  --accent-soft: #e0ebf6;
+  --yellow: #f2b01e;
+  --yellow-soft: #fdf0c8;
+  --green: #086b52;
+  --green-dark: #0a6a50;
+  --green-bg: #dcf1e8;
+  --navy: #0c2a47;
+  --night: #0c2a47;
+  --night-2: #143a60;
+  --night-line: #26577f;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 20px;
+  --shadow: 0 1px 2px rgba(12, 42, 71, 0.08);
+  --display: "Archivo Variable", "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono-font: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --header-bg: #0c2a47;
+  --surface-alt: #f2ecd9;
+  --cta-shadow: rgba(12, 42, 71, 0.25);
+  --hdr-bg: #0c2a47;
+  --hdr-fg: #ffffff;
+  --hdr-line: #f2b01e;
+  --hdr-w: 3px;
+  --hdr-top: 0 solid transparent;
+  --hero-bg: linear-gradient(160deg, #0c2a47 0%, #143a60 100%);
+  --hero-fg: #ffffff;
+  --hero-muted: #c9d8e8;
+  --hero-accent: #f2b01e;
+  --band-bg: #143a60;
+  --band-fg: #ffffff;
+  --btn-bg: #f2b01e;
+  --btn-fg: #10263b;
+  --btn-hover: #ffc43d;
+  --ink: 12, 42, 71;
+  --r-card: 20px;
+  --r-btn: 999px;
+  --r-field: 16px;
+  --h-weight: 800;
+  --h-tracking: -0.025em;
+  --h-transform: none;
+  --ghost: #143a60;
+  --dots: #3b6a96;
+  --soft-band: #eef2f5;
+  --answer-line: #f1dd9d;
+  --cta-p: #c9d8e8;
+  --mnav: #f2b01e;
+  color-scheme: light;
+}
+html[data-theme="remonty"] {
+  --bg: #f7f1e8;
+  --fg: #2b1f18;
+  --muted: #5e5046;
+  --line: #e0d3c3;
+  --card: #fffdf9;
+  --paper-2: #efe5d6;
+  --accent: #a63f1c;
+  --accent-soft: #f6e2d8;
+  --yellow: #c98a1b;
+  --yellow-soft: #f8ecd0;
+  --green: #3f6b34;
+  --green-dark: #355a2c;
+  --green-bg: #e3eed9;
+  --navy: #2b1f18;
+  --night: #2b1f18;
+  --night-2: #3d2d23;
+  --night-line: #54402f;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 3px;
+  --shadow: 0 1px 2px rgba(43, 31, 24, 0.08);
+  --display: "Archivo Variable", "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --header-bg: #fffdf9;
+  --surface-alt: #efe5d6;
+  --cta-shadow: rgba(43, 31, 24, 0.25);
+  --hdr-bg: #fffdf9;
+  --hdr-fg: #2b1f18;
+  --hdr-line: #e0d3c3;
+  --hdr-w: 1px;
+  --hdr-top: 6px solid #a63f1c;
+  --hero-bg: linear-gradient(180deg, #fffdf9 0%, #f3e8d8 100%);
+  --hero-fg: #2b1f18;
+  --hero-muted: #5e5046;
+  --hero-accent: #a63f1c;
+  --band-bg: #f3e8d8;
+  --band-fg: #2b1f18;
+  --btn-bg: #a63f1c;
+  --btn-fg: #ffffff;
+  --btn-hover: #8a3115;
+  --ink: 43, 31, 24;
+  --r-card: 3px;
+  --r-btn: 2px;
+  --r-field: 3px;
+  --h-weight: 800;
+  --h-tracking: -0.02em;
+  --h-transform: none;
+  --ghost: #ecdfcb;
+  --dots: #cdbba3;
+  --soft-band: #f1e7d8;
+  --answer-line: #e9c9b8;
+  --cta-p: #e3d3c2;
+  --mnav: #f0b89c;
+  color-scheme: light;
+}
+html[data-theme="budowlane"] {
+  --bg: #eceef0;
+  --fg: #181c20;
+  --muted: #555e68;
+  --line: #d3d8dd;
+  --card: #ffffff;
+  --paper-2: #e1e5e9;
+  --accent: #1f2933;
+  --accent-soft: #e4e8ec;
+  --yellow: #f5b800;
+  --yellow-soft: #fdf0bf;
+  --green: #186b3d;
+  --green-dark: #17653a;
+  --green-bg: #dcf0e4;
+  --navy: #1b2127;
+  --night: #1b2127;
+  --night-2: #262e36;
+  --night-line: #3a444e;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 0;
+  --shadow: 0 1px 2px rgba(24, 28, 32, 0.08);
+  --display: "Archivo Variable", "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono-font: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --header-bg: #1b2127;
+  --surface-alt: #e1e5e9;
+  --cta-shadow: rgba(24, 28, 32, 0.25);
+  --hdr-bg: #1b2127;
+  --hdr-fg: #ffffff;
+  --hdr-line: #f5b800;
+  --hdr-w: 4px;
+  --hdr-top: 0 solid transparent;
+  --hero-bg: linear-gradient(180deg, #1b2127 0%, #262e36 100%);
+  --hero-fg: #ffffff;
+  --hero-muted: #c9d0d7;
+  --hero-accent: #f5b800;
+  --band-bg: #262e36;
+  --band-fg: #ffffff;
+  --btn-bg: #f5b800;
+  --btn-fg: #181c20;
+  --btn-hover: #ffca2b;
+  --ink: 24, 28, 32;
+  --r-card: 0;
+  --r-btn: 0;
+  --r-field: 0;
+  --h-weight: 800;
+  --h-tracking: 0.01em;
+  --h-transform: uppercase;
+  --ghost: #262e36;
+  --dots: #4a5560;
+  --soft-band: #e4e8ec;
+  --answer-line: #ecd98b;
+  --cta-p: #c9d0d7;
+  --mnav: #f5b800;
+  color-scheme: light;
+}
+html[data-theme="warsztaty"] {
+  --bg: #f1f2f3;
+  --fg: #14181c;
+  --muted: #525a62;
+  --line: #d5d9dd;
+  --card: #ffffff;
+  --paper-2: #e6e8ea;
+  --accent: #b3261e;
+  --accent-soft: #f7dedc;
+  --yellow: #ff6b4a;
+  --yellow-soft: #fde3dc;
+  --green: #186b3d;
+  --green-dark: #17653a;
+  --green-bg: #dcf0e4;
+  --navy: #14181c;
+  --night: #14181c;
+  --night-2: #1f252b;
+  --night-line: #343c44;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 4px;
+  --shadow: 0 1px 2px rgba(20, 24, 28, 0.08);
+  --display: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --body: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono-font: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --header-bg: #14181c;
+  --surface-alt: #e6e8ea;
+  --cta-shadow: rgba(20, 24, 28, 0.25);
+  --hdr-bg: #14181c;
+  --hdr-fg: #ffffff;
+  --hdr-line: #d1302a;
+  --hdr-w: 3px;
+  --hdr-top: 0 solid transparent;
+  --hero-bg: linear-gradient(180deg, #14181c 0%, #1f252b 100%);
+  --hero-fg: #ffffff;
+  --hero-muted: #c3c9cf;
+  --hero-accent: #ff6b4a;
+  --band-bg: #1f252b;
+  --band-fg: #ffffff;
+  --btn-bg: #d1302a;
+  --btn-fg: #ffffff;
+  --btn-hover: #b3261e;
+  --ink: 20, 24, 28;
+  --r-card: 4px;
+  --r-btn: 4px;
+  --r-field: 4px;
+  --h-weight: 600;
+  --h-tracking: -0.02em;
+  --h-transform: none;
+  --ghost: #1f252b;
+  --dots: #46505a;
+  --soft-band: #e6e8ea;
+  --answer-line: #f0bdb6;
+  --cta-p: #c3c9cf;
+  --mnav: #ff8a70;
+  color-scheme: light;
+}
+html[data-theme="przeprowadzki"] {
+  --bg: #faf4e8;
+  --fg: #1d1b3a;
+  --muted: #55527a;
+  --line: #e6dcc6;
+  --card: #ffffff;
+  --paper-2: #f1e8d5;
+  --accent: #4338ca;
+  --accent-soft: #e5e3fb;
+  --yellow: #e8730c;
+  --yellow-soft: #fde6c8;
+  --green: #136c4c;
+  --green-dark: #146a4a;
+  --green-bg: #dcf1e8;
+  --navy: #1d1b3a;
+  --night: #1d1b3a;
+  --night-2: #2c2958;
+  --night-line: #44408a;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 24px;
+  --shadow: 0 1px 2px rgba(29, 27, 58, 0.08);
+  --display: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", "Trebuchet MS", "Segoe UI", sans-serif;
+  --body: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --header-bg: #ffffff;
+  --surface-alt: #f1e8d5;
+  --cta-shadow: rgba(29, 27, 58, 0.25);
+  --hdr-bg: #ffffff;
+  --hdr-fg: #1d1b3a;
+  --hdr-line: #e6dcc6;
+  --hdr-w: 1px;
+  --hdr-top: 0 solid transparent;
+  --hero-bg: linear-gradient(180deg, #ffffff 0%, #f1e8d5 100%);
+  --hero-fg: #1d1b3a;
+  --hero-muted: #55527a;
+  --hero-accent: #4338ca;
+  --band-bg: #f1e8d5;
+  --band-fg: #1d1b3a;
+  --btn-bg: #4338ca;
+  --btn-fg: #ffffff;
+  --btn-hover: #352bb0;
+  --ink: 29, 27, 58;
+  --r-card: 24px;
+  --r-btn: 999px;
+  --r-field: 20px;
+  --h-weight: 800;
+  --h-tracking: -0.02em;
+  --h-transform: none;
+  --ghost: #ece1ca;
+  --dots: #d3c7ad;
+  --soft-band: #f4ecdb;
+  --answer-line: #c9c5f3;
+  --cta-p: #d3d1f2;
+  --mnav: #c7c3ff;
+  color-scheme: light;
+}
+html[data-theme="weterynarze"] {
+  --bg: #f3f8f5;
+  --fg: #12302a;
+  --muted: #496058;
+  --line: #d2e3da;
+  --card: #ffffff;
+  --paper-2: #e5f0ea;
+  --accent: #1b6e55;
+  --accent-soft: #dcf0e7;
+  --yellow: #d9573f;
+  --yellow-soft: #fbe3dc;
+  --green: #1b6e55;
+  --green-dark: #14584a;
+  --green-bg: #dcf0e7;
+  --navy: #12302a;
+  --night: #12302a;
+  --night-2: #1c453c;
+  --night-line: #2f6256;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 18px;
+  --shadow: 0 1px 2px rgba(18, 48, 42, 0.08);
+  --display: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --body: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --header-bg: #ffffff;
+  --surface-alt: #e5f0ea;
+  --cta-shadow: rgba(18, 48, 42, 0.25);
+  --hdr-bg: #ffffff;
+  --hdr-fg: #12302a;
+  --hdr-line: #d2e3da;
+  --hdr-w: 1px;
+  --hdr-top: 0 solid transparent;
+  --hero-bg: linear-gradient(180deg, #ffffff 0%, #e0f0e8 100%);
+  --hero-fg: #12302a;
+  --hero-muted: #496058;
+  --hero-accent: #1b6e55;
+  --band-bg: #e0f0e8;
+  --band-fg: #12302a;
+  --btn-bg: #1b6e55;
+  --btn-fg: #ffffff;
+  --btn-hover: #14584a;
+  --ink: 18, 48, 42;
+  --r-card: 18px;
+  --r-btn: 14px;
+  --r-field: 14px;
+  --h-weight: 700;
+  --h-tracking: -0.015em;
+  --h-transform: none;
+  --ghost: #d6e8de;
+  --dots: #b6d0c4;
+  --soft-band: #e8f2ed;
+  --answer-line: #b7dccd;
+  --cta-p: #cde6dc;
+  --mnav: #9fe0c8;
+  color-scheme: light;
+}
+
+/* Reguły wspólne motywów usługowych: wszystko przez zmienne z bloków powyżej (kolory, zaokrąglenia, nagłówek, sekcja
+   otwierająca, przyciski), więc różnice między portalami to wartości zmiennych, a nie osobne zestawy reguł.
+   Selektor :is(...) obejmuje tylko te portale: motyw "nieruchomosci" i "rachunkowe" nie są ruszane. */
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) h1,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) h2,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) h3 { font-weight: var(--h-weight); letter-spacing: var(--h-tracking); text-transform: var(--h-transform); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) a { text-decoration-color: var(--yellow); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) :focus-visible { outline-color: var(--accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-header { background: var(--hdr-bg); border-top: var(--hdr-top); border-bottom: var(--hdr-w) solid var(--hdr-line); backdrop-filter: none; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-header .brand,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-header .nav a { color: var(--hdr-fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-header .nav a { font-weight: 600; opacity: 1; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-header .nav a:hover { color: var(--hdr-fg); text-decoration: underline; text-decoration-color: var(--yellow); text-underline-offset: 6px; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .header-cta,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .btn-green,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .lead-submit { background: var(--btn-bg); color: var(--btn-fg); border-radius: var(--r-btn); box-shadow: none; font-weight: 700; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .header-cta:hover,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .btn-green:hover,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .lead-submit:hover { background: var(--btn-hover); filter: none; transform: none; box-shadow: none; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .btn-blue,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .btn-outline,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .offer-go { border-radius: var(--r-btn); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-footer { background: var(--paper-2); }
+
+/* znak tekstowy: skrót w ramce i nazwa w dwóch liniach (portale bez rysowanego logo) */
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-logo.wordmark { display: inline-flex; align-items: center; gap: 10px; width: auto; height: auto; color: var(--hdr-fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-footer .site-logo.wordmark { color: var(--fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .wm-mark { display: inline-grid; place-items: center; min-width: 46px; height: 40px; padding: 0 8px; border: 2px solid var(--hero-accent); border-radius: var(--r-field); color: var(--hero-accent); font: 700 1.05rem/1 var(--display); letter-spacing: 0.04em; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .site-footer .wm-mark { height: 44px; border-color: var(--accent); color: var(--accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .wm-name { display: grid; font: var(--h-weight) 0.98rem/1.15 var(--display); letter-spacing: 0; text-transform: var(--h-transform); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .logo-mark.logo-mark-text { display: inline-grid; place-items: center; width: auto; min-width: 34px; height: 30px; padding: 0 6px; border: 2px solid var(--accent); border-radius: var(--r-field); color: var(--accent); font: 700 0.8rem/1 var(--display); }
+
+/* strona główna: sekcja otwierająca i pasek wyszukiwania */
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-wrap { background: var(--band-bg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-wrap::after { background: linear-gradient(90deg, transparent, var(--yellow), transparent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-dark { background: var(--hero-bg); color: var(--hero-fg); border-bottom: 1px solid var(--line); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-dark h1 { color: var(--hero-fg); font-size: clamp(2.1rem, 4.6vw, 3.6rem); line-height: 1.05; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-dark .kicker { color: var(--hero-accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .swash path { stroke: var(--yellow); stroke-width: 6; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-sub { color: var(--hero-fg); font-weight: 600; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-sub em { color: var(--hero-accent); font-style: italic; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-lead { color: var(--hero-muted); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-dark .checks-row { color: var(--hero-muted); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-dark .checks-row li::before { color: var(--hero-accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .showcase-ghost { background: var(--ghost); border-color: var(--line); border-radius: var(--r-card); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .showcase-dots button { background: var(--dots); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .showcase-dots button.on { background: var(--hero-accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .showcase-card { border-radius: var(--r-card); box-shadow: 0 1px 0 var(--line), 0 18px 40px -22px rgba(var(--ink), 0.55); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-band { padding: 8px 0 36px; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .hero-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-bar { grid-template-columns: minmax(0, 1fr) auto; border-radius: var(--r-card); border: 1px solid var(--line); box-shadow: 0 8px 24px -16px rgba(var(--ink), 0.5); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-field:focus-within { box-shadow: inset 0 -3px 0 var(--accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-bar button { background: var(--btn-bg); color: var(--btn-fg); border-radius: var(--r-btn); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-miss { color: var(--bad); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-links a { color: var(--band-fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .search-links a:hover { text-decoration-color: var(--yellow); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .stats-row .wrap { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .stats-row b { font-weight: var(--h-weight); letter-spacing: var(--h-tracking); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .step-num { background: var(--accent); color: #fff; border-radius: var(--r-field); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .eyebrow { color: var(--accent); letter-spacing: 0.12em; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .eyebrow.line::before { background: var(--yellow); }
+
+/* karty, panele i listy: zaokrąglenia i cienie z motywu (bez żółtej poświaty z motywu nieruchomości) */
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .cta-dark { background: var(--night); border-radius: var(--r-card); box-shadow: none; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .cta-dark .btn-green { background: var(--btn-bg); color: var(--btn-fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .cta-dark p { color: var(--cta-p); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .agency-card,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .steps li,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .why-list li,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .faq details,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .city-grid a,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .top3-card,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .city-stats li,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .info-grid > div,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .lead,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .claim-form,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .firm-card { border-radius: var(--r-card); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .score-card { border-radius: var(--r-card); box-shadow: 0 1px 2px rgba(var(--ink), 0.08), 0 14px 32px -22px rgba(var(--ink), 0.4); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .filter-bar { border-radius: var(--r-card); box-shadow: 0 1px 2px rgba(var(--ink), 0.08); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .agency-card:hover,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) a.top3-card:hover,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .city-grid a:hover,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .firm-card:hover,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .firm-card:focus-within { border-color: var(--accent); box-shadow: 0 10px 24px -16px rgba(var(--ink), 0.5); transform: none; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .top3-rank.r1 { background: var(--accent); color: #fff; }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .section.soft,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .band { background: var(--soft-band); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .answer { background: var(--accent-soft); border-color: var(--answer-line); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .answer strong { color: var(--accent); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .sc-chips li.y,
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .fc-chips li.y { background: var(--yellow-soft); border-color: var(--answer-line); color: var(--fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .viz { --viz-s1: var(--accent); --viz-s2: var(--fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .mnav-btn { border-color: var(--hdr-line); border-radius: var(--r-field); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .mnav-btn span { background: var(--hdr-fg); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .mnav-panel li a[aria-current="page"] { color: var(--mnav); }
+:is(html[data-theme="oze"], html[data-theme="remonty"], html[data-theme="budowlane"], html[data-theme="warsztaty"], html[data-theme="przeprowadzki"], html[data-theme="weterynarze"]) .mnav-cta { background: var(--btn-bg); color: var(--btn-fg); border-radius: var(--r-btn); }
+
+/* ===== Motywy portali 3-8 (koniec) ===== */

@@ -1,0 +1,121 @@
+# Konfiguracja branży: kliniki weterynaryjne (portal z docs/ops/DECISIONS.md). Pakiet jest gotowy, ale zbieranie danych
+# (płatne zapytania LiteScrape) rusza dopiero po zgodzie właściciela na budżet i po zakupie domeny.
+# Opis, źródła danych i uwagi prawne: docs/geo/branze-3-8.md. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: weterynarze
+name: Kliniki weterynaryjne
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # 75.00.Z (działalność weterynaryjna): jedyny kod branży, pewność wysoka. Lekarze weterynarii prowadzą praktyki jako
+  # CEIDG (indywidualne lub spółki cywilne i partnerskie) albo spółki z KRS. Niepewne i poza listą: 47.76.Z (sklepy
+  # zoologiczne), 96.09.Z (pozostałe usługi indywidualne: pielęgnacja zwierząt), 01.xx (hodowla): to nie kliniki.
+  # Kod dla nowej klasyfikacji PKD 2025 do sprawdzenia w rejestrze.
+  pkd: ["75.00.Z"]
+  expected_pkd: ["75.00.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - weterynar
+  - lecznic
+  - klinika weterynaryjna
+  - gabinet weterynaryjny
+  - zwierz
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - klinika weterynaryjna
+    - weterynarz
+    - lecznica dla zwierząt
+    - gabinet weterynaryjny
+  specializations:
+    - weterynarz 24h
+    - pogotowie weterynaryjne
+    - szczepienia psów i kotów
+    - sterylizacja kotek
+    - kastracja psów
+    - stomatologia weterynaryjna
+    - weterynarz dla zwierząt egzotycznych
+    - diagnostyka obrazowa weterynaryjna
+    - chirurgia weterynaryjna
+    - wizyty domowe weterynarz
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "klinika weterynaryjna {city}"
+    - "weterynarz {city}"
+    - "lecznica dla zwierząt {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza.
+  deep_phrases:
+    - "klinika weterynaryjna {city}"
+    - "weterynarz {city}"
+    - "lecznica dla zwierząt {city}"
+    - "weterynarz całodobowy {city}"
+  # Usługa lokalna (klient szuka blisko siebie): jedna fraza na dzielnicę przy dokładnym przeszukaniu (plik districts.json).
+  district_phrase: "weterynarz {city} {district}"
+  maps_phrase: "klinika weterynaryjna"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 6   # propozycja jak w pozostałych branżach
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za metr kwadratowy, godzinę, kondygnację itp. (szczegół w polu conditions wyniku).
+  services:
+    - name: konsultacja (wizyta)
+      unit: pln
+      note: "wizyta w gabinecie: warunek w cytacie (pies, kot, dyżur)"
+    - name: szczepienie (cena zabiegu)
+      unit: pln
+      note: "gatunek i rodzaj szczepionki w cytacie"
+    - name: sterylizacja kotki
+      unit: pln
+    - name: kastracja psa
+      unit: pln
+      note: "przedział wagowy w cytacie"
+    - name: znakowanie (czipowanie)
+      unit: pln
+    - name: USG
+      unit: pln
+    - name: RTG
+      unit: pln
+    - name: badanie krwi
+      unit: pln
+    - name: skaling zębów
+      unit: pln
+
+# Domeny, które w tej branży nigdy nie są stroną jednej firmy (katalogi, portale ogłoszeniowe, media, sklepy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/): nie wszystkie domeny są sprawdzone, uzupełniać po próbce.
+blocklist:
+  oferteo.pl: directory
+  fixly.pl: directory
+  zumi.pl: directory
+  panoramafirm.pl: directory
+  pkt.pl: directory
+  oferia.pl: marketplace
+  znanylekarz.pl: directory
+  zooplus.pl: irrelevant
+  zooart.com.pl: irrelevant
+  krakvet.pl: irrelevant
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy, z Map Google albo z rejestru. Płatność (profil Premium, reklama)
+# nie wpływa na wynik: punktacja nie ma dostępu do informacji o płatnościach (decyzja z docs/ops/DECISIONS.md).
+ranking:
+  weights:
+    jawnosc_cennika: 14       # ceny wizyt i podstawowych zabiegów na stronie (price_items): główna przewaga porównywarki, bo opiekunowie pytają o koszt przed wizytą
+    zakres_uslug: 16          # konsultacje, szczepienia, chirurgia, stomatologia, diagnostyka, hospitalizacja: szerokość oferty z cytatem
+    diagnostyka_i_sprzet: 10  # deklarowana diagnostyka obrazowa (USG, RTG), laboratorium i sprzęt: tylko jawne dane ze strony, z cytatem
+    dostepnosc: 14            # godziny otwarcia, dyżury, przyjmowanie nagłych przypadków, wizyty domowe: tylko jawne deklaracje ze strony i Map, z cytatem; "całodobowo" tylko z faktu
+    specjalizacje: 8          # deklarowane specjalizacje i gatunki (zwierzęta egzotyczne, koty, konie): tylko z cytatem, bez własnej oceny kwalifikacji
+    opinie_google: 14         # ocena i liczba opinii z Map Google (po zebraniu próby; na profilu ocena, liczba i link)
+    staz: 6                   # data wpisu do rejestru (CEIDG, KRS): długość działania
+    rejestr_zakladu: 6        # deklaracja placówki o wpisie do rejestru zakładów leczniczych dla zwierząt (z cytatem); brak deklaracji nie oznacza braku wpisu
+    spojnosc_danych: 6        # zgodność nazwa-adres-telefon i godzin otwarcia (strona, Mapy, rejestr), aktywna strona, HTTPS
+    czas_reakcji: 4           # czas reakcji na zapytania z portalu (po zebraniu danych z leadów)
+    jakosc_techniczna: 2      # szybkość i mobilność strony

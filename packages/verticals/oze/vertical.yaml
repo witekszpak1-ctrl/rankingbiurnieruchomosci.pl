@@ -1,0 +1,117 @@
+# Konfiguracja branży: fotowoltaika, pompy ciepła i klimatyzacja (portal z docs/ops/DECISIONS.md). Pakiet jest gotowy, ale zbieranie danych
+# (płatne zapytania LiteScrape) rusza dopiero po zgodzie właściciela na budżet i po zakupie domeny.
+# Opis, źródła danych i uwagi prawne: docs/geo/branze-3-8.md. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: oze
+name: Fotowoltaika, pompy ciepła i klimatyzacja
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # Kody PKD tej branży są rozproszone, więc rejestr daje listę niekompletną i niepewną:
+  # 43.21.Z (instalacje elektryczne): typowy kod instalatorów fotowoltaiki, pewność wysoka.
+  # 43.22.Z (instalacje wodno-kanalizacyjne, cieplne, gazowe i klimatyzacyjne): pompy ciepła i klimatyzacja, pewność wysoka.
+  # Niepewne, więc poza listą wejściową (wzmacniają wynik, gdy firma deklaruje je na stronie): 43.29.Z (pozostałe instalacje
+  # budowlane), 43.99.Z (pozostałe specjalistyczne roboty budowlane), 33.20.Z (instalowanie maszyn i urządzeń), 71.12.Z
+  # (usługi inżynierskie), 47.xx (handel). Kody dla nowej klasyfikacji PKD 2025 do sprawdzenia w rejestrze.
+  pkd: ["43.21.Z", "43.22.Z"]
+  expected_pkd: ["43.21.Z", "43.22.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - fotowolt
+  - pompy ciepła
+  - pompa ciepła
+  - pomp ciepła
+  - klimatyzac
+  - magazyn energii
+  - panele słoneczne
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - fotowoltaika
+    - firma fotowoltaiczna
+    - pompy ciepła
+    - montaż klimatyzacji
+  specializations:
+    - fotowoltaika dla domu
+    - fotowoltaika dla firm
+    - pompa ciepła powietrze-woda
+    - pompa ciepła gruntowa
+    - klimatyzacja domowa
+    - klimatyzacja biurowa
+    - magazyn energii
+    - serwis klimatyzacji
+    - net-billing
+    - instalacja off-grid
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "fotowoltaika {city}"
+    - "pompy ciepła {city}"
+    - "montaż klimatyzacji {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza.
+  deep_phrases:
+    - "fotowoltaika {city}"
+    - "pompy ciepła {city}"
+    - "montaż klimatyzacji {city}"
+    - "magazyn energii {city}"
+  # Bez fraz na dzielnice: dzielnice nic nie wnoszą (firmy obsługują całe miasto i okolice), więc nie ma pliku districts.json.
+  maps_phrase: "fotowoltaika pompy ciepła klimatyzacja"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 6   # propozycja jak w pozostałych branżach
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za metr kwadratowy, godzinę, kondygnację itp. (szczegół w polu conditions wyniku).
+  services:
+    - name: instalacja fotowoltaiczna 6 kWp z montażem
+      unit: pln
+      note: "cena łączna: tryb VAT w cytacie"
+    - name: instalacja fotowoltaiczna (za kWp)
+      unit: other
+      note: "cena za kWp mocy instalacji"
+    - name: pompa ciepła powietrze-woda z montażem od
+      unit: pln
+    - name: klimatyzacja split z montażem od
+      unit: pln
+      note: "jednostka zewnętrzna i wewnętrzna z montażem"
+    - name: magazyn energii z montażem od
+      unit: pln
+    - name: przegląd i serwis klimatyzacji
+      unit: pln
+
+# Domeny, które w tej branży nigdy nie są stroną jednej firmy (katalogi, portale ogłoszeniowe, media, sklepy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/): nie wszystkie domeny są sprawdzone, uzupełniać po próbce.
+blocklist:
+  oferteo.pl: directory
+  fixly.pl: directory
+  zumi.pl: directory
+  panoramafirm.pl: directory
+  pkt.pl: directory
+  oferia.pl: marketplace
+  gramwzielone.pl: media
+  wysokienapiecie.pl: media
+  ceneo.pl: marketplace
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy, z Map Google albo z rejestru. Płatność (profil Premium, reklama)
+# nie wpływa na wynik: punktacja nie ma dostępu do informacji o płatnościach (decyzja z docs/ops/DECISIONS.md).
+ranking:
+  weights:
+    staz: 8                   # data wpisu do rejestru (KRS, CEIDG): długość działania na rynku, ważna przy gwarancji wykonawcy
+    jawnosc_cennika: 15       # cena instalacji lub widełki na stronie (price_items): główna przewaga porównywarki
+    zakres_uslug: 12          # fotowoltaika, pompy ciepła, klimatyzacja, magazyny energii, serwis: szerokość oferty z cytatem
+    uprawnienia: 15           # certyfikat instalatora, uprawnienia elektryczne, certyfikat do prac z czynnikami chłodniczymi: tylko deklaracje ze strony, z cytatem
+    gwarancja_i_serwis: 12    # okres gwarancji wykonawcy, serwis, monitoring instalacji: tylko jawne deklaracje
+    realizacje: 8             # opisane realizacje (liczba, moc, miejscowość) na stronie firmy
+    ubezpieczenie_oc: 5       # jawna informacja o ubezpieczeniu odpowiedzialności wykonawcy (z cytatem)
+    opinie_google: 10         # ocena i liczba opinii z Map Google (po zebraniu próby; na profilu ocena, liczba i link)
+    spojnosc_danych: 5        # zgodność nazwa-adres-telefon strony z rejestrem, aktywna strona, HTTPS
+    jakosc_techniczna: 3      # szybkość i mobilność strony
+    czas_reakcji: 7           # czas reakcji na zapytania z portalu (po zebraniu danych z leadów)
