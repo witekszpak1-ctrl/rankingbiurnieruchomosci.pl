@@ -130,11 +130,14 @@ class Repo:
         return str(row["id"])
 
     def record_results(self, query_id: str, rows: list[tuple[str, str, int]]) -> None:
-        """Zapisuje tylko adres, domenę i pozycję wyniku (bez tytułów i snippetów)."""
-        for url, host, rank in rows:
-            self.conn.execute(
+        """Zapisuje tylko adres, domenę i pozycję wyniku (bez tytułów i snippetów). Jednym poleceniem dla całej
+        strony wyników: baza jest daleko od runnera, a pojedyncze zapisy po 10 na zapytanie spowalniały szukanie."""
+        if not rows:
+            return
+        with self.conn.cursor() as cur:
+            cur.executemany(
                 "insert into search_results (query_id, url, host, rank) values (%s, %s, %s, %s)",
-                (query_id, url, host, rank),
+                [(query_id, url, host, rank) for url, host, rank in rows],
             )
 
     def candidate_source_imported(self, source_sha256: str) -> bool:
