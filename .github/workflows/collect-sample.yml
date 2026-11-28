@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: katalog-db
+  group: katalog-collect-sample
   cancel-in-progress: false
 
 jobs:
