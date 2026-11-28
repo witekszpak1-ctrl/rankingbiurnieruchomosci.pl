@@ -42,7 +42,12 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [~] Silnik wielu branż w stronie (apps/web): branża, nazwy, teksty, dane strukturalne i wygląd z konfiguracji
   - krok 1 zrobiony: konfiguracja portalu (`lib/portal.ts`, `portals/nieruchomosci.ts`), część wspólna (nazwa, adres, meta, llms, manifest, stopka, dane strukturalne, motyw `data-theme`) na konfiguracji, bez zmiany wyglądu; zostaje wybór po domenie, motywy i układy per portal, reszta tekstów (`docs/geo/silnik-branz.md`)
 - [x] Pakiet branży biura rachunkowe (packages/verticals/rachunkowe): konfiguracja, prompty, miasta (28.11; blokery: docs/geo/branza-rachunkowe.md)
-- [!] Próbka 200 biur rachunkowych i raport jakości (zgoda na budżet LiteScrape)
+- [ ] Robot wielobranżowy: branża przy domenie (powiązanie przez search_queries.vertical_id albo nowa kolumna
+      domains.vertical_id po decyzji), osobna kolejka miast dla każdej branży, przekazywanie --vertical w workflow,
+      eksport promptu z panelu dla każdej branży (szczegóły: docs/geo/branza-rachunkowe.md)
+- [ ] Silnik wielu branż, krok 2: wybór portalu po domenie (middleware, stałe zamienione na funkcje), reszta tekstów
+      ze stron, motyw i wariant układu dla portalu biur rachunkowych (docs/geo/silnik-branz.md)
+- [!] Próbka 200 biur rachunkowych i raport jakości (zgoda na budżet LiteScrape, zapytano o 2 USD)
 - [!] Domena portalu biur rachunkowych (właściciel)
 - [ ] Kolejne branże według tabeli w DECISIONS.md (nr 3-18), po jednej, każda przez bramkę jakości
 
