@@ -1,0 +1,44 @@
+# Pomiary odpowiedzi AI do schematu geo (GeoTrace) przez LiteScrape. Płatne zapytania: tylko ręcznie albo po
+# wypchnięciu gałęzi run/geo-measure, z twardym limitem zapytań. Surowe odpowiedzi trafiają do repozytorium kolejki.
+name: geo-measure
+
+on:
+  workflow_dispatch:
+    inputs:
+      cities:
+        default: "1"
+      prompts:
+        default: "2"
+      max_calls:
+        default: "6"
+  push:
+    branches: ["run/geo-measure"]
+
+concurrency:
+  group: katalog-offers
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      QUEUE_REPO_TOKEN: ${{ secrets.QUEUE_REPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e apps/worker
+      - name: Kolejka
+        run: bash scripts/queue_sync.sh pull
+      - name: Pomiary
+        env:
+          CITIES: ${{ inputs.cities || '1' }}
+          PROMPTS: ${{ inputs.prompts || '2' }}
+          MAX_CALLS: ${{ inputs.max_calls || '6' }}
+        run: katalog geo-measure --cities "$CITIES" --per-city-prompts "$PROMPTS" --max-calls "$MAX_CALLS" --save-raw queue/results/reports/geo-raw
+      - name: Surowe odpowiedzi do kolejki
+        if: always()
+        run: bash scripts/queue_sync.sh push-results
