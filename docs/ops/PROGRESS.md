@@ -2,6 +2,7 @@
 
 ## 28.11.2026
 
+- Profil Premium, przycisk audytu, wagi rankingu z konfiguracji, ISR stron miast (gałąź `claude/premium`, do scalenia przez koordynatora po nałożeniu migracji `0022_listing_premium.sql`): tabela `listing_premium`, sekcje "Informacje od firmy" tylko z wiersza `published`, podgląd szkicu `/podglad/<token>` (HMAC z `ADMIN_SESSION_SECRET`, noindex, no-store), przycisk audytu GeoTrace pod `NEXT_PUBLIC_GEO_AUDIT_URL`, `ranking.weights` w konfiguracji portalu (wyniki bez zmian), `/[city]` jako ISR i filtry przez przepisanie na `/widok/[city]`. Porównanie HTML 32 adresów bez różnic poza 404 i niedeterministycznym `/wyroznienia-2026`; Playwright, 182 testy, typecheck i build zielone. Opis: `docs/geo/profil-premium.md`.
 - Silnik branż, krok 2 (apps/web): wybór portalu zmienną `PORTAL` (jeden projekt Vercel na portal), zapytania katalogu ograniczone do branży portalu, portal `rachunkowe` z własnym motywem, flagi funkcji i teksty wspólne z konfiguracji; strona nieruchomości bez zmian w HTML (porównanie 31 adresów), testy 158+.
 - Audyt projektu i koncepcja (raport dla właściciela poza repozytorium).
 - Gałąź `claude/geo-platforma`: aplikacja `apps/geo` z kontami, pakietami i programem partnerskim, schemat `db/geo/0001_core.sql`,

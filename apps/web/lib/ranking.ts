@@ -8,21 +8,31 @@ import { currentPortal } from "./portal";
 export const CITY_RANKING_MIN = 5; // poniżej tej liczby firm pokazujemy listę, nie ranking
 export const PRICE_STAT_MIN = 3; // minimalna próba do publikacji mediany prowizji
 
-const ALL_PARAMETERS = [
-  { key: "rejestr", label: "Potwierdzenie w rejestrze", weight: 20, whenMissing: "0 punktów: brak potwierdzenia to wynik sprawdzenia", description: "Firma potwierdzona w KRS albo w wykazie podatników VAT (NIP ze strony zgodny z rejestrem). Firmy bez potwierdzenia są w katalogu, ale niżej w rankingu." },
-  { key: "staz", label: "Staż w rejestrze", weight: 10, whenMissing: "pomijany (brak daty wpisu do rejestru)", description: "Lata od wpisu do rejestru (pełna punktacja od 15 lat)." },
-  { key: "jawnosc_cennika", label: "Jawność cennika", weight: 15, whenMissing: "0 punktów: strona nie podaje cen", description: "Firma publikuje ceny usług na swojej stronie." },
-  { key: "spojnosc_danych", label: "Spójność danych", weight: 10, whenMissing: "pomijany (brak wyniku weryfikacji)", description: "Zgodność strony firmy z danymi rejestrów (NIP, nazwa, adres)." },
-  { key: "zakres_uslug", label: "Zakres usług", weight: 10, whenMissing: "0 punktów: strona nie wymienia usług", description: "Liczba usług, które firma wprost wymienia (pełna punktacja od 6)." },
-  { key: "opinie_google", label: "Opinie w Google", weight: 10, whenMissing: "pomijany (biuro bez profilu w Google nie traci punktów)", description: "Średnia ocena w Google, z wagą rosnącą do 30 opinii." },
-  { key: "aktualne_oferty", label: "Aktualne oferty", weight: 15, whenMissing: "0 punktów: brak ofert na stronie", description: "Oferty nieruchomości widoczne na stronie firmy, sprawdzane zwykle co 1-2 dni. Robot pobiera najwyżej 20 najnowszych ogłoszeń, więc parametr mierzy, czy biuro publikuje aktualne oferty (pełna punktacja od 20), a nie całkowitą liczbę jego ofert." },
+const PARAMETER_DEFS = [
+  { key: "rejestr", label: "Potwierdzenie w rejestrze", whenMissing: "0 punktów: brak potwierdzenia to wynik sprawdzenia", description: "Firma potwierdzona w KRS albo w wykazie podatników VAT (NIP ze strony zgodny z rejestrem). Firmy bez potwierdzenia są w katalogu, ale niżej w rankingu." },
+  { key: "staz", label: "Staż w rejestrze", whenMissing: "pomijany (brak daty wpisu do rejestru)", description: "Lata od wpisu do rejestru (pełna punktacja od 15 lat)." },
+  { key: "jawnosc_cennika", label: "Jawność cennika", whenMissing: "0 punktów: strona nie podaje cen", description: "Firma publikuje ceny usług na swojej stronie." },
+  { key: "spojnosc_danych", label: "Spójność danych", whenMissing: "pomijany (brak wyniku weryfikacji)", description: "Zgodność strony firmy z danymi rejestrów (NIP, nazwa, adres)." },
+  { key: "zakres_uslug", label: "Zakres usług", whenMissing: "0 punktów: strona nie wymienia usług", description: "Liczba usług, które firma wprost wymienia (pełna punktacja od 6)." },
+  { key: "opinie_google", label: "Opinie w Google", whenMissing: "pomijany (biuro bez profilu w Google nie traci punktów)", description: "Średnia ocena w Google, z wagą rosnącą do 30 opinii." },
+  { key: "aktualne_oferty", label: "Aktualne oferty", whenMissing: "0 punktów: brak ofert na stronie", description: "Oferty nieruchomości widoczne na stronie firmy, sprawdzane zwykle co 1-2 dni. Robot pobiera najwyżej 20 najnowszych ogłoszeń, więc parametr mierzy, czy biuro publikuje aktualne oferty (pełna punktacja od 20), a nie całkowitą liczbę jego ofert." },
 ] as const;
 
+export type Parameter = (typeof PARAMETER_DEFS)[number] & { weight: number };
+
+/** Składa parametry rankingu z wag portalu: pomija parametry bez wagi (albo z wagą 0), kolejność jak w definicji. */
+export function buildParameters(weights: Record<string, number>): Parameter[] {
+  return PARAMETER_DEFS.flatMap((p) => {
+    const weight = weights[p.key];
+    return weight && weight > 0 ? [{ ...p, weight }] : [];
+  });
+}
+
 /**
- * Parametry obowiązujące w portalu: parametr ofert dotyczy tylko portali z ofertami (portal.features.offers).
- * Wartość jest stała dla wdrożenia (zmienna PORTAL). Wagi per branża (packages/verticals/*) to osobny, kolejny krok.
+ * Parametry obowiązujące w portalu: wagi pochodzą z konfiguracji portalu (portals/*.ts, ranking.weights), parametr
+ * bez wagi nie istnieje w tym portalu (np. oferty w portalu bez ofert). Wartość jest stała dla wdrożenia (zmienna PORTAL).
  */
-export const PARAMETERS = ALL_PARAMETERS.filter((p) => p.key !== "aktualne_oferty" || currentPortal().features.offers);
+export const PARAMETERS: Parameter[] = buildParameters(currentPortal().ranking.weights);
 
 /** Wersja metodologii i historia zmian (strona /metodologia). Każda zmiana wag lub parametrów dostaje wpis. */
 export const METHODOLOGY = {
@@ -62,7 +72,7 @@ function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
 
-export function scoreListing(input: RankingInput, now: Date = new Date()): Scored {
+export function scoreListing(input: RankingInput, now: Date = new Date(), parameters: readonly Parameter[] = PARAMETERS): Scored {
   const values: Record<string, number | null> = {
     rejestr: input.registryConfirmed === undefined ? null : input.registryConfirmed ? 1 : 0,
     staz: null,
@@ -82,7 +92,7 @@ export function scoreListing(input: RankingInput, now: Date = new Date()): Score
     }
   }
   const breakdown: BreakdownItem[] = [];
-  for (const p of PARAMETERS) {
+  for (const p of parameters) {
     const value = values[p.key];
     if (value != null) breakdown.push({ key: p.key, label: p.label, value, weight: p.weight });
   }

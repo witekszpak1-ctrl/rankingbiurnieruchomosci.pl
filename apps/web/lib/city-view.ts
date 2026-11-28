@@ -15,6 +15,8 @@ export type Goal = string;
 export type Filter = string;
 export type View = { page: number; goal: Goal | null; filters: Filter[] };
 
+export const DEFAULT_VIEW: View = { page: 1, goal: null, filters: [] };
+
 function first(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }

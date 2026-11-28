@@ -12,6 +12,8 @@ import { SESSION_COOKIE, verifySession } from "./lib/session";
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
   if (pathname !== "/admin" && !pathname.startsWith("/admin/")) {
+    // Podgląd szkicu Premium (/podglad/<token>): nie zgłaszamy go jako wejścia ani bota i nie szukamy dla niego przekierowań.
+    if (pathname.startsWith("/podglad/")) return NextResponse.next();
     reportBot(request, event);
     // Funkcje wyłączone w tym portalu (np. oferty i blog w portalu bez nich): zwykła strona 404 z tej samej aplikacji.
     if (isPathDisabled(pathname)) {

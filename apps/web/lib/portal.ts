@@ -152,6 +152,8 @@ export type PortalCityCopy = {
  * Funkcje serwisu, które nie dotyczą każdej branży. Ukryta funkcja znika ze stron, z menu, z mapy strony i z
  * llms.txt, a jej adresy odpowiadają 404 (strony i route handlery sprawdzają flagę przez requireFeature).
  */
+export type PortalRanking = { weights: Record<string, number> };
+
 export type PortalFeatures = {
   /** Oferty ze stron firm (lista /oferty, kafelki na stronie głównej i profilach, parametr rankingu). */
   offers: boolean;
@@ -206,6 +208,12 @@ export type PortalConfig = {
   /** Slug branży w tabeli verticals: portal pokazuje tylko wpisy tej branży (lib/vertical-scope.ts). */
   verticalSlug: string;
   features: PortalFeatures;
+  /**
+   * Wagi rankingu tego portalu (klucz parametru -> waga). Parametry bez wpisu nie istnieją w tym portalu. Klucze to
+   * parametry silnika w lib/ranking.ts (rejestr, staz, jawnosc_cennika, spojnosc_danych, zakres_uslug, opinie_google,
+   * aktualne_oferty). Płatność nie jest parametrem i nie może nim zostać (test w tests/ranking-config.test.ts).
+   */
+  ranking: PortalRanking;
   catalogView: PortalCatalogView;
   serviceGroups: PortalServiceGroup[];
   terms: PortalTerms;
