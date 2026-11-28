@@ -22,3 +22,8 @@
 - Robot wielobranżowy na produkcji (migracja 0021 zastosowana rolą właściciela: domeny z branżą, kolejka miast per branża).
   Pierwszy pełny pomiar AI: 103 odpowiedzi z 12 miast przed limitem czasu workflow (podniesiony do 150 min, ponowiony).
   Zlecone: próbka biur rachunkowych w 1 mieście (collect-sample, bezpiecznik 3000 zapytań).
+- Pomiar AI 20 miast zakończony (28.11): 179 odpowiedzi (Gemini, Google AI Mode, AI Overview), 2 błędy. Nasz portal
+  cytowany w 0 ze 119 odpowiedzi ze źródłami. Najczęściej cytowane: sonarhome.pl (28 odpowiedzi, 14 miast), otodom.pl (23),
+  facebook.com (19), pewnylokal.pl (13), oferteo.pl (12), znajdom.pl (11), nestivo.pl (10). 70% wzmianek o firmach
+  (394 z 562) to firmy z naszego katalogu (178 różnych). Próbka biur rachunkowych uruchomiona ponownie (poprzednie
+  uruchomienie wypchnięte z kolejki GitHub przez ponowiony pomiar).
