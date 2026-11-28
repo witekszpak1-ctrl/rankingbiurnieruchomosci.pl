@@ -301,16 +301,14 @@ def cmd_prompts(args) -> int:
 
 
 def cmd_litescrape_check(args) -> int:
-    """Test LiteScrape na żywo z diagnostyką: saldo, warianty wyszukiwania, surowe wyniki Map dla kilku firm,
-    warianty pobrania strony. Wypisuje tylko kształt odpowiedzi i przykładowe pola (bez klucza). Koszt: kilkanaście
-    zapytań (nieudane są bezpłatne)."""
-    from .litescrape import LiteScrapeError, robots_token
+    """Test LiteScrape na żywo tą samą ścieżką co automat: saldo, dwie strony wyników Google, Mapy z opiniami dla
+    kilku firm bez oceny i pobranie jednej strony. Wypisuje kształt odpowiedzi i przykładowe pola (bez klucza)."""
+    from .google_maps import fetch_place
+    from .litescrape import LiteScrapeError, LiteScrapeFetcher
+    from .search import LiteScrapeSearch
+    from .verify import name_similarity
 
     out: dict = {}
-
-    def short(url):
-        return (url or "")[:90]
-
     with connect() as conn:
         ctx, settings = _context(args, conn)
         with _litescrape(ctx) as (client, config):
@@ -323,26 +321,14 @@ def cmd_litescrape_check(args) -> int:
             except LiteScrapeError as exc:
                 _print({"ok": False, "error": str(exc)})
                 return 2
-            q = f"biuro nieruchomości {args.city}"
-            variants = {
-                "fast+resolve": {"fast_mode": "true", "resolve_all_links": "true"},
-                "full": {},
-            }
+            search = LiteScrapeSearch(client)
             out["search"] = {}
-            for name, extra in variants.items():
+            for query in (f"biuro nieruchomości {args.city}", f"biuro nieruchomości {args.city} (strona 2)"):
                 try:
-                    data = client._get("search", "/api/google/search", {"q": q, "gl": "pl", "hl": "pl", "num": 10, "timeout": 90, **extra},
-                                       timeout=110)
-                    organic = data.get("organic_results") or []
-                    out["search"][name] = {
-                        "results": len(organic),
-                        "goto_links": sum(1 for o in organic if "google.com/goto" in (o.get("link") or "")),
-                        "pagination": sorted((data.get("pagination") or {}).keys()),
-                        "sample": [short(o.get("link")) for o in organic[:4]],
-                        "item_keys": sorted(organic[0].keys())[:20] if organic else [],
-                    }
-                except LiteScrapeError as exc:
-                    out["search"][name] = {"error": str(exc)}
+                    results = search.search(query)
+                    out["search"][query] = {"results": len(results), "sample": [(r.rank, r.url[:80]) for r in results[:4]]}
+                except Exception as exc:  # noqa: BLE001 - raport testu
+                    out["search"][query] = {"error": str(exc)}
             rows = ctx.repo.conn.execute(
                 """select b.name, c.name as city, d.canonical_url as website from listings l
                    join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
@@ -350,43 +336,22 @@ def cmd_litescrape_check(args) -> int:
                                  order by verification_score desc nulls last limit 1) d on true
                    left join google_places g on g.brand_id = b.id
                    where l.status = 'published' and c.name = %s and (g.status is null or g.status <> 'ok')
-                   order by b.name limit 3""",
-                (args.city,),
+                   order by b.name limit %s""",
+                (args.city, args.firms),
             ).fetchall()
             out["maps"] = []
             for row in rows:
-                try:
-                    data = client.maps_search(f"{row['name']} biuro nieruchomości {row['city']}")
-                except LiteScrapeError as exc:
-                    out["maps"].append({"firm": row["name"], "error": str(exc)})
-                    continue
-                local = data.get("local_results") or []
-                out["maps"].append({
-                    "firm": row["name"], "website": short(row["website"]), "top_keys": sorted(data.keys()),
-                    "local": [{"title": p.get("title"), "website": short(p.get("website")), "place_id": bool(p.get("place_id")),
-                               "rating": p.get("rating"), "reviews": p.get("reviews")} for p in local[:4]],
-                    "place_results": bool(data.get("place_results")),
-                })
+                place = fetch_place(client, row["name"], row["city"], row["website"],
+                                    lambda found, n=row["name"]: name_similarity(n, found) >= 0.6, config.reviews_per_place)
+                out["maps"].append({"firm": row["name"], "status": place.status, "rating": place.rating,
+                                    "count": place.rating_count, "reviews": len(place.reviews),
+                                    "replies": sum(1 for r in place.reviews if r.get("reply"))})
             if rows:
-                url = rows[0]["website"]
-                ua = settings.crawler_user_agent
-                fetch_variants = {
-                    "pełny": {"url": url, "respond_with": "html", "robots_txt": robots_token(ua), "user_agent": ua,
-                              "assert_status_code": 200, "timeout": 60},
-                    "bez_assert": {"url": url, "respond_with": "html", "robots_txt": robots_token(ua), "user_agent": ua, "timeout": 60},
-                    "bez_ua": {"url": url, "respond_with": "html", "robots_txt": robots_token(ua), "timeout": 60},
-                    "minimalny": {"url": url, "respond_with": "html"},
-                }
-                out["fetch"] = {}
-                for name, params in fetch_variants.items():
-                    try:
-                        data = client._get("fetch", "/api/web/fetch", params, retries=0, timeout=90)
-                        html = data.get("html") or ""
-                        out["fetch"][name] = {"ok": True, "keys": sorted(data.keys())[:15], "html_chars": len(html),
-                                              "url": short(data.get("url")), "has_jsonld": "application/ld+json" in html}
-                        break
-                    except LiteScrapeError as exc:
-                        out["fetch"][name] = {"error": str(exc)}
+                fetcher = LiteScrapeFetcher(client, _fetcher(settings), settings.crawler_user_agent)
+                page = fetcher.fetch(rows[0]["website"])
+                out["fetch"] = {"url": rows[0]["website"], "ok": page.ok, "via": page.via, "chars": page.size,
+                                "jsonld": "application/ld+json" in page.text, "error": page.error,
+                                "litescrape_failures": dict(client.failures)}
             out["calls"] = client.usage()
     _print({"ok": True, **out})
     return 0
@@ -578,6 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--export", default="queue/prompts/describe.md")
     p = add("litescrape-check", cmd_litescrape_check, "test LiteScrape na żywo (najwyżej 4 zapytania)")
     p.add_argument("--city", default="Gdynia")
+    p.add_argument("--firms", type=int, default=5)
     p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Map Google (LiteScrape, klucz w panelu)")
     p.add_argument("--limit", type=int, default=400)
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")

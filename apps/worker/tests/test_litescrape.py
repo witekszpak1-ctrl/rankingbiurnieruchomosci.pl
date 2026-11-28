@@ -125,8 +125,9 @@ def test_search_pages_use_token_then_stop_when_google_has_no_more():
             assert set(params) == {"page_token", "timeout"}
             return httpx.Response(200, json={"organic_results": [{"link": "https://b.pl/", "title": "B"}],
                                              "pagination": {}})
-        assert params["num"] == "10" and params["gl"] == "pl" and params["fast_mode"] == "true"
-        return httpx.Response(200, json={"organic_results": [{"link": "https://a.pl/", "title": "A"}, {"link": "x"}],
+        assert params["num"] == "10" and params["gl"] == "pl" and params["resolve_all_links"] == "true"
+        return httpx.Response(200, json={"organic_results": [{"link": "https://a.pl/", "title": "A"}, {"link": "x"},
+                                                             {"link": "https://www.google.com/goto?url=abc"}],
                                          "pagination": {"next_page_token": "tok2", "next": "..."}})
 
     provider = LiteScrapeSearch(client_for(handler))
@@ -171,9 +172,12 @@ class OwnFetcher:
 
 def test_fetcher_uses_litescrape_html_and_falls_back_to_own_server():
     def handler(request):
-        params = request.url.params
+        import json
+
+        assert request.method == "POST"
+        params = json.loads(request.content)
         assert params["respond_with"] == "html" and params["robots_txt"] == "KatalogBot"
-        assert params["user_agent"].startswith("KatalogBot/") and params["assert_status_code"] == "200"
+        assert params["user_agent"].startswith("KatalogBot/") and params["assert_status_code"] == 200
         if "broken" in params["url"]:
             return httpx.Response(503, json={"error_code": "service_unavailable"})
         return httpx.Response(200, json={"url": "https://www.przyklad.pl/", "html": "<html><body>" + "x" * 60 + "</body></html>"})
@@ -185,3 +189,15 @@ def test_fetcher_uses_litescrape_html_and_falls_back_to_own_server():
     backup = fetcher.fetch("https://broken.pl/")
     assert backup.via == "httpx" and own.urls == ["https://broken.pl/"]
     assert robots_token("") == "KatalogBot"
+
+
+def test_exact_place_from_place_results_is_used():
+    def handler(request):
+        if request.url.path == "/api/google/maps":
+            return httpx.Response(200, json={"place_results": {"title": "LDK Nieruchomości", "place_id": "ldk",
+                                                               "website": "https://ldknieruchomosci.pl/", "rating": 4.9,
+                                                               "reviews": 0}})
+        raise AssertionError("bez opinii nie ma drugiego zapytania")
+
+    result = fetch_place(client_for(handler), "LDK Nieruchomości", "Gdynia", "https://ldknieruchomosci.pl/", lambda n: False)
+    assert (result.status, result.place_id, result.rating) == ("ok", "ldk", 4.9)

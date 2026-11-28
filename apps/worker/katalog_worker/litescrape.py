@@ -3,14 +3,17 @@
 Klucz wpisuje się w panelu (/admin/koszty), zapis w settings.litescrape ({"apiKey": ..., ustawienia}). Zmienna
 LITESCRAPE_API_KEY działa jako zapas, gdy w panelu nie ma klucza. Klucz nigdy nie trafia do logów ani komunikatów.
 
-Kontrakt z dokumentacji i specyfikacji OpenAPI (https://litescrape.com/api/openapi.json, stan z 27.11.2026):
+Kontrakt z dokumentacji i specyfikacji OpenAPI (https://litescrape.com/api/openapi.json, stan z 27.11.2026),
+sprawdzony na żywo 28.11.2026 (katalog litescrape-check):
 - adres https://api.litescrape.com, nagłówek Authorization: Bearer <klucz>,
-- GET /api/google/search (q, gl, hl, num 1-10, start, page_token, fast_mode) -> organic_results[], pagination,
+- GET /api/google/search (q, gl, hl, num 1-10, start, page_token, fast_mode z resolve_all_links) -> organic_results[],
+  pagination,
 - GET /api/google/maps (q, type=search, hl, gl) -> local_results[] (title, place_id, data_id, rating, reviews,
   website, address, phone, permanently_closed),
 - GET /api/google/reviews (place_id, num 1-100, sort_by qualityScore|newestFirst, hl, gl) -> place_info, reviews[]
   (snippet, extracted_snippet.original, rating, iso_date, date, user.name, response.snippet),
-- GET /api/web/fetch (url, respond_with=html, robots_txt, user_agent, assert_status_code, timeout do 90 s),
+- POST /api/web/fetch z JSON (url, respond_with=html, robots_txt, user_agent, assert_status_code jako liczba;
+  timeout do 90 s w adresie),
 - GET /api/keys/status -> remaining_calls, concurrency_limit, status (bez kosztu).
 Udane zapytanie to jedno wywołanie z przedpłaconego salda (0,15 USD za 1000). Błędy 400, 404 i 503 nie są liczone.
 401 (zły klucz), 403 (klucz wyłączony) i 402 (brak salda albo miesięcznego przydziału) wyłączają klienta do końca
@@ -142,7 +145,9 @@ class LiteScrapeClient:
             if self.disabled is None:
                 self.disabled = reason
 
-    def _get(self, kind: str, path: str, params: dict, *, retries: int | None = None, timeout: float = 70.0) -> dict:
+    def _get(self, kind: str, path: str, params: dict, *, retries: int | None = None, timeout: float = 70.0,
+             body: dict | None = None) -> dict:
+        """GET z parametrami w adresie, a z body POST z JSON (parametry liczbowe i listy, np. assert_status_code)."""
         with self._lock:
             if self.disabled:
                 raise LiteScrapeUnavailable(self.disabled)
@@ -154,7 +159,10 @@ class LiteScrapeClient:
         retries = self._max_retries if retries is None else retries
         for attempt in range(retries + 1):
             try:
-                response = self._http.get(self._base + path, params=clean, headers=headers, timeout=timeout)
+                if body is not None:
+                    response = self._http.post(self._base + path, params=clean, json=body, headers=headers, timeout=timeout)
+                else:
+                    response = self._http.get(self._base + path, params=clean, headers=headers, timeout=timeout)
             except httpx.HTTPError as exc:
                 if attempt < retries:
                     self._sleep(2.0**attempt)
@@ -194,7 +202,9 @@ class LiteScrapeClient:
             # Token kolejnej strony wysyła się sam: pamięta parametry pierwszego zapytania.
             return self._get("search", "/api/google/search", {"page_token": page_token, "timeout": 60})
         return self._get("search", "/api/google/search", {
-            "q": q, "gl": gl, "hl": hl, "num": 10, "start": start or None, "fast_mode": "true", "timeout": 60,
+            "q": q, "gl": gl, "hl": hl, "num": 10, "start": start or None,
+            # fast_mode: same wyniki organiczne; bez resolve_all_links linki są przekierowaniami google.com/goto
+            "fast_mode": "true", "resolve_all_links": "true", "timeout": 90,
         })
 
     def maps_search(self, q: str, *, gl: str = "pl", hl: str = "pl") -> dict:
@@ -208,10 +218,13 @@ class LiteScrapeClient:
 
     def fetch(self, url: str, *, user_agent: str | None = None, robots_token: str | None = None) -> dict:
         # Bez ponowień: nieudane pobranie od razu idzie na własny crawler.
-        return self._get("fetch", "/api/web/fetch", {
-            "url": url, "respond_with": "html", "robots_txt": robots_token, "user_agent": user_agent,
-            "assert_status_code": 200, "timeout": 60,
-        }, retries=0, timeout=80.0)
+        # POST z JSON: assert_status_code musi być liczbą (w adresie LiteScrape odrzuca go jako tekst).
+        body = {"url": url, "respond_with": "html", "assert_status_code": 200}
+        if robots_token:
+            body["robots_txt"] = robots_token
+        if user_agent:
+            body["user_agent"] = user_agent
+        return self._get("fetch", "/api/web/fetch", {"timeout": 60}, body=body, retries=0, timeout=80.0)
 
     def key_status(self) -> dict:
         """Saldo i stan klucza (nie zużywa zapytań)."""

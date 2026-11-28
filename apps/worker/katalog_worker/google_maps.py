@@ -1,6 +1,7 @@
 """Ocena i opinie firmy z Map Google przez LiteScrape (zastępuje Google Places API, które było za drogie).
 
-Dwa zapytania na firmę: wyszukanie miejsca w Mapach (nazwa, "biuro nieruchomości", miasto) i opinie tego miejsca
+Dwa zapytania na firmę: wyszukanie miejsca w Mapach (nazwa, "biuro nieruchomości", miasto; wynik to lista
+local_results albo, gdy Google od razu otwiera jedno miejsce, place_results) i opinie tego miejsca
 (do 100 w jednym zapytaniu, zapisujemy treść, ocenę, datę, autora i odpowiedź firmy). Wynik przyjmujemy tylko wtedy,
 gdy strona firmy w Mapach wskazuje tę samą domenę co firma albo nazwa jest wyraźnie podobna.
 Lepiej nie pokazać opinii, niż pokazać cudze.
@@ -87,6 +88,9 @@ def fetch_place(client: LiteScrapeClient, name: str, city: str, website: str | N
     except LiteScrapeError as exc:
         return PlaceResult(status="error", http_status=exc.status, unavailable=isinstance(exc, LiteScrapeUnavailable))
     places = data.get("local_results") if isinstance(data.get("local_results"), list) else []
+    # Jednoznaczne zapytanie: Google od razu otwiera jedno miejsce (place_results zamiast listy).
+    if isinstance(data.get("place_results"), dict):
+        places = [data["place_results"], *places]
     domain = registrable_domain(website) if website else None
     place = pick_place(places, domain, name_ok)
     if not place:

@@ -46,8 +46,8 @@ class LiteScrapeSearch:
         results = []
         for index, item in enumerate(organic, start=1):
             url = item.get("link") if isinstance(item, dict) else None
-            if not isinstance(url, str) or not url.startswith("http"):
-                continue
+            if not isinstance(url, str) or not url.startswith("http") or "google.com/goto" in url:
+                continue  # nierozwinięte przekierowanie Google to nie adres strony biura
             rank = (page - 1) * 10 + index
             results.append(SearchResult(url, item.get("title") or "", item.get("snippet") or "", rank))
         pagination = data.get("pagination") if isinstance(data.get("pagination"), dict) else {}
