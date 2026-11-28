@@ -11,6 +11,11 @@ export const weterynarze = servicePortal({
   brand: "Cztery Łapy",
   descriptor: "kliniki weterynaryjne",
   shortName: "CŁ",
+  // Wagi z parametrów silnika rankingu dostępnych dziś (rejestr, staż, cennik, spójność, zakres usług, opinie Google);
+  // wartości wspólnych parametrów jak w vertical.yaml tej branży, rejestr 20 jak w pozostałych portalach. Parametry
+  // specyficzne dla branży z vertical.yaml (uprawnienia, realizacje, ubezpieczenie itd.) czekają na dane i implementację
+  // w lib/ranking.ts.
+  rankingWeights: { rejestr: 20, staz: 6, jawnosc_cennika: 14, spojnosc_danych: 6, zakres_uslug: 16, opinie_google: 14 },
   schemaType: "VeterinaryCare",
   profileAnchor: "klinika",
   trackingContentType: "klinika_weterynaryjna",

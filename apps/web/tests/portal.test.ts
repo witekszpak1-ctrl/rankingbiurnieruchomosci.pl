@@ -408,6 +408,17 @@ describe("portale 3-8 (oze, remonty, budowlane, warsztaty, przeprowadzki, wetery
     }
   });
 
+  it("wagi rankingu używają tylko parametrów silnika i nie mają parametru ofert", () => {
+    const known = ["rejestr", "staz", "jawnosc_cennika", "spojnosc_danych", "zakres_uslug", "opinie_google", "aktualne_oferty"];
+    for (const { portal } of Object.values(expected)) {
+      const keys = Object.keys(portal.ranking.weights);
+      expect(keys.every((k) => known.includes(k))).toBe(true);
+      expect(keys).not.toContain("aktualne_oferty");
+      expect(Object.values(portal.ranking.weights).every((w) => w > 0)).toBe(true);
+      expect(keys.some((k) => /platn|premium|reklam/i.test(k))).toBe(false);
+    }
+  });
+
   it("adresy funkcji wyłączonych dają 404 także w nowych portalach", () => {
     for (const { portal } of Object.values(expected)) {
       expect(isPathDisabled("/oferty", portal)).toBe(true);

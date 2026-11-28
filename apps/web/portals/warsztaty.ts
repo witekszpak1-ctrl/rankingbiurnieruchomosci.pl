@@ -10,6 +10,11 @@ export const warsztaty = servicePortal({
   brand: "Pod Maską",
   descriptor: "warsztaty samochodowe",
   shortName: "PM",
+  // Wagi z parametrów silnika rankingu dostępnych dziś (rejestr, staż, cennik, spójność, zakres usług, opinie Google);
+  // wartości wspólnych parametrów jak w vertical.yaml tej branży, rejestr 20 jak w pozostałych portalach. Parametry
+  // specyficzne dla branży z vertical.yaml (uprawnienia, realizacje, ubezpieczenie itd.) czekają na dane i implementację
+  // w lib/ranking.ts.
+  rankingWeights: { rejestr: 20, staz: 6, jawnosc_cennika: 16, spojnosc_danych: 8, zakres_uslug: 12, opinie_google: 20 },
   schemaType: "AutoRepair",
   profileAnchor: "warsztat",
   trackingContentType: "warsztat_samochodowy",

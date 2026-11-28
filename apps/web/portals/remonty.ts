@@ -9,6 +9,11 @@ export const remonty = servicePortal({
   brand: "Odnowa Domu",
   descriptor: "firmy remontowe i wykończeniowe",
   shortName: "OD",
+  // Wagi z parametrów silnika rankingu dostępnych dziś (rejestr, staż, cennik, spójność, zakres usług, opinie Google);
+  // wartości wspólnych parametrów jak w vertical.yaml tej branży, rejestr 20 jak w pozostałych portalach. Parametry
+  // specyficzne dla branży z vertical.yaml (uprawnienia, realizacje, ubezpieczenie itd.) czekają na dane i implementację
+  // w lib/ranking.ts.
+  rankingWeights: { rejestr: 20, staz: 8, jawnosc_cennika: 18, spojnosc_danych: 8, zakres_uslug: 12, opinie_google: 12 },
   schemaType: "GeneralContractor",
   profileAnchor: "firma",
   trackingContentType: "firma_remontowa",

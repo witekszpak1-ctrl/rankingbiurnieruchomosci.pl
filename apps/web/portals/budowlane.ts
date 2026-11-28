@@ -10,6 +10,11 @@ export const budowlane = servicePortal({
   brand: "Pod Klucz",
   descriptor: "firmy budowlane",
   shortName: "PK",
+  // Wagi z parametrów silnika rankingu dostępnych dziś (rejestr, staż, cennik, spójność, zakres usług, opinie Google);
+  // wartości wspólnych parametrów jak w vertical.yaml tej branży, rejestr 20 jak w pozostałych portalach. Parametry
+  // specyficzne dla branży z vertical.yaml (uprawnienia, realizacje, ubezpieczenie itd.) czekają na dane i implementację
+  // w lib/ranking.ts.
+  rankingWeights: { rejestr: 20, staz: 10, jawnosc_cennika: 12, spojnosc_danych: 6, zakres_uslug: 10, opinie_google: 10 },
   schemaType: "GeneralContractor",
   profileAnchor: "firma",
   trackingContentType: "firma_budowlana",

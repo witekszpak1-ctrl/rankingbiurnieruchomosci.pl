@@ -194,8 +194,11 @@ limit w `settings.api_usage`, podgląd w `/admin/koszty`.
 ## 4. Wagi rankingu (propozycja startowa, do strojenia na pilocie)
 
 Pełne komentarze są w `vertical.yaml` każdej branży. Suma zawsze 100, płatność nie wpływa na wynik, parametry bez danych pomijamy
-i renormalizujemy wagi. **Uwaga:** wagi z pakietu jeszcze nie sterują punktacją w `lib/ranking.ts` (wspólna lista parametrów,
-punkt 2 w `docs/geo/silnik-branz.md`, "Następne kroki"): to są założenia do zaimplementowania przy rankingu per branża.
+i renormalizujemy wagi. **Uwaga:** punktację w `lib/ranking.ts` sterują wagi z konfiguracji portalu (`ranking.weights`, `portals/<slug>.ts`), a silnik zna
+dziś tylko sześć parametrów (rejestr, staż, cennik, spójność danych, zakres usług, opinie Google). Portale 3-8 mają w
+konfiguracji te sześć z wartościami z poniższej tabeli (rejestr 20 jak w pozostałych portalach). Parametry specyficzne dla
+branży (uprawnienia, realizacje, ubezpieczenie, dostępność itd.) są założeniem w `vertical.yaml` i czekają na dane z próbki
+oraz implementację w silniku.
 
 | Parametr | oze | remonty | budowlane | warsztaty | przeprowadzki | weterynarze |
 |---|---|---|---|---|---|---|

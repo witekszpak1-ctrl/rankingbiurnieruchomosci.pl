@@ -11,6 +11,11 @@ export const oze = servicePortal({
   brand: "Prąd i Ciepło",
   descriptor: "firmy instalacyjne",
   shortName: "PiC",
+  // Wagi z parametrów silnika rankingu dostępnych dziś (rejestr, staż, cennik, spójność, zakres usług, opinie Google);
+  // wartości wspólnych parametrów jak w vertical.yaml tej branży, rejestr 20 jak w pozostałych portalach. Parametry
+  // specyficzne dla branży z vertical.yaml (uprawnienia, realizacje, ubezpieczenie itd.) czekają na dane i implementację
+  // w lib/ranking.ts.
+  rankingWeights: { rejestr: 20, staz: 8, jawnosc_cennika: 15, spojnosc_danych: 5, zakres_uslug: 12, opinie_google: 10 },
   schemaType: "HomeAndConstructionBusiness",
   profileAnchor: "firma",
   trackingContentType: "firma_instalacyjna",

@@ -37,6 +37,8 @@ export type ServicePortalSpec = {
   /** Opis rodzaju serwisu dopisywany do marki w nazwie pełnej: "Marka - firmy remontowe". */
   descriptor: string;
   shortName: string;
+  /** Wagi parametrów silnika rankingu (lib/ranking.ts): tylko klucze, które silnik zna. */
+  rankingWeights: Record<string, number>;
   schemaType: string;
   profileAnchor: string;
   trackingContentType: string;
@@ -99,6 +101,7 @@ export function servicePortal(spec: ServicePortalSpec): PortalConfig {
     contactEmail: "kontakt@tbd.invalid",
     themeId: spec.slug,
     verticalSlug: spec.slug,
+    ranking: { weights: spec.rankingWeights },
     features: {
       offers: false,
       commissionCalculator: false,
