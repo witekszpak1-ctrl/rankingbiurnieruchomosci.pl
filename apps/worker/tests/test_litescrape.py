@@ -125,16 +125,18 @@ def test_search_pages_use_token_then_stop_when_google_has_no_more():
             assert set(params) == {"page_token", "timeout"}
             return httpx.Response(200, json={"organic_results": [{"link": "https://b.pl/", "title": "B"}],
                                              "pagination": {}})
-        assert params["num"] == "10" and params["gl"] == "pl" and params["resolve_all_links"] == "true"
+        assert params["num"] == "10" and params["gl"] == "pl" and params["resolve_all_links"] == "false"
         return httpx.Response(200, json={"organic_results": [{"link": "https://a.pl/", "title": "A"}, {"link": "x"},
-                                                             {"link": "https://www.google.com/goto?url=abc"}],
+                                                             {"link": "https://www.google.com/goto?url=abc"},
+                                                             {"link": "https://www.google.com/goto?url=def",
+                                                              "displayed_link": "https://www.pbon.pl › Biura"}],
                                          "pagination": {"next_page_token": "tok2", "next": "..."}})
 
     provider = LiteScrapeSearch(client_for(handler))
     first = provider.search("biuro nieruchomości Gdynia")
     second = provider.search("biuro nieruchomości Gdynia (strona 2)")
     third = provider.search("biuro nieruchomości Gdynia (strona 3)")
-    assert [r.url for r in first] == ["https://a.pl/"] and first[0].rank == 1
+    assert [r.url for r in first] == ["https://a.pl/", "https://www.pbon.pl/"] and first[0].rank == 1
     assert [(r.url, r.rank) for r in second] == [("https://b.pl/", 11)]
     assert third == [] and provider.skipped and len(requests) == 2
 

@@ -16,6 +16,20 @@ from .base import SearchError, SearchResult
 PAGE_SUFFIX = re.compile(r"\s*\(strona (\d+)\)\s*$")
 
 
+def result_url(item: dict) -> str | None:
+    """Adres wyniku. Link bez rozwinięcia to przekierowanie google.com/goto: wtedy strona główna z displayed_link
+    ("https://www.pbon.pl › Biura nieruchomości" -> "https://www.pbon.pl/"). Do odkrywania biur wystarczy domena."""
+    link = item.get("link")
+    if isinstance(link, str) and link.startswith("http") and "google.com/goto" not in link:
+        return link
+    shown = item.get("displayed_link")
+    if isinstance(shown, str):
+        origin = shown.split("›")[0].strip().split()[0] if shown.strip() else ""
+        if re.match(r"^https?://[\w.-]+\.[a-z]{2,}$", origin, re.I):
+            return origin + "/"
+    return None
+
+
 class LiteScrapeSearch:
     name = "litescrape"
     cost_per_query_usd = COST_PER_CALL_USD
@@ -48,9 +62,9 @@ class LiteScrapeSearch:
         organic = data.get("organic_results") if isinstance(data.get("organic_results"), list) else []
         results = []
         for index, item in enumerate(organic, start=1):
-            url = item.get("link") if isinstance(item, dict) else None
-            if not isinstance(url, str) or not url.startswith("http") or "google.com/goto" in url:
-                continue  # nierozwinięte przekierowanie Google to nie adres strony biura
+            url = result_url(item) if isinstance(item, dict) else None
+            if not url:
+                continue
             rank = (page - 1) * 10 + index
             results.append(SearchResult(url, item.get("title") or "", item.get("snippet") or "", rank))
         pagination = data.get("pagination") if isinstance(data.get("pagination"), dict) else {}

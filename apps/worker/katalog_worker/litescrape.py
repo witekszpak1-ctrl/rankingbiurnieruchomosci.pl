@@ -6,7 +6,8 @@ LITESCRAPE_API_KEY działa jako zapas, gdy w panelu nie ma klucza. Klucz nigdy n
 Kontrakt z dokumentacji i specyfikacji OpenAPI (https://litescrape.com/api/openapi.json, stan z 27.11.2026),
 sprawdzony na żywo 28.11.2026 (katalog litescrape-check):
 - adres https://api.litescrape.com, nagłówek Authorization: Bearer <klucz>,
-- GET /api/google/search (q, gl, hl, num 1-10, start, page_token, fast_mode z resolve_all_links) -> organic_results[],
+- GET /api/google/search (q, gl, hl, num 1-10, start, page_token, fast_mode, resolve_all_links=false) -> organic_results[]
+  (link, displayed_link z domeną strony),
   pagination,
 - GET /api/google/maps (q, type=search, hl, gl) -> local_results[] (title, place_id, data_id, rating, reviews,
   website, address, phone, permanently_closed),
@@ -203,8 +204,9 @@ class LiteScrapeClient:
             return self._get("search", "/api/google/search", {"page_token": page_token, "timeout": 60})
         return self._get("search", "/api/google/search", {
             "q": q, "gl": gl, "hl": hl, "num": 10, "start": start or None,
-            # fast_mode: same wyniki organiczne; bez resolve_all_links linki są przekierowaniami google.com/goto
-            "fast_mode": "true", "resolve_all_links": "true", "timeout": 90,
+            # fast_mode: same wyniki organiczne. Bez rozwijania linków (resolve_all_links=false) zapytanie trwa ok. 8 s
+            # zamiast ok. 60 s; link to wtedy przekierowanie google.com/goto, a domenę strony bierzemy z displayed_link.
+            "fast_mode": "true", "resolve_all_links": "false", "timeout": 60,
         })
 
     def maps_search(self, q: str, *, gl: str = "pl", hl: str = "pl") -> dict:
