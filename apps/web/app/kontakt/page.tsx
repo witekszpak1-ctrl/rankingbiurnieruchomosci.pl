@@ -5,12 +5,15 @@ import { OperatorDetails } from "@/components/LegalOperator";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { absoluteUrl, SITE_HOST } from "@/lib/format";
 import { currentPortal, firmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { operator } from "@/lib/legal";
 import { organizationLd, pageMetadata, websiteRef } from "@/lib/seo";
 
+const u = unitForms();
+
 export const metadata: Metadata = pageMetadata({
   title: `Kontakt z rankingiem ${firmPhrase("many")}`,
-  description: `Kontakt z ${SITE_HOST}: e-mail, formularz korekty i usunięcia wpisu biura, dane administratora serwisu.`,
+  description: `Kontakt z ${SITE_HOST}: e-mail, formularz korekty i usunięcia wpisu ${u.sg.gen}, dane administratora serwisu.`,
   path: "/kontakt",
 });
 
@@ -38,14 +41,14 @@ export default function ContactPage() {
               E-mail: <a href={`mailto:${op.email}`}>{op.email}</a>.{" "}
             </>
           ) : null}
-          Korekty i usunięcia wpisów biur przyjmujemy przez <Link href="/dla-firm">formularz dla biur</Link>.
+          {`Korekty i usunięcia wpisów ${u.pl.gen} przyjmujemy przez `}<Link href="/dla-firm">{`formularz ${u.forFirmsLc}`}</Link>.
         </p>
       </div>
 
       <h2>W jakiej sprawie piszesz</h2>
       <ul className="plain">
         <li>
-          <b>Błąd we wpisie biura albo usunięcie wpisu:</b> <Link href="/dla-firm">formularz dla biur</Link>, rodzaj
+          <b>{`Błąd we wpisie ${u.sg.gen} albo usunięcie wpisu:`}</b> <Link href="/dla-firm">{`formularz ${u.forFirmsLc}`}</Link>, rodzaj
           „Korekta danych” albo „Usunięcie wpisu”.
         </li>
         <li>
@@ -53,8 +56,7 @@ export default function ContactPage() {
           e-mail. Szczegóły w <Link href="/polityka-prywatnosci#prawa">polityce prywatności</Link>.
         </li>
         <li>
-          <b>Zapytanie do konkretnego biura:</b> formularz „{currentPortal().texts.leadCta}” na profilu tego biura. Wiadomość trafia
-          prosto do biura.
+          <b>{`Zapytanie do konkretn${u.by("ego", "ej", "ego")} ${u.sg.gen}:`}</b> formularz „{currentPortal().texts.leadCta}{`” na profilu ${u.this.gen} ${u.sg.gen}. Wiadomość trafia prosto do ${u.sg.gen}.`}
         </li>
         <li>
           <b>Media i współpraca:</b> e-mail.

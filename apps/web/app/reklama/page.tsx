@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PublicShell } from "@/components/SiteChrome";
 import { firmPhrase } from "@/lib/portal";
 import { pageMetadata } from "@/lib/seo";
+import { unitForms } from "@/lib/unit";
 
 export const metadata: Metadata = pageMetadata({
   title: `Reklama i niezależność rankingu ${firmPhrase("many")}`,
@@ -18,8 +19,7 @@ export default function AdvertisingPage() {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          Pozycja biura w rankingu nie zależy od tego, czy płaci. Treści sponsorowane są oznaczone napisem „Reklama” i
-          pokazywane w osobnym miejscu, poza rankingiem.
+          {`Pozycja ${unitForms().sg.gen} w rankingu nie zależy od tego, czy płaci. Treści sponsorowane są oznaczone napisem „Reklama” i pokazywane w osobnym miejscu, poza rankingiem.`}
         </p>
       </div>
       <h2>Zasady</h2>

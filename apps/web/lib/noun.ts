@@ -15,3 +15,13 @@ export function nounForm(n: number, noun: Noun3): string {
   if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return noun.few;
   return noun.many;
 }
+
+/** Siedem przypadków bez wołacza (zwykle potrzebne są tylko te sześć): mianownik, dopełniacz, celownik, biernik, narzędnik, miejscownik. */
+export type Case6 = { nom: string; gen: string; dat: string; acc: string; ins: string; loc: string };
+
+/**
+ * Pełna odmiana jednostki katalogu (biuro, firma, warsztat, klinika) w liczbie pojedynczej i mnogiej oraz jej rodzaj
+ * gramatyczny. Teksty serwisu składamy z tych form (lib/unit.ts), więc każdy portal dostaje poprawną odmianę i zgodność
+ * z przymiotnikiem i zaimkiem ("to biuro", "ta firma", "ten warsztat") bez osobnej wersji każdego zdania.
+ */
+export type UnitForms = { gender: "m" | "f" | "n"; sg: Case6; pl: Case6 };

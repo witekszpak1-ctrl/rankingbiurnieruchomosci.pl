@@ -5,6 +5,7 @@ import { inCity } from "@/lib/cities";
 import { SITE_NAME, absoluteUrl } from "@/lib/format";
 import { operator } from "@/lib/legal";
 import { nBiur } from "@/lib/plural";
+import { unitForms } from "@/lib/unit";
 import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function GET() {
     `> ${portal.texts.llmsSummary}`,
     "",
     "## Zasady",
-    `- [Ranking ogólnopolski](${absoluteUrl("/ranking")}): najwyżej ocenione biura w całym katalogu`,
+    `- [Ranking ogólnopolski](${absoluteUrl("/ranking")}): najwyżej ocenione ${unitForms().pl.nom} w całym katalogu`,
     `- [Metodologia rankingu](${absoluteUrl("/metodologia")}): źródła danych, parametry, wagi, progi publikacji`,
     `- [Reklama i niezależność](${absoluteUrl("/reklama")})`,
     `- [Dla ${firmPhrase("many")}](${absoluteUrl("/dla-firm")}): jakie dane publikujemy, korekta i usunięcie wpisu`,

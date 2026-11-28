@@ -21,13 +21,13 @@ const ERRORS: Record<string, string> = {
  * Dzięki temu strona profilu nie zależy od parametrów adresu i może być trzymana w pamięci podręcznej (ISR),
  * zamiast renderować się i odpytywać bazę przy każdym wejściu (także botów).
  */
-export function LeadFormStatus({ firmName, children }: { firmName: string; children: ReactNode }) {
+export function LeadFormStatus({ firmName, sentText, children }: { firmName: string; sentText: string; children: ReactNode }) {
   const sp = useSearchParams();
   if (sp.get("sent") === "1") {
     const eventId = sp.get("eid") ?? undefined;
     return (
       <>
-        <div className="alert ok">Dziękujemy, zapytanie zostało wysłane. Biuro skontaktuje się z Tobą.</div>
+        <div className="alert ok">{sentText}</div>
         <TrackEvent name="Lead" params={{ content_name: firmName }} eventId={eventId} serverSent={Boolean(eventId)} />
       </>
     );

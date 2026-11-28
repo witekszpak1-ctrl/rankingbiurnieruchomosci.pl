@@ -8,6 +8,7 @@ import { TrackEvent } from "@/components/TrackEvent";
 import { CLAIM_WANTS, WANT_LABEL, getClaimTarget } from "@/lib/claims";
 import { RETENTION_MONTHS } from "@/lib/legal";
 import { SITE_NAME } from "@/lib/format";
+import { unitForms } from "@/lib/unit";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
       </nav>
       <div className="claim">
         <div className="claim-intro">
-          <span className="eyebrow">Dla właścicieli biur</span>
+          <span className="eyebrow">{`Dla właścicieli ${unitForms().pl.gen}`}</span>
           <h1>Jestem właścicielem firmy {firm.name}</h1>
           <p>
             Zostaw dane, a skontaktujemy się z Tobą. Po potwierdzeniu, że reprezentujesz firmę, uzupełnimy profil,

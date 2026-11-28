@@ -10,7 +10,7 @@
  * Plik nie importuje niczego z Node ani z Next, żeby dało się go użyć także w komponentach przeglądarkowych.
  * Opis działania: docs/geo/silnik-branz.md.
  */
-import { nounForm, type Noun3 } from "./noun";
+import { nounForm, type Noun3, type UnitForms } from "./noun";
 import { nieruchomosci } from "../portals/nieruchomosci";
 import { rachunkowe } from "../portals/rachunkowe";
 import { oze } from "../portals/oze";
@@ -39,7 +39,11 @@ export type PortalTerms = {
     datOne: string;
     /** Miejscownik liczby mnogiej: "biurach nieruchomości", "biurach rachunkowych". */
     locPl: string;
+    /** Biernik liczby pojedynczej: "biuro nieruchomości", "firmę remontową", "klinikę weterynaryjną" ("Wybierz ..."). */
+    accOne: string;
   };
+  /** Pełna odmiana jednostki katalogu (biuro, firma, warsztat, klinika) i jej rodzaj: patrz lib/unit.ts. */
+  unit: UnitForms;
   /** Dopełniacz nazwy dziedziny: "nieruchomości", "księgowości". */
   domainGen: string;
   /** Specjalista z branży (mianownik): "pośrednik". */
@@ -85,8 +89,16 @@ export type PortalTexts = {
   llmsReports: { href: string; label: string; description: string }[];
   /** Akapit pod nagłówkiem na stronie głównej. */
   homeHeroLead: string;
+  /** Dodatkowy akapit na końcu metodologii (np. czego ranking nie ocenia); brak = bez akapitu. */
+  methodologyNote?: string;
+  /** Kolejność sekcji strony głównej pod paskiem liczb: "steps" (jak to działa), "ranking" (najwyżej ocenione, w portalu z ofertami także oferty), "cities" (miasta). */
+  homeOrder: ("steps" | "ranking" | "cities")[];
+  /** Nagłówek sekcji "Jak to działa": "Dobre biuro w trzech krokach" (rzeczywista droga klienta w tej branży). */
+  homeStepsHeading: string;
   /** Trzy kroki "Jak to działa" na stronie głównej. */
   homeSteps: { title: string; text: string }[];
+  /** Pytania i odpowiedzi na stronie głównej (te same trafiają do danych strukturalnych FAQPage). */
+  homeFaq: { q: string; a: string }[];
   /** Punkt "Codzienna aktualizacja" w sekcji "Dlaczego nam zaufać". */
   homeWhyDaily: string;
   /** Nazwa umowy z firmą w zastrzeżeniach o cenach: "umowa pośrednictwa". */

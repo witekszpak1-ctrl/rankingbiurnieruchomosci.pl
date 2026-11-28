@@ -8,8 +8,11 @@ import { CONSENT_COOKIE, CONSENT_MAX_AGE_DAYS, LEGAL_EFFECTIVE_DATE, RETENTION_M
 import { SESSION_COOKIE } from "@/lib/session";
 import { pageMetadata } from "@/lib/seo";
 import { currentPortal, firmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { getTracking } from "@/lib/tracking";
 import { TOOLS, WITEKCRM } from "@/lib/tracking-tools";
+
+const u = unitForms();
 
 // Lista narzędzi, odbiorców i plików cookie pochodzi z ustawień panelu (Analityka i piksele), więc odświeżamy stronę.
 export const revalidate = 300;
@@ -152,18 +155,11 @@ export default async function PrivacyPolicyPage() {
               {[...marketingTools.map((t) => `${t.provider} (${t.purpose})`), tracking.customMarketing?.description]
                 .filter(Boolean)
                 .join("; ")}
-              . Narzędzia te zapisują pliki cookie i przekazują dostawcom informacje o Twojej wizycie (m.in. adres IP,
-              odwiedzone strony, identyfikatory urządzenia), które dostawcy mogą łączyć z danymi ze swoich serwisów.
-              Przekazujemy im też zdarzenia z Serwisu: odsłonę strony, obejrzenie profilu biura, wyszukiwanie, pokazanie
-              numeru telefonu, kliknięcie w stronę biura{currentPortal().features.offers ? " lub w ofertę" : ""}, wysłanie zapytania i zgłoszenie właściciela firmy.
+              {`. Narzędzia te zapisują pliki cookie i przekazują dostawcom informacje o Twojej wizycie (m.in. adres IP, odwiedzone strony, identyfikatory urządzenia), które dostawcy mogą łączyć z danymi ze swoich serwisów. Przekazujemy im też zdarzenia z Serwisu: odsłonę strony, obejrzenie profilu ${u.sg.gen}, wyszukiwanie, pokazanie numeru telefonu, kliknięcie w stronę ${u.sg.gen}`}{currentPortal().features.offers ? " lub w ofertę" : ""}, wysłanie zapytania i zgłoszenie właściciela firmy.
             </p>
             {metaCapi && (
               <p>
-                Zdarzenia dla Meta wysyłamy także bezpośrednio z naszego serwera (Meta Conversions API), razem z adresem IP,
-                informacjami o przeglądarce i identyfikatorami z plików cookie Meta. Gdy wysyłasz zapytanie do biura,
-                dołączamy Twój adres e-mail, numer telefonu i imię w postaci skrótów SHA-256, żeby Meta mogła dopasować
-                zapytanie do reklamy, z której przyszedłeś. Dzieje się to tylko wtedy, gdy zgodziłeś się na kategorię
-                marketingową.
+                {`Zdarzenia dla Meta wysyłamy także bezpośrednio z naszego serwera (Meta Conversions API), razem z adresem IP, informacjami o przeglądarce i identyfikatorami z plików cookie Meta. Gdy wysyłasz zapytanie do ${u.sg.gen}, dołączamy Twój adres e-mail, numer telefonu i imię w postaci skrótów SHA-256, żeby Meta mogła dopasować zapytanie do reklamy, z której przyszedłeś. Dzieje się to tylko wtedy, gdy zgodziłeś się na kategorię marketingową.`}
               </p>
             )}
             <ul className="plain">
@@ -179,24 +175,19 @@ export default async function PrivacyPolicyPage() {
           <p>Obecnie nie używamy narzędzi reklamowych ani pikseli reklamowych.</p>
         )}
 
-        <h3>2.4. Zapytanie do biura (formularz na profilu biura)</h3>
+        <h3>{`2.4. Zapytanie do ${u.sg.gen} (formularz na profilu ${u.sg.gen})`}</h3>
         <p>
-          Gdy wysyłasz zapytanie do biura, przetwarzamy: imię lub imię i nazwisko, adres e-mail, numer telefonu (jeśli go
-          podasz), temat i treść wiadomości, wybrane biuro oraz datę wysłania.
+          {`Gdy wysyłasz zapytanie do ${u.sg.gen}, przetwarzamy: imię lub imię i nazwisko, adres e-mail, numer telefonu (jeśli go podasz), temat i treść wiadomości, ${u.chosenAcc} ${u.sg.acc} oraz datę wysłania.`}
         </p>
         <ul className="plain">
           <li>
-            Cel: przekazanie zapytania wybranemu {currentPortal().terms.phrase.datOne}, obsługa zapytania i zapobieganie nadużyciom (np. limit
-            liczby zapytań wysyłanych z jednego adresu e-mail).
+            {`Cel: przekazanie zapytania ${u.chosenDat} ${currentPortal().terms.phrase.datOne}, obsługa zapytania i zapobieganie nadużyciom (np. limit liczby zapytań wysyłanych z jednego adresu e-mail).`}
           </li>
           <li>
-            Podstawa: Twoja zgoda na przekazanie danych biuru, wyrażona zaznaczeniem pola w formularzu (art. 6 ust. 1 lit. a
-            RODO), oraz nasz prawnie uzasadniony interes w zapobieganiu nadużyciom i obronie przed roszczeniami (art. 6 ust. 1
-            lit. f RODO).
+            {`Podstawa: Twoja zgoda na przekazanie danych ${u.sg.dat}, wyrażona zaznaczeniem pola w formularzu (art. 6 ust. 1 lit. a RODO), oraz nasz prawnie uzasadniony interes w zapobieganiu nadużyciom i obronie przed roszczeniami (art. 6 ust. 1 lit. f RODO).`}
           </li>
           <li>
-            Odbiorca: biuro wybrane w formularzu. Po otrzymaniu zapytania biuro staje się odrębnym administratorem Twoich danych
-            i przetwarza je według własnych zasad, w celu odpowiedzi na zapytanie.
+            {`Odbiorca: ${u.sg.nom} ${u.by("wybrane", "wybrana", "wybrany")} w formularzu. Po otrzymaniu zapytania ${u.sg.nom} staje się odrębnym administratorem Twoich danych i przetwarza je według własnych zasad, w celu odpowiedzi na zapytanie.`}
           </li>
           {metaCapi && (
             <li>
@@ -210,7 +201,7 @@ export default async function PrivacyPolicyPage() {
           </li>
         </ul>
 
-        <h3>2.5. Zgłoszenia na stronie „Dla biur”</h3>
+        <h3>{`2.5. Zgłoszenia na stronie „${u.forFirms}”`}</h3>
         <p>
           Gdy wysyłasz zgłoszenie (korekta danych, usunięcie wpisu, inna sprawa, w tym sprawy dotyczące danych osobowych),
           przetwarzamy: rodzaj zgłoszenia, adres e-mail, NIP firmy (jeśli go podasz), treść zgłoszenia oraz datę wysłania.
@@ -266,8 +257,7 @@ export default async function PrivacyPolicyPage() {
             LiteScrape).
           </li>
           <li>
-            Cel: prowadzenie publicznie dostępnego katalogu i rankingu {firmPhrase("many")}, który pomaga konsumentom porównać
-            biura i wybrać jedno z nich, oraz aktualizacja wpisów.
+            Cel: prowadzenie publicznie dostępnego katalogu i rankingu {firmPhrase("many")}{`, który pomaga konsumentom porównać ${u.pl.acc} i wybrać ${u.by("jedno", "jedną", "jeden")} z nich, oraz aktualizacja wpisów.`}
           </li>
           <li>
             Podstawa: nasz prawnie uzasadniony interes oraz interes użytkowników w dostępie do rzetelnych informacji o
@@ -284,17 +274,13 @@ export default async function PrivacyPolicyPage() {
             automatycznie sprawdzany, czy opiera się na faktach ze źródeł.
           </li>
           <li>
-            Jeśli prowadzisz biuro z katalogu, możesz poprosić o korektę albo usunięcie wpisu i sprzeciwić się przetwarzaniu
-            danych przez stronę <Link href="/dla-firm">Dla biur</Link>.
+            {`Jeśli prowadzisz ${u.sg.acc} z katalogu, możesz poprosić o korektę albo usunięcie wpisu i sprzeciwić się przetwarzaniu danych przez stronę `}<Link href="/dla-firm">{u.forFirms}</Link>.
           </li>
         </ul>
 
         <h3>2.8. Opinie z Google</h3>
         <p>
-          Na profilach firm pokazujemy średnią ocenę i liczbę opinii z Map Google oraz link do profilu firmy w Mapach.
-          Dane pobiera dostawca LiteScrape. Do zestawień w katalogu (np. czego dotyczą opinie o biurach w danym mieście)
-          przechowujemy też treść opinii: nazwę autora (tak jak jest widoczna w Google), ocenę, treść, datę i odpowiedź
-          firmy. Treści opinii ani nazw autorów nie publikujemy.
+          {`Na profilach firm pokazujemy średnią ocenę i liczbę opinii z Map Google oraz link do profilu firmy w Mapach. Dane pobiera dostawca LiteScrape. Do zestawień w katalogu (np. czego dotyczą opinie o ${u.pl.loc} w danym mieście) przechowujemy też treść opinii: nazwę autora (tak jak jest widoczna w Google), ocenę, treść, datę i odpowiedź firmy. Treści opinii ani nazw autorów nie publikujemy.`}
         </p>
         <ul className="plain">
           <li>
@@ -382,7 +368,7 @@ export default async function PrivacyPolicyPage() {
                 ) : null,
               )}
               <tr>
-                <td>Biuro wybrane w formularzu zapytania</td>
+                <td>{`${u.Sg.nom} ${u.by("wybrane", "wybrana", "wybrany")} w formularzu zapytania`}</td>
                 <td>odpowiedź na Twoje zapytanie (jako odrębny administrator)</td>
                 <td>Polska</td>
               </tr>
@@ -513,9 +499,7 @@ export default async function PrivacyPolicyPage() {
         <h2 id="automatyzacja">8. Zautomatyzowane decyzje i profilowanie</h2>
         <p>
           Wynik firmy w rankingu obliczamy automatycznie według jawnych zasad opisanych w{" "}
-          <Link href="/metodologia">metodologii</Link>. Ocena dotyczy działalności firmy i wpływa wyłącznie na kolejność
-          prezentacji biur w Serwisie. Nie podejmujemy wobec osób decyzji opartych wyłącznie na zautomatyzowanym
-          przetwarzaniu, które wywołują skutki prawne lub w podobny sposób istotnie na nie wpływają (art. 22 RODO).
+          <Link href="/metodologia">metodologii</Link>{`. Ocena dotyczy działalności firmy i wpływa wyłącznie na kolejność prezentacji ${u.pl.gen} w Serwisie. Nie podejmujemy wobec osób decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywołują skutki prawne lub w podobny sposób istotnie na nie wpływają (art. 22 RODO).`}
         </p>
 
         <h2 id="bezpieczenstwo">9. Bezpieczeństwo</h2>

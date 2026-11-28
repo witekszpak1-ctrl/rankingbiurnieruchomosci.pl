@@ -51,13 +51,14 @@ export const nieruchomosci: PortalConfig = {
   ],
   terms: {
     firm: { one: "biuro", few: "biura", many: "biur", genOne: "biura" },
-    phrase: { one: "biuro nieruchomości", few: "biura nieruchomości", many: "biur nieruchomości", genOne: "biura nieruchomości", datOne: "biuru nieruchomości", locPl: "biurach nieruchomości" },
+    phrase: { one: "biuro nieruchomości", few: "biura nieruchomości", many: "biur nieruchomości", genOne: "biura nieruchomości", datOne: "biuru nieruchomości", accOne: "biuro nieruchomości", locPl: "biurach nieruchomości" },
     domainGen: "nieruchomości",
     expert: "pośrednik",
     expertFull: "pośrednik nieruchomości",
     synonym: { few: "agencje", gen: "agencji" },
     fee: { nom: "prowizja", nomPl: "prowizje", genPl: "prowizji" },
     company: { one: "firma", few: "firmy", many: "firm" },
+    unit: { gender: "n", sg: { nom: "biuro", gen: "biura", dat: "biuru", acc: "biuro", ins: "biurem", loc: "biurze" }, pl: { nom: "biura", gen: "biur", dat: "biurom", acc: "biura", ins: "biurami", loc: "biurach" } },
   },
   schema: {
     firmType: "RealEstateAgent",
@@ -100,6 +101,8 @@ export const nieruchomosci: PortalConfig = {
     ],
     homeHeroLead:
       "Porównaj biura w swoim mieście według stażu, jawnych prowizji i liczby aktualnych ofert. Potem napisz do wybranego biura jednym formularzem.",
+    homeOrder: ["steps", "ranking", "cities"],
+    homeStepsHeading: "Dobre biuro w trzech krokach",
     homeSteps: [
       {
         title: "Wybierz miasto",
@@ -112,6 +115,24 @@ export const nieruchomosci: PortalConfig = {
       {
         title: "Napisz do biura",
         text: "Zadaj pytanie przez formularz na stronie biura. Przekażemy je bezpłatnie i bez zobowiązań.",
+      },
+    ],
+    homeFaq: [
+      {
+        q: "Skąd pochodzą dane o biurach?",
+        a: "Z rejestrów publicznych (KRS, wykaz podatników VAT) i z oficjalnych stron internetowych biur. Biura potwierdzone w rejestrze mają to oznaczone na profilu; biura bez potwierdzenia też są w katalogu, ale niżej w rankingu.",
+      },
+      {
+        q: "Czy biura płacą za miejsce w rankingu?",
+        a: "Nie. Pozycja wynika wyłącznie z jawnej metodologii. Płatność nie ma wpływu na wynik ani na kolejność.",
+      },
+      {
+        q: "Jak często dane są aktualizowane?",
+        a: "Oferty, kontakt i obrazki sprawdzamy codziennie. Dane z rejestrów i opisy odświeżamy regularnie, a każda strona biura ma datę aktualizacji.",
+      },
+      {
+        q: "Moje biuro ma błędne dane. Co zrobić?",
+        a: "Wypełnij formularz na stronie Dla biur. Poprawimy dane albo usuniemy wpis.",
       },
     ],
     homeWhyDaily: "Oferty i kontakt sprawdzamy każdego dnia.",

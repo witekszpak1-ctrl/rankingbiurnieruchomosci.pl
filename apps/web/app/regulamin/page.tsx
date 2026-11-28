@@ -5,9 +5,12 @@ import { OperatorContact, OperatorDetails } from "@/components/LegalOperator";
 import { PublicShell } from "@/components/SiteChrome";
 import { LEGAL_EFFECTIVE_DATE, SERVICE_HOST } from "@/lib/legal";
 import { currentPortal, firmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { pageMetadata } from "@/lib/seo";
 
 const { features, texts } = currentPortal();
+const u = unitForms();
+const { Sg: S, Pl: P } = u;
 
 export const metadata: Metadata = pageMetadata({
   title: "Regulamin serwisu",
@@ -26,8 +29,7 @@ export default function TermsPage() {
         <div className="answer">
           <strong>W skrócie</strong>
           <p>
-            Serwis jest bezpłatnym katalogiem i rankingiem {firmPhrase("many")}. Dane pochodzą z rejestrów publicznych, ze stron
-            biur i z Google. Pozycja w rankingu nie zależy od płatności. {texts.notPartyShort}
+            Serwis jest bezpłatnym katalogiem i rankingiem {firmPhrase("many")}{`. Dane pochodzą z rejestrów publicznych, ze stron ${u.pl.gen} i z Google. Pozycja w rankingu nie zależy od płatności. `}{texts.notPartyShort}
           </p>
         </div>
 
@@ -45,7 +47,7 @@ export default function TermsPage() {
             <ul className="plain">
               <li>Użytkownik: każda osoba korzystająca z Serwisu,</li>
               <li>Konsument: Użytkownik będący konsumentem w rozumieniu art. 22¹ Kodeksu cywilnego,</li>
-              <li>Biuro: przedsiębiorca prowadzący {firmPhrase("one")}, którego dane są prezentowane w Serwisie,</li>
+              <li>{`${S.nom}: przedsiębiorca prowadzący `}{currentPortal().terms.phrase.accOne}, którego dane są prezentowane w Serwisie,</li>
               <li>Formularz: formularz w Serwisie, przez który Użytkownik wysyła zapytanie lub zgłoszenie.</li>
             </ul>
           </li>
@@ -60,15 +62,14 @@ export default function TermsPage() {
           <li>
             Operator świadczy bezpłatnie następujące usługi:
             <ul className="plain">
-              <li>przeglądanie katalogu i rankingu {firmPhrase("many")}, profili biur, {features.offers ? "ofert biur " : ""}i opinii,</li>
-              <li>wyszukiwanie biur według miasta,</li>
-              <li>formularz zapytania do wybranego Biura, przekazywanego temu Biuru przez Operatora,</li>
-              <li>formularze dla Biur: korekta danych, usunięcie wpisu, zgłoszenie właściciela firmy i inne sprawy.</li>
+              <li>przeglądanie katalogu i rankingu {firmPhrase("many")}, {`profili ${u.pl.gen}, `}{features.offers ? `ofert ${u.pl.gen} ` : ""}i opinii,</li>
+              <li>{`wyszukiwanie ${u.pl.gen} według miasta,`}</li>
+              <li>{`formularz zapytania do ${u.by("wybranego", "wybranej", "wybranego")} ${S.gen}, przekazywanego ${u.this.dat} ${S.dat} przez Operatora,`}</li>
+              <li>{`formularze dla ${P.gen}: korekta danych, usunięcie wpisu, zgłoszenie właściciela firmy i inne sprawy.`}</li>
             </ul>
           </li>
           <li>
-            Usługi płatne dla Biur (np. rozszerzony profil) są możliwe wyłącznie na podstawie odrębnej umowy. Ich zasady opisuje
-            strona <Link href="/reklama">Reklama i niezależność</Link>. Płatność nie wpływa na pozycję w rankingu.
+            {`Usługi płatne dla ${P.gen} (np. rozszerzony profil) są możliwe wyłącznie na podstawie odrębnej umowy. Ich zasady opisuje strona `}<Link href="/reklama">Reklama i niezależność</Link>. Płatność nie wpływa na pozycję w rankingu.
           </li>
         </ol>
 
@@ -93,8 +94,7 @@ export default function TermsPage() {
             jego opuszczenia.
           </li>
           <li>
-            Umowa o przekazanie zapytania lub rozpatrzenie zgłoszenia zostaje zawarta z chwilą wysłania Formularza i wygasa po
-            przekazaniu zapytania Biuru albo rozpatrzeniu zgłoszenia.
+            {`Umowa o przekazanie zapytania lub rozpatrzenie zgłoszenia zostaje zawarta z chwilą wysłania Formularza i wygasa po przekazaniu zapytania ${S.dat} albo rozpatrzeniu zgłoszenia.`}
           </li>
           <li>Użytkownik może w każdej chwili zakończyć korzystanie z Serwisu, bez podawania przyczyny i bez kosztów.</li>
         </ol>
@@ -102,33 +102,27 @@ export default function TermsPage() {
         <h2 id="p5">§ 5. Charakter informacji i ranking</h2>
         <ol>
           <li>
-            Informacje o Biurach pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT), ze stron internetowych Biur i z
-            Google. Operator dokłada starań, żeby były aktualne i rzetelne, ale mogą się one zmienić po dacie ich pobrania,
-            podanej przy danych.
+            {`Informacje o ${P.loc} pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT), ze stron internetowych ${P.gen} i z Google. Operator dokłada starań, żeby były aktualne i rzetelne, ale mogą się one zmienić po dacie ich pobrania, podanej przy danych.`}
           </li>
           <li>
             Informacje w Serwisie mają charakter informacyjny i nie stanowią oferty w rozumieniu Kodeksu cywilnego ani porady
             prawnej, podatkowej czy inwestycyjnej.
           </li>
           <li>
-            {texts.notPartyLong} Za usługi Biur odpowiadają Biura.
+            {texts.notPartyLong}{` Za usługi ${P.gen} odpowiadają ${P.nom}.`}
           </li>
           <li>
-            Kolejność Biur w rankingu wynika wyłącznie z parametrów opisanych w <Link href="/metodologia">metodologii</Link>,
-            gdzie podajemy też ich znaczenie (wagi). Biura nie płacą za umieszczenie w katalogu ani za pozycję w rankingu.
-            Treści sponsorowane, jeśli się pojawią, będą wyraźnie oznaczone napisem „Reklama” i oddzielone od rankingu.
+            {`Kolejność ${P.gen} w rankingu wynika wyłącznie z parametrów opisanych w `}<Link href="/metodologia">metodologii</Link>{`, gdzie podajemy też ich znaczenie (wagi). ${P.nom} nie płacą za umieszczenie w katalogu ani za pozycję w rankingu. Treści sponsorowane, jeśli się pojawią, będą wyraźnie oznaczone napisem „Reklama” i oddzielone od rankingu.`}
           </li>
         </ol>
 
         <h2 id="p6">§ 6. Opinie</h2>
         <ol>
           <li>
-            Serwis pokazuje ocenę i opinie o Biurach pochodzące z Map Google, pobierane przez dostawcę danych (LiteScrape), z
-            oznaczeniem źródła i bez zmian w treści. Operator nie zbiera własnych opinii od Użytkowników.
+            {`Serwis pokazuje ocenę i opinie o ${P.loc} pochodzące z Map Google, pobierane przez dostawcę danych (LiteScrape), z oznaczeniem źródła i bez zmian w treści. Operator nie zbiera własnych opinii od Użytkowników.`}
           </li>
           <li>
-            Operator nie weryfikuje, czy opinie pochodzą od osób, które korzystały z usług Biura. Opinie nie są przez Operatora
-            zmieniane ani wybierane według ich wydźwięku. Za ich treść odpowiadają autorzy, a za zasady ich publikacji Google.
+            {`Operator nie weryfikuje, czy opinie pochodzą od osób, które korzystały z usług ${S.gen}. Opinie nie są przez Operatora zmieniane ani wybierane według ich wydźwięku. Za ich treść odpowiadają autorzy, a za zasady ich publikacji Google.`}
           </li>
         </ol>
 
@@ -137,21 +131,19 @@ export default function TermsPage() {
             <h2 id="p7">§ 7. Oferty nieruchomości</h2>
             <ol>
               <li>
-                Serwis pokazuje tytuły, ceny i linki do ofert opublikowanych przez Biura na ich stronach. Pełna i aktualna treść
-                oferty znajduje się na stronie Biura, a cenę i dostępność nieruchomości trzeba potwierdzić w Biurze.
+                {`Serwis pokazuje tytuły, ceny i linki do ofert opublikowanych przez ${P.acc} na ich stronach. Pełna i aktualna treść oferty znajduje się na stronie ${S.gen}, a cenę i dostępność nieruchomości trzeba potwierdzić w ${S.loc}.`}
               </li>
-              <li>Za treść ofert odpowiadają Biura. Biuro może poprosić o usunięcie swoich ofert z Serwisu.</li>
+              <li>{`Za treść ofert odpowiadają ${P.nom}. ${S.nom} może poprosić o usunięcie swoich ofert z Serwisu.`}</li>
             </ol>
           </>
         ) : (
           <>
-            <h2 id="p7">§ 7. Treści ze stron Biur</h2>
+            <h2 id="p7">{`§ 7. Treści ze stron ${P.gen}`}</h2>
             <ol>
               <li>
-                Serwis pokazuje informacje opublikowane przez Biura na ich stronach, np. zakres usług i ceny. Pełna i aktualna
-                treść znajduje się na stronie Biura, a cenę i zakres usług trzeba potwierdzić w Biurze.
+                {`Serwis pokazuje informacje opublikowane przez ${P.acc} na ich stronach, np. zakres usług i ceny. Pełna i aktualna treść znajduje się na stronie ${S.gen}, a cenę i zakres usług trzeba potwierdzić w ${S.loc}.`}
               </li>
-              <li>Za treść stron odpowiadają Biura. Biuro może poprosić o usunięcie swoich danych z Serwisu.</li>
+              <li>{`Za treść stron odpowiadają ${P.nom}. ${S.nom} może poprosić o usunięcie swoich danych z Serwisu.`}</li>
             </ol>
           </>
         )}
@@ -159,8 +151,7 @@ export default function TermsPage() {
         <h2 id="p8">§ 8. Formularze i zasady korzystania</h2>
         <ol>
           <li>
-            Użytkownik podaje w Formularzu prawdziwe dane i nie podaje danych innych osób bez ich zgody. Zapytanie wysłane przez
-            Formularz Operator przekazuje Biuru wybranemu przez Użytkownika. Odpowiedź przesyła Biuro.
+            {`Użytkownik podaje w Formularzu prawdziwe dane i nie podaje danych innych osób bez ich zgody. Zapytanie wysłane przez Formularz Operator przekazuje ${S.dat} ${u.by("wybranemu", "wybranej", "wybranemu")} przez Użytkownika. Odpowiedź przesyła ${S.nom}.`}
           </li>
           <li>
             Zabronione jest dostarczanie treści o charakterze bezprawnym, w tym obraźliwych, naruszających dobra osobiste lub
@@ -174,11 +165,10 @@ export default function TermsPage() {
         <ol>
           <li>
             Każdy może zgłosić błąd w danych albo treść, którą uważa za bezprawną, przez stronę{" "}
-            <Link href="/dla-firm">Dla biur</Link> albo e-mailem, wskazując adres strony, opis problemu i uzasadnienie.
+            <Link href="/dla-firm">{u.forFirms}</Link> albo e-mailem, wskazując adres strony, opis problemu i uzasadnienie.
           </li>
           <li>
-            Operator rozpatruje zgłoszenia bez zbędnej zwłoki, zwykle w ciągu 14 dni, i informuje zgłaszającego o decyzji wraz
-            z uzasadnieniem. Biuro może w każdej chwili poprosić o korektę albo usunięcie swojego wpisu.
+            {`Operator rozpatruje zgłoszenia bez zbędnej zwłoki, zwykle w ciągu 14 dni, i informuje zgłaszającego o decyzji wraz z uzasadnieniem. ${S.nom} może w każdej chwili poprosić o korektę albo usunięcie swojego wpisu.`}
           </li>
           <li>
             Punktem kontaktowym dla Użytkowników i organów, o którym mowa w art. 11 i 12 rozporządzenia (UE) 2022/2065 (akt o
@@ -210,16 +200,14 @@ export default function TermsPage() {
             podaniem źródła i linkiem do Serwisu.
           </li>
           <li>
-            Nazwy, znaki towarowe, logo, zdjęcia{features.offers ? " i oferty" : ""} Biur należą do ich właścicieli i są prezentowane wyłącznie w celu
-            informacyjnym.
+            Nazwy, znaki towarowe, logo, zdjęcia{features.offers ? " i oferty" : ""}{` ${P.gen} należą do ich właścicieli i są prezentowane wyłącznie w celu informacyjnym.`}
           </li>
         </ol>
 
         <h2 id="p12">§ 12. Odpowiedzialność</h2>
         <ol>
           <li>
-            Operator odpowiada za świadczenie usług zgodnie z Regulaminem i przepisami prawa. Operator nie odpowiada za usługi
-            Biur, treść stron Biur{features.offers ? " i ofert" : ""} ani za decyzje podjęte wyłącznie na podstawie informacji z Serwisu.
+            {`Operator odpowiada za świadczenie usług zgodnie z Regulaminem i przepisami prawa. Operator nie odpowiada za usługi ${P.gen}, treść stron ${P.gen}`}{features.offers ? " i ofert" : ""} ani za decyzje podjęte wyłącznie na podstawie informacji z Serwisu.
           </li>
           <li>
             Operator może czasowo ograniczyć dostęp do Serwisu z powodu prac technicznych, awarii lub ze względów

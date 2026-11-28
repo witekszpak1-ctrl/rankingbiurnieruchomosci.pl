@@ -55,6 +55,7 @@ export const rachunkowe: PortalConfig = {
       many: "biur rachunkowych",
       genOne: "biura rachunkowego",
       datOne: "biuru rachunkowemu",
+      accOne: "biuro rachunkowe",
       locPl: "biurach rachunkowych",
     },
     domainGen: "księgowości",
@@ -63,6 +64,7 @@ export const rachunkowe: PortalConfig = {
     synonym: { few: "biura", gen: "biur" },
     fee: { nom: "abonament", nomPl: "abonamenty", genPl: "abonamentów" },
     company: { one: "firma", few: "firmy", many: "firm" },
+    unit: { gender: "n", sg: { nom: "biuro", gen: "biura", dat: "biuru", acc: "biuro", ins: "biurem", loc: "biurze" }, pl: { nom: "biura", gen: "biur", dat: "biurom", acc: "biura", ins: "biurami", loc: "biurach" } },
   },
   schema: {
     firmType: "AccountingService",
@@ -100,18 +102,38 @@ export const rachunkowe: PortalConfig = {
     ],
     homeHeroLead:
       "Porównaj biura rachunkowe w swoim mieście według stażu, jawnych cenników i zakresu usług: księgowość, kadry i płace, rozliczenia VAT. Potem poproś wybrane biuro o wycenę jednym formularzem.",
+    homeOrder: ["steps", "ranking", "cities"],
+    homeStepsHeading: "Dobre biuro rachunkowe w trzech krokach",
     homeSteps: [
       {
         title: "Wybierz miasto",
-        text: "Wpisz miejscowość i zobacz biura rachunkowe, które sprawdziliśmy w tej okolicy.",
+        text: "Wpisz miejscowość i zobacz biura rachunkowe, które sprawdziliśmy w tej okolicy. Zastanów się, czego potrzebujesz: księgi przychodów i rozchodów, ryczałt, pełna księgowość, kadry i płace.",
       },
       {
         title: "Porównaj biura",
-        text: "Ranking pokazuje staż w rejestrze, jawność cennika, zakres usług i opinie z Map Google.",
+        text: "Ranking pokazuje staż w rejestrze, jawność cennika, zakres usług i opinie z Map Google. Sprawdź, czy biuro podaje abonament i co on obejmuje.",
       },
       {
         title: "Poproś o wycenę",
-        text: "Napisz przez formularz na stronie biura. Przekażemy wiadomość bezpłatnie i bez zobowiązań.",
+        text: "Opisz firmę w formularzu na stronie biura. Przekażemy wiadomość bezpłatnie i bez zobowiązań, a umowę i zakres obsługi ustalisz bezpośrednio z biurem.",
+      },
+    ],
+    homeFaq: [
+      {
+        q: "Skąd pochodzą dane o biurach?",
+        a: "Z rejestrów publicznych (KRS, wykaz podatników VAT) i z oficjalnych stron internetowych biur. Biura potwierdzone w rejestrze mają to oznaczone na profilu; biura bez potwierdzenia też są w katalogu, ale niżej w rankingu.",
+      },
+      {
+        q: "Czy biura płacą za miejsce w rankingu?",
+        a: "Nie. Pozycja wynika wyłącznie z jawnej metodologii. Płatność nie ma wpływu na wynik ani na kolejność.",
+      },
+      {
+        q: "Jak często dane są aktualizowane?",
+        a: "Kontakt i obrazki sprawdzamy codziennie. Dane z rejestrów i opisy odświeżamy regularnie, a każda strona biura ma datę aktualizacji.",
+      },
+      {
+        q: "Moje biuro ma błędne dane. Co zrobić?",
+        a: "Wypełnij formularz na stronie Dla biur. Poprawimy dane albo usuniemy wpis.",
       },
     ],
     homeWhyDaily: "Dane kontaktowe i strony biur sprawdzamy regularnie.",

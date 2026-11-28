@@ -22,6 +22,7 @@ import { getBlogOverrides } from "@/lib/blog-overrides";
 import { breadcrumbLd, postalAddressLd, websiteRef } from "@/lib/seo";
 import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare } from "@/lib/ranking";
 import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 
 import { AuditBox } from "@/components/AuditBox";
 import { PremiumSections } from "@/components/PremiumSections";
@@ -29,6 +30,7 @@ import { auditUrl } from "@/lib/audit-link";
 import type { Premium } from "@/lib/premium";
 
 const portal = currentPortal();
+const u = unitForms(portal);
 const { features } = portal;
 
 const pts = (n: number) => n.toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -130,9 +132,9 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
     cityCount: cityRanked?.length ?? null,
   });
   const intro = [
-    `${listing.name} to ${firmPhrase("one")} ${where}${listing.registryConfirmed ? ", potwierdzone w rejestrze publicznym" : ""}.`,
+    `${listing.name} to ${firmPhrase("one")} ${where}${listing.registryConfirmed ? `, ${u.by("potwierdzone", "potwierdzona", "potwierdzony")} w rejestrze publicznym` : ""}.`,
     position && cityRanked
-      ? `W rankingu biur ${where} zajmuje ${position}. miejsce na ${cityRanked.length} z wynikiem ${score}/100.`
+      ? `W rankingu ${u.pl.gen} ${where} zajmuje ${position}. miejsce na ${cityRanked.length} z wynikiem ${score}/100.`
       : `Wynik w rankingu: ${score}/100.`,
     listing.servicesCount > 0 ? `Na swojej stronie wymienia ${listing.servicesCount} ${plural(listing.servicesCount, "usługę", "usługi", "usług")}${listing.hasPublicPrices ? " i publikuje ceny" : ""}.` : null,
   ]
@@ -162,7 +164,7 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
               sizes="(max-width: 1180px) 100vw, 1140px"
               width={1200}
               height={240}
-              alt={`Zdjęcie ze strony biura ${listing.name}`}
+              alt={`Zdjęcie ze strony ${u.sg.gen} ${listing.name}`}
               referrerPolicy="no-referrer"
               fetchPriority="high"
               decoding="async"
@@ -174,7 +176,7 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
         <div className="profile-grid">
           <div className="profile-main">
             <div className="profile-avatar">
-              <FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="lg" alt={`Logo biura ${listing.name}`} />
+              <FirmImage src={listing.logoUrl} kind="logo" name={listing.name} size="lg" alt={`Logo ${u.sg.gen} ${listing.name}`} />
             </div>
             <nav className="crumbs" aria-label="Okruszki">
               <Link href="/">Strona główna</Link>
@@ -213,7 +215,7 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
               {listing.registryConfirmed ? (
                 <li className="ok">potwierdzona w rejestrze</li>
               ) : (
-                <li title="Strona biura nie podaje NIP albo dane nie zgadzają się z rejestrem. Firma jest w katalogu, ale niżej w rankingu.">
+                <li title={`Strona ${u.sg.gen} nie podaje NIP albo dane nie zgadzają się z rejestrem. Firma jest w katalogu, ale niżej w rankingu.`}>
                   bez potwierdzenia w rejestrze
                 </li>
               )}
@@ -243,12 +245,12 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
 
             {listing.description && (
               <section className="profile-section">
-                <h2>O biurze</h2>
+                <h2>{`O ${u.sg.loc}`}</h2>
                 <p className="profile-about">{listing.description}</p>
                 <p className="note">
                   {listing.registryConfirmed
-                    ? "Opis przygotowaliśmy na podstawie strony biura i rejestrów publicznych."
-                    : "Opis przygotowaliśmy na podstawie strony biura. Nie udało się jeszcze potwierdzić firmy w rejestrach publicznych."}
+                    ? `Opis przygotowaliśmy na podstawie strony ${u.sg.gen} i rejestrów publicznych.`
+                    : `Opis przygotowaliśmy na podstawie strony ${u.sg.gen}. Nie udało się jeszcze potwierdzić firmy w rejestrach publicznych.`}
                 </p>
               </section>
             )}
@@ -262,7 +264,7 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
                   </span>
                 </div>
                 <p className="note">
-                  Średnia ocena i liczba opinii z profilu biura w Mapach Google.{" "}
+                  {`Średnia ocena i liczba opinii z profilu ${u.sg.gen} w Mapach Google.`}{" "}
                   {listing.google?.mapsUrl && (
                     <a href={listing.google.mapsUrl} target="_blank" rel="noopener nofollow">
                       Przeczytaj opinie w Google Maps
@@ -355,12 +357,12 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
                     ))}
                   </div>
                   <p className="note">
-                    Ceny deklarowane przez biuro na jego stronie, sprawdzone{" "}
+                    {`Ceny deklarowane przez ${u.sg.acc} na ${u.his} stronie, sprawdzone`}{" "}
                     {formatDate(newest(visiblePrices.map((p) => p.observedAt)))}. Mogły się zmienić.
                   </p>
                 </>
               ) : (
-                <p>Biuro nie publikuje cen na swojej stronie i ustala je indywidualnie.</p>
+                <p>{`${u.Sg.nom} nie publikuje cen na swojej stronie i ustala je indywidualnie.`}</p>
               )}
             </section>
 
@@ -413,7 +415,7 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
               </div>
               {listing.socials.length > 0 && (
                 <>
-                  <h3 className="mini-head">Biuro w mediach społecznościowych</h3>
+                  <h3 className="mini-head">{`${u.Sg.nom} w mediach społecznościowych`}</h3>
                   <ul className="social-row">
                     {listing.socials.map((s) => {
                       const meta = SOCIAL[s.network];
@@ -437,10 +439,10 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
             <section className="profile-section">
               <h2>Wynik w rankingu: {score}/100</h2>
               <p className="note">
-                Wynik w rankingu mierzy, jak kompletne i sprawdzalne są dane biura (rejestr, cennik, usługi{features.offers ? ", oferty" : ""}).
+                {`Wynik w rankingu mierzy, jak kompletne i sprawdzalne są dane ${u.sg.gen} (rejestr, cennik, usługi`}{features.offers ? ", oferty" : ""}).
                 {listing.googleRating && listing.googleCount
                   ? ` Ocena w Google (${listing.googleRating.toFixed(1)}, ${nOpinii(listing.googleCount)}) to opinie klientów i wchodzi do wyniku tylko jako jeden z parametrów, więc to dwie różne miary.`
-                  : " Opinie klientów w Google, gdy biuro ma tam profil, są jednym z parametrów wyniku."}
+                  : ` Opinie klientów w Google, gdy ${u.sg.nom} ma tam profil, są jednym z parametrów wyniku.`}
               </p>
               <div className="score-rows">
                 {breakdown.map((item) => (
@@ -469,12 +471,11 @@ export async function FirmProfile({ listing, premium = null, preview = false }: 
                   ))}
                 </ul>
                 <p className="note">
-                  Wynik to zdobyte punkty podzielone przez punkty możliwe do zdobycia z uwzględnionych parametrów, razy 100.
-                  Biura bez potwierdzenia w rejestrze dostają 0 punktów za ten parametr.
+                  {`Wynik to zdobyte punkty podzielone przez punkty możliwe do zdobycia z uwzględnionych parametrów, razy 100. ${u.Pl.nom} bez potwierdzenia w rejestrze dostają 0 punktów za ten parametr.`}
                 </p>
               </details>
               <p className="note">
-                Jak liczymy wynik: <Link href="/metodologia">metodologia rankingu</Link>. Źródła: strona biura
+                Jak liczymy wynik: <Link href="/metodologia">metodologia rankingu</Link>{`. Źródła: strona ${u.sg.gen}`}
                 {listing.registryConfirmed ? " i rejestry publiczne (KRS, wykaz podatników VAT)" : ""}. Ostatnia
                 aktualizacja danych: {formatDate(listing.updatedAt)}. Widzisz błąd? <Link href="/dla-firm">Zgłoś korektę</Link>.
               </p>

@@ -7,6 +7,7 @@ import type { CityPriceExample } from "./catalog";
 import { inCity } from "./cities";
 import { formatDate, formatPrice } from "./format";
 import { nBiur, nBiurGen, plural } from "./plural";
+import { unitForms } from "./unit";
 import { isPlausible, priceBasis, priceKind } from "./prices";
 import { capitalize, currentPortal, expertPhrase, firmPhrase, nFirmPhrase, type CityCtx } from "./portal";
 import { PRICE_STAT_MIN } from "./ranking";
@@ -92,12 +93,12 @@ export function cityIntro(d: CityData): string {
   const parts = [
     `Zestawienie obejmuje ${nFirmPhrase(n)} ${where}, które mają własną stronę internetową.`,
     confirmed === n
-      ? "Każde z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT)."
+      ? `${unitForms().by("Każde", "Każdą", "Każdy")} z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT).`
       : `${confirmed} z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT), pozostałe opisujemy na podstawie ich stron i oznaczamy jako niepotwierdzone.`,
     d.ranked
       ? `Kolejność wynika z jawnej metodologii, a nie z płatności: liczą się m.in. potwierdzenie w rejestrze, staż, jawność cennika, zakres usług${currentPortal().features.offers ? " i aktualne oferty" : ""}.`
-      : "Biur jest jeszcze za mało na ranking z pozycjami, dlatego pokazujemy je alfabetycznie.",
-    `Możesz porównać ${withPrices > 0 ? `cenniki (${withPrices} ${plural(withPrices, "biuro publikuje", "biura publikują", "biur publikuje")} stawki), ` : ""}zakres usług${withOffers > 0 ? `, oferty ze stron biur` : ""} i dane kontaktowe, a z każdego profilu wysłać zapytanie.`,
+      : `${unitForms().Pl.gen} jest jeszcze za mało na ranking z pozycjami, dlatego pokazujemy je alfabetycznie.`,
+    `Możesz porównać ${withPrices > 0 ? `cenniki (${withPrices} ${plural(withPrices, `${unitForms().sg.nom} publikuje`, `${unitForms().pl.nom} publikują`, `${unitForms().pl.gen} publikuje`)} stawki), ` : ""}zakres usług${withOffers > 0 ? `, oferty ze stron ${unitForms().pl.gen}` : ""} i dane kontaktowe, a z każdego profilu wysłać zapytanie.`,
     `Dane zaktualizowaliśmy ${formatDate(d.updatedAt)}.`,
   ];
   return parts.join(" ");
@@ -143,7 +144,7 @@ export function commissionSection(d: CityData): CommissionSection {
           sentences.push(`To ${relation} mediana w całym katalogu (${pct(nat.median)}, ${nBiurGen(nat.n)}).`);
         }
       } else if (saleFirms > 0) {
-        sentences.push(`To za mała próba, żeby podawać medianę dla miasta; poniżej pokazujemy stawki konkretnych biur.`);
+        sentences.push(`To za mała próba, żeby podawać medianę dla miasta; poniżej pokazujemy stawki konkretnych ${unitForms().pl.gen}.`);
       }
     }
   }
@@ -187,9 +188,9 @@ export function cityFaq(d: CityData): FaqItem[] {
     q: copy.feeQuestion(where),
     a:
       portal.features.saleCommission && d.median != null && d.medianN >= PRICE_STAT_MIN
-        ? `Według cenników publikowanych przez biura mediana najniższych stawek prowizji od sprzedaży ${where} wynosi ${pct(d.median)} ceny transakcyjnej (${nBiur(d.medianN)} z jawną stawką). Do prowizji często dochodzi VAT, a ostateczną kwotę określa umowa.`
+        ? `Według cenników publikowanych przez ${unitForms().pl.acc} mediana najniższych stawek prowizji od sprzedaży ${where} wynosi ${pct(d.median)} ceny transakcyjnej (${nBiur(d.medianN)} z jawną stawką). Do prowizji często dochodzi VAT, a ostateczną kwotę określa umowa.`
         : commission.examples.length > 0
-          ? `${portal.features.saleCommission ? "Za mało biur publikuje porównywalne stawki, żeby podać medianę dla miasta. " : ""}Przykłady z cenników: ${commission.examples
+          ? `${portal.features.saleCommission ? `Za mało ${unitForms().pl.gen} publikuje porównywalne stawki, żeby podać medianę dla miasta. ` : ""}Przykłady z cenników: ${commission.examples
               .slice(0, 3)
               .map((e) => `${e.firmName}: ${e.value}`)
               .join("; ")}.`
@@ -197,7 +198,7 @@ export function cityFaq(d: CityData): FaqItem[] {
   });
   if (top) {
     faq.push({
-      q: `Które ${firmPhrase("one")} ma najwyższy wynik w rankingu ${where}?`,
+      q: `${unitForms().which} ${firmPhrase("one")} ma najwyższy wynik w rankingu ${where}?`,
       a: `Najwyższy wynik w naszym zestawieniu ma ${top.name} (${top.score}/100). To ocena według jawnej metodologii katalogu (m.in. potwierdzenie w rejestrze, staż, cennik, usługi${portal.features.offers ? " i oferty" : ""}), a nie opinia o jakości obsługi.`,
     });
   }
