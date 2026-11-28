@@ -27,3 +27,4 @@
   facebook.com (19), pewnylokal.pl (13), oferteo.pl (12), znajdom.pl (11), nestivo.pl (10). 70% wzmianek o firmach
   (394 z 562) to firmy z naszego katalogu (178 różnych). Próbka biur rachunkowych uruchomiona ponownie (poprzednie
   uruchomienie wypchnięte z kolejki GitHub przez ponowiony pomiar).
+- Darmowy audyt widoczności w AI, wersja 1 (28.11, gałąź `claude/audyt-mvp`): `/audyt` i `/audyt/<domena>` w `apps/geo` z samych danych w bazie (biblioteka pomiarów + katalog, bez płatnych zapytań), `lib/audit.ts` (normalizacja domeny z ochroną SSRF, wskaźniki z `measure.ts`), `lib/audit-repo.ts`, migracja `db/geo/0004_catalog_read.sql` (SELECT dla `geo_app`, do nałożenia przez właściciela), 23 nowe testy, sprawdzone na lokalnym PostgreSQL 16. Opis: `docs/geo/audyt.md`.
