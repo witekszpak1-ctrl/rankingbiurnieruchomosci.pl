@@ -291,8 +291,10 @@ export default async function PrivacyPolicyPage() {
 
         <h3>2.8. Opinie z Google</h3>
         <p>
-          Na profilach firm pokazujemy ocenę i wybrane opinie z Map Google, pobrane przez dostawcę danych LiteScrape: nazwę
-          autora (tak jak jest widoczna w Google), ocenę, treść, datę i odpowiedź firmy, jeśli jej udzieliła.
+          Na profilach firm pokazujemy średnią ocenę i liczbę opinii z Map Google oraz link do profilu firmy w Mapach.
+          Dane pobiera dostawca LiteScrape. Do zestawień w katalogu (np. czego dotyczą opinie o biurach w danym mieście)
+          przechowujemy też treść opinii: nazwę autora (tak jak jest widoczna w Google), ocenę, treść, datę i odpowiedź
+          firmy. Treści opinii ani nazw autorów nie publikujemy.
         </p>
         <ul className="plain">
           <li>
@@ -304,7 +306,7 @@ export default async function PrivacyPolicyPage() {
             odświeżeniu.
           </li>
           <li>
-            Jeśli jesteś autorem opinii i nie chcesz, żebyśmy ją pokazywali, napisz do nas. Opinię możesz też usunąć w Google.
+            Jeśli jesteś autorem opinii i nie chcesz, żebyśmy ją przechowywali, napisz do nas. Opinię możesz też usunąć w Google.
           </li>
         </ul>
 
