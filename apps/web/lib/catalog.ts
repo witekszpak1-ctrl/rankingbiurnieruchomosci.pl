@@ -1,6 +1,7 @@
 /** Zapytania publicznej części serwisu. Pokazujemy wyłącznie wpisy ze statusem published. */
 
 import { query } from "./db";
+import { memoize } from "./memo";
 import { addressText } from "./format";
 import { isPlausible, priceKind } from "./prices";
 import { median } from "./ranking";
@@ -107,13 +108,19 @@ const CARD_SQL = `
     where brand_id = b.id order by verification_score desc nulls last limit 1
   ) d on true`;
 
-export async function listCities(): Promise<CityRow[]> {
-  return query<CityRow>(
-    `select c.slug, c.name, count(*)::int as listings
-     from cities c join listings l on l.city_id = c.id and l.status = 'published'
-     group by c.id order by listings desc, c.name`,
-  );
-}
+/** Ile trzymamy w pamięci listy miast i wszystkich biur. Worker publikuje raz na godzinę, a godzina opóźnienia na stronie publicznej jest w porządku (decyzja właściciela, 28.11.2026). */
+const CATALOG_TTL_MS = 60 * 60_000;
+
+/** Lista miast jest w nagłówku i stopce każdej strony, więc jest zapamiętana na godzinę. */
+export const listCities = memoize(
+  (): Promise<CityRow[]> =>
+    query<CityRow>(
+      `select c.slug, c.name, count(*)::int as listings
+       from cities c join listings l on l.city_id = c.id and l.status = 'published'
+       group by c.id order by listings desc, c.name`,
+    ),
+  CATALOG_TTL_MS,
+);
 
 export async function getCity(slug: string): Promise<{ id: string; slug: string; name: string; editorial: string | null } | null> {
   const rows = await query<{ id: string; slug: string; name: string; editorial: string | null }>(
@@ -347,24 +354,28 @@ export async function listPublishedPaths(): Promise<SitemapEntry[]> {
 export type TopListing = ListingCard & { cityName: string; citySlug: string };
 
 /** Wszystkie firmy z katalogu, każda raz: z głównego (najwcześniej opublikowanego) wpisu. Ranking ogólnopolski. */
-export async function listAllPublished(): Promise<TopListing[]> {
-  return query<TopListing>(
-    `select card.*, c.name as "cityName", c.slug as "citySlug"
-     from (${CARD_SQL} where l.status = 'published' and l.id = (
-       select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
-       order by l1.published_at nulls last, l1.created_at limit 1)) card
-     join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
-  );
-}
+export const listAllPublished = memoize(
+  (): Promise<TopListing[]> =>
+    query<TopListing>(
+      `select card.*, c.name as "cityName", c.slug as "citySlug"
+       from (${CARD_SQL} where l.status = 'published' and l.id = (
+         select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
+         order by l1.published_at nulls last, l1.created_at limit 1)) card
+       join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
+    ),
+  CATALOG_TTL_MS,
+);
 
 /** Wszystkie opublikowane wpisy z miastem (także oddziały sieci): rankingi miast liczone naraz (wyróżnienia). */
-export async function listPublishedCards(): Promise<TopListing[]> {
-  return query<TopListing>(
-    `select card.*, c.name as "cityName", c.slug as "citySlug"
-     from (${CARD_SQL} where l.status = 'published') card
-     join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
-  );
-}
+export const listPublishedCards = memoize(
+  (): Promise<TopListing[]> =>
+    query<TopListing>(
+      `select card.*, c.name as "cityName", c.slug as "citySlug"
+       from (${CARD_SQL} where l.status = 'published') card
+       join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
+    ),
+  CATALOG_TTL_MS,
+);
 
 /** Opublikowany wpis do odznaki: nazwa, adres profilu i miasto (null, gdy wpisu nie ma albo nie jest opublikowany). */
 export async function getBadgeListing(listingId: string): Promise<{ name: string; slug: string | null; cityName: string; citySlug: string } | null> {
