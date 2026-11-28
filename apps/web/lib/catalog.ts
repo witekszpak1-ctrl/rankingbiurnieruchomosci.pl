@@ -78,7 +78,7 @@ export type ListingDetail = ListingCard & {
   phone: string | null;
   address: string | null;
   socials: { network: string; url: string }[];
-  google: { mapsUrl: string | null; reviews: GoogleReview[] } | null;
+  google: { mapsUrl: string | null } | null;
   updatedAt: Date;
   /** Wszystkie miasta, w których firma ma opublikowany wpis (pierwszy = główny, kanoniczny). */
   cities: { name: string; path: string }[];
@@ -188,8 +188,8 @@ export async function getPublishedListing(citySlug: string, firmSlug: string): P
       `select network, url from social_links where brand_id = $1 order by network`,
       [card.brandId],
     ),
-    query<{ mapsUrl: string | null; reviews: GoogleReview[] }>(
-      `select maps_url as "mapsUrl", reviews from google_places where brand_id = $1 and status = 'ok'`,
+    query<{ mapsUrl: string | null }>(
+      `select maps_url as "mapsUrl" from google_places where brand_id = $1 and status = 'ok'`,
       [card.brandId],
     ).catch(() => []),
     query<{ name: string; path: string }>(

@@ -77,11 +77,11 @@ export default async function MethodologyPage() {
       <ul className="plain">
         <li>Rejestry publiczne: KRS (Ministerstwo Sprawiedliwości) i wykaz podatników VAT (Ministerstwo Finansów).</li>
         <li>Oficjalna strona internetowa firmy: dane kontaktowe, zakres usług, cennik, aktualne oferty.</li>
-        <li>Mapy Google: średnia ocena, liczba opinii i opinie klientów, jeśli biuro ma tam profil.</li>
+        <li>Mapy Google: średnia ocena i liczba opinii, jeśli biuro ma tam profil.</li>
       </ul>
       <p>
-        Opinie klientów pokazujemy tak, jak publikuje je Google: bez zmian, z podpisem źródła i linkiem do profilu
-        biura w Mapach Google. Sami nie piszemy opinii i nie oceniamy obsługi biur. Opisy firm powstają z faktów zapisanych
+        Z opinii klientów pokazujemy tylko średnią ocenę i liczbę opinii z Map Google, z podpisem źródła i linkiem do profilu
+        biura, gdzie można przeczytać same opinie. Sami nie piszemy opinii i nie oceniamy obsługi biur. Opisy firm powstają z faktów zapisanych
         ze źródeł, a każdy fakt ma adres źródła i datę pobrania.
       </p>
 

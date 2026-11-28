@@ -11,7 +11,7 @@ import { TrackEvent } from "@/components/TrackEvent";
 import { Stars } from "@/components/Stars";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { AWARD } from "@/lib/awards";
-import { getPublishedListing, listCityListings, type GoogleReview, type ListingCard } from "@/lib/catalog";
+import { getPublishedListing, listCityListings, type ListingCard } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { optimizedImage, responsiveSrcSet } from "@/lib/images";
 import { absoluteUrl, formatDate, formatOfferPrice, formatPhone, formatPrice } from "@/lib/format";
@@ -26,6 +26,13 @@ import { breadcrumbLd, pageMetadata, postalAddressLd, websiteRef } from "@/lib/s
 import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare } from "@/lib/ranking";
 
 export const revalidate = 300;
+
+// Pusta lista: żaden profil nie powstaje przy budowaniu, każdy renderuje się przy pierwszym wejściu i trafia do
+// pamięci podręcznej na `revalidate` sekund (ISR). Bez tego Next.js renderował profil przy każdym wejściu,
+// także każdego bota, i baza pracowała bez przerwy.
+export async function generateStaticParams(): Promise<{ city: string; firm: string }[]> {
+  return [];
+}
 
 type Props = {
   params: Promise<{ city: string; firm: string }>;
@@ -54,33 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-const REVIEWS_VISIBLE = 3;
-const REVIEWS_MAX = 20; // tyle opinii pokazujemy na profilu, w bazie jest do 50
 const pts = (n: number) => n.toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
-function reviewItem(r: GoogleReview, i: number) {
-  return (
-    <li key={`${r.author}-${i}`}>
-      <span className="review-avatar" aria-hidden="true">
-        {r.author.slice(0, 1).toUpperCase()}
-      </span>
-      <div>
-        <div className="review-meta">
-          <b>{r.author}</b>
-          {r.relative_time && <span>{r.relative_time}</span>}
-          <span className="review-source">Google</span>
-        </div>
-        <Stars value={r.rating} size={16} />
-        <p>{r.text}</p>
-        {r.reply && (
-          <p className="review-reply">
-            <b>Odpowiedź biura:</b> {r.reply}
-          </p>
-        )}
-      </div>
-    </li>
-  );
-}
 
 function rankingInput(
   listing: Pick<ListingCard, "startDate" | "hasPublicPrices" | "verificationScore" | "registryConfirmed" | "servicesCount" | "offersCount" | "googleRating" | "googleCount">,
@@ -134,9 +115,8 @@ const SOCIAL: Record<string, { label: string; path: string }> = {
   x: { label: "X", path: "M4 4l16 16M20 4L4 20" },
 };
 
-export default async function FirmPage({ params, searchParams }: Props) {
+export default async function FirmPage({ params }: Props) {
   const { city, firm } = await params;
-  const sp = (await searchParams) ?? {};
   const listing = await getPublishedListing(city, firm);
   if (!listing) notFound();
   const visiblePrices = listing.prices.filter(isShownOnFirmPage);
@@ -289,31 +269,19 @@ export default async function FirmPage({ params, searchParams }: Props) {
               </section>
             )}
 
-            {listing.google && listing.google.reviews.length > 0 && (
+            {listing.googleRating !== null && (listing.googleCount ?? 0) > 0 && (
               <section className="profile-section" id="opinie">
                 <div className="reviews-head">
                   <h2>Opinie klientów</h2>
-                  {listing.googleRating && (
-                    <span className="reviews-summary">
-                      <Stars value={listing.googleRating} size={16} /> {listing.googleRating.toFixed(1)} · {listing.googleCount}{" "}
-                      opinii
-                    </span>
-                  )}
+                  <span className="reviews-summary">
+                    <Stars value={listing.googleRating} size={16} /> {listing.googleRating.toFixed(1)} · {nOpinii(listing.googleCount ?? 0)} w Google
+                  </span>
                 </div>
-                <ul className="reviews">{listing.google.reviews.slice(0, REVIEWS_VISIBLE).map(reviewItem)}</ul>
-                {listing.google.reviews.length > REVIEWS_VISIBLE && (
-                  <details className="reviews-more">
-                    <summary>
-                      Pokaż więcej opinii ({Math.min(REVIEWS_MAX, listing.google.reviews.length) - REVIEWS_VISIBLE})
-                    </summary>
-                    <ul className="reviews">{listing.google.reviews.slice(REVIEWS_VISIBLE, REVIEWS_MAX).map(reviewItem)}</ul>
-                  </details>
-                )}
                 <p className="note">
-                  Opinie pochodzą z Google i są wyświetlane bez zmian.{" "}
-                  {listing.google.mapsUrl && (
+                  Średnia ocena i liczba opinii z profilu biura w Mapach Google.{" "}
+                  {listing.google?.mapsUrl && (
                     <a href={listing.google.mapsUrl} target="_blank" rel="noopener nofollow">
-                      Zobacz wszystkie opinie w Google Maps
+                      Przeczytaj opinie w Google Maps
                     </a>
                   )}
                 </p>
@@ -599,15 +567,12 @@ export default async function FirmPage({ params, searchParams }: Props) {
               firmName={listing.name}
               where={where}
               path={path}
-              sent={sp.sent === "1"}
-              eventId={typeof sp.eid === "string" ? sp.eid : undefined}
-              error={typeof sp.error === "string" ? sp.error : null}
               imageSlot={<FirmImage src={listing.logoUrl} kind="logo" name={listing.name} alt={`Logo ${listing.name}`} size="sm" />}
             />
           </aside>
         </div>
       </div>
-      {sp.sent === "1" ? null : <ProfileStickyCta />}
+      <ProfileStickyCta />
 
       <JsonLd
         data={{

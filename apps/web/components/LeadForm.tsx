@@ -1,23 +1,13 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { submitLeadAction } from "@/app/[city]/[firm]/actions";
 import { LeadTopicMessage } from "@/components/LeadTopicMessage";
-import { TrackEvent } from "@/components/TrackEvent";
+import { LeadFormStatus } from "@/components/LeadFormStatus";
 import { leadMessage } from "@/lib/lead-message";
 import { operator } from "@/lib/legal";
 import { LEAD_TOPICS, TOPIC_LABEL } from "@/lib/leads";
 import { RETENTION_MONTHS } from "@/lib/legal";
-
-const ERRORS: Record<string, string> = {
-  topic: "Wybierz, w jakiej sprawie piszesz.",
-  name: "Podaj imię (2-100 znaków).",
-  email: "Podaj poprawny adres e-mail.",
-  phone: "Numer telefonu wygląda na niepełny.",
-  message: "Napisz wiadomość (10-2000 znaków).",
-  consent: "Zaznacz zgodę, żebyśmy mogli przekazać zapytanie.",
-  limit: "Wysłano zbyt wiele zapytań w krótkim czasie. Spróbuj za godzinę.",
-  server: "Nie udało się wysłać zapytania. Spróbuj ponownie za chwilę.",
-};
 
 type Props = {
   listingId: string;
@@ -25,13 +15,10 @@ type Props = {
   /** Miasto z przyimkiem ("w Krakowie") do gotowej wiadomości. */
   where: string;
   path: string;
-  sent: boolean;
-  eventId?: string;
-  error: string | null;
   imageSlot?: React.ReactNode;
 };
 
-export function LeadForm({ listingId, firmName, where, path, sent, eventId, error, imageSlot }: Props) {
+export function LeadForm({ listingId, firmName, where, path, imageSlot }: Props) {
   const messages: Record<string, string> = { "": leadMessage("", where) };
   for (const t of LEAD_TOPICS) messages[t] = leadMessage(t, where);
   return (
@@ -43,14 +30,17 @@ export function LeadForm({ listingId, firmName, where, path, sent, eventId, erro
           <h2>{firmName}</h2>
         </div>
       </div>
-      {sent ? (
-        <>
-          <div className="alert ok">Dziękujemy, zapytanie zostało wysłane. Biuro skontaktuje się z Tobą.</div>
-          <TrackEvent name="Lead" params={{ content_name: firmName }} eventId={eventId} serverSent={Boolean(eventId)} />
-        </>
-      ) : (
+      {/* Bez JavaScriptu i przed odczytem adresu widać zwykły formularz. */}
+      <Suspense fallback={form(listingId, firmName, path, messages)}>
+        <LeadFormStatus firmName={firmName}>{form(listingId, firmName, path, messages)}</LeadFormStatus>
+      </Suspense>
+    </section>
+  );
+}
+
+function form(listingId: string, firmName: string, path: string, messages: Record<string, string>) {
+  return (
         <form action={submitLeadAction} className="lead-form">
-          {error && <div className="alert bad">{ERRORS[error] ?? ERRORS.server}</div>}
           <input type="hidden" name="listing" value={listingId} />
           <input type="hidden" name="back" value={path} />
           <div className="hp" aria-hidden="true">
@@ -86,7 +76,5 @@ export function LeadForm({ listingId, firmName, where, path, sent, eventId, erro
             <Link href="/regulamin">Regulamin</Link>.
           </p>
         </form>
-      )}
-    </section>
   );
 }
