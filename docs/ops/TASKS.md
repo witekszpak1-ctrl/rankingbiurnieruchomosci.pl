@@ -24,8 +24,8 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       automatycznie w CI. Parsery tolerancyjne - kształt `text_blocks`, `references`, `ai_overview` do potwierdzenia na żywo (`--save-raw`).
 - [ ] Monitoring co tydzień (poniedziałek): workflow geo-measure z harmonogramem; jeśli harmonogram GitHub nie ruszy,
       zaplanowana sesja w poniedziałek wypycha gałąź run/geo-measure z parametrami 20 miast, 3 pytania
-- [ ] Dokładny koszt zapytań AI w LiteScrape (pole `billed` w odpowiedzi, saldo w /admin/koszty)
-- [ ] Darmowy audyt: normalizacja domeny, odczyt z rejestru firm katalogu, skan strony, prompty, pomiary, raport
+- [x] Koszt zapytań AI w LiteScrape: pole `billed` to tylko true (zapytanie policzone), jedna odpowiedź = jedno zapytanie z salda (ok. 0,15 USD za 1000); różnicę sprawdzać w saldzie /admin/koszty
+- [~] Darmowy audyt: wersja 1 z pomiarów biblioteki i katalogu (bez nowych zapytań), agent na gałęzi claude/audyt-mvp
 - [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
 - [ ] Faktury zgodne z KSeF (wybór programu do faktur)
 - [x] Silnik uprawnień (`apps/geo/lib/entitlements.ts`): limity z `plans.entitlements`, powrót do Free przy zaległości
