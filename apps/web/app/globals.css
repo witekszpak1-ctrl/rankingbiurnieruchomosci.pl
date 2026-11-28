@@ -1063,3 +1063,19 @@ html[data-theme="rachunkowe"] .mnav-btn { border-color: var(--line); border-radi
 html[data-theme="rachunkowe"] .mnav-btn span { background: var(--fg); }
 html[data-theme="rachunkowe"] .mnav-panel li a[aria-current="page"] { color: #9fd9d1; }
 html[data-theme="rachunkowe"] .mnav-cta { background: #fff; color: var(--fg); border-radius: 6px; }
+
+/* Warstwa Premium profilu ("Informacje od firmy"): wyraźnie odseparowana od danych zweryfikowanych. */
+.premium-layer { margin-top: 44px; border-top: 2px dashed var(--line); padding-top: 4px; }
+.premium-layer .profile-section { margin-top: 30px; }
+.premium-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
+.premium-head h2 { margin: 0 !important; }
+.premium-tag { display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em; color: var(--warn); background: var(--warn-soft); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.premium-team { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.premium-team li { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 2px; }
+.premium-team span { color: var(--muted); font-size: 0.92rem; }
+.premium-gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.premium-gallery img { width: 100%; height: 160px; object-fit: cover; border-radius: var(--radius); display: block; background: var(--paper-2); }
+.premium-note { margin-top: 18px; }
+.preview-banner { background: var(--warn-soft); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin: 12px 0; }
+.audit-box { margin-top: 16px; background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 8px; }
+.audit-box p { margin: 0; color: var(--muted); font-size: 0.95rem; }

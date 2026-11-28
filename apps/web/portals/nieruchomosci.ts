@@ -24,6 +24,10 @@ export const nieruchomosci: PortalConfig = {
     goals: true,
     saleCommission: true,
   },
+  ranking: {
+    // Wagi jak dotąd (metodologia 1.1, /metodologia): suma 90, udział w punktach liczy weightShare.
+    weights: { rejestr: 20, staz: 10, jawnosc_cennika: 15, spojnosc_danych: 10, zakres_uslug: 10, opinie_google: 10, aktualne_oferty: 15 },
+  },
   catalogView: {
     // Cel klienta filtruje biura po deklarowanych usługach (grupy z serviceGroups).
     goals: {

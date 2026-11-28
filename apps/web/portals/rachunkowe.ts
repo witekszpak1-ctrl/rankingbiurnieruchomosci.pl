@@ -27,6 +27,10 @@ export const rachunkowe: PortalConfig = {
     goals: false,
     saleCommission: false,
   },
+  ranking: {
+    // Wagi jak w portalu nieruchomości, bez parametru ofert (portal ich nie ma). Docelowo własne wagi z vertical.yaml.
+    weights: { rejestr: 20, staz: 10, jawnosc_cennika: 15, spojnosc_danych: 10, zakres_uslug: 10, opinie_google: 10 },
+  },
   catalogView: {
     goals: {},
     filters: {

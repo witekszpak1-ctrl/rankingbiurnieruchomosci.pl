@@ -35,12 +35,14 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 ## Katalogi
 
 - [x] Opinie Google na profilach: tylko ocena, liczba i link (wdrożone 28.11)
-- [ ] Przycisk "sprawdź widoczność w AI" na profilach (gdy audyt GeoTrace będzie działał publicznie)
+- [~] Przycisk "sprawdź widoczność w AI" na profilach: gotowy na gałęzi claude/premium, pokazuje się po ustawieniu `NEXT_PUBLIC_GEO_AUDIT_URL` (dziś nieustawione, produkcja bez zmian)
 - [!] DNS rankingbiurnieruchomosci.pl do Cloudflare (właściciel: dodanie strony w Cloudflare i zmiana serwerów DNS w aftermarket.pl)
 
 - [ ] Wielobranżowość strony: konfiguracja portalu z bazy, teksty branży z pakietu, nie z kodu
 - [ ] Motywy i warianty układu per portal (decyzja: portale mają się różnić)
-- [ ] Profil Premium: dodatkowe dane w tym samym rendererze, oznaczone, bez wpływu na wynik
+- [~] Profil Premium: gałąź claude/premium (render sekcji "Informacje od firmy", podgląd szkicu `/podglad/<token>`, tabela `listing_premium`, testy; opis `docs/geo/profil-premium.md`). Przed scaleniem: właściciel nakłada `db/migrations/0022_listing_premium.sql`. Dalej: zapisy z GeoTrace (migracja z prawami zapisu), generowanie linków podglądu
+- [~] Strony miast w ISR: widok domyślny `/[city]` z pamięci podręcznej, filtry i strony (`?cel=`, `?filtr=`, `?strona=`) przez przepisanie na `/widok/[city]` (gałąź claude/premium); po wdrożeniu sprawdzić na Vercelu nagłówki i obciążenie Neona
+- [x] Wagi rankingu z konfiguracji portalu (`ranking.weights` w `portals/*.ts`), wyniki nieruchomości bez zmian (test z wartościami referencyjnymi; gałąź claude/premium)
 - [ ] Powiadomienia z art. 14 RODO do firm (informacja bez reklamy)
 - [~] Silnik wielu branż w stronie (apps/web): branża, nazwy, teksty, dane strukturalne i wygląd z konfiguracji
   - krok 1 zrobiony: konfiguracja portalu (`lib/portal.ts`, `portals/nieruchomosci.ts`), część wspólna (nazwa, adres, meta, llms, manifest, stopka, dane strukturalne, motyw `data-theme`) na konfiguracji, bez zmiany wyglądu; zostaje wybór po domenie, motywy i układy per portal, reszta tekstów (`docs/geo/silnik-branz.md`)
