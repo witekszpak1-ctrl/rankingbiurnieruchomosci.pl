@@ -34,6 +34,19 @@ search:
     - "{specialization} {city}"
     - "{synonym} {specialization} {city}"
   max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "biuro nieruchomości {city}"
+    - "agencja nieruchomości {city}"
+    - "pośrednik nieruchomości {city}"
+  # Dokładne przeszukanie dużego miasta: dodatkowa fraza w liczbie mnogiej i fraza na dzielnicę.
+  deep_phrases:
+    - "biuro nieruchomości {city}"
+    - "agencja nieruchomości {city}"
+    - "pośrednik nieruchomości {city}"
+    - "biura nieruchomości {city}"
+  district_phrase: "biuro nieruchomości {city} {district}"
+  maps_phrase: "biuro nieruchomości"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
 
 publication:
   min_facts: 6          # minimalna liczba zweryfikowanych faktów, by wpis wszedł do indeksu (propozycja)

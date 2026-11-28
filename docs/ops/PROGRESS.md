@@ -16,3 +16,4 @@
   w geo.measurements z firmami i źródłami. Po przeglądzie poprawione: nazwy miejsc (miasto, dzielnice) nie dają
   dopasowań do firm, śródtytuły nie są firmami, linki Google (Mapy, wyszukiwanie) nie są źródłami. Te 6 pierwszych
   pomiarów ma wzmianki według starszych reguł (dane testowe).
+- Pakiet branży biura rachunkowe (`packages/verticals/rachunkowe`: konfiguracja, prompty, miasta, opis zestawu wzorcowego) i uogólnienie robota (frazy miasta, Mapy, lista domen wykluczonych, ścieżki plików z `--vertical`; bez zmiany zachowania dla nieruchomości), testy `test_verticals_pack.py` bez sieci. Próbka 200 firm: ok. 4400 zapytań LiteScrape, ok. 0,66 USD (do zgody właściciela). Blokery przed zbieraniem: `domains` bez `vertical_id`, wspólna kolejka miast (`docs/geo/branza-rachunkowe.md`).

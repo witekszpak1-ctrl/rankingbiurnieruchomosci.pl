@@ -181,24 +181,20 @@ def _pages(query: str, pages: int) -> list[str]:
 
 
 def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[str]], pages: int = 3) -> list[str]:
-    """Zapytania tak, jak szuka klient: "biuro nieruchomości", "agencja nieruchomości", "pośrednik nieruchomości",
-    z kolejnymi stronami wyników Google zamiast fraz typu "sprzedaż domów", które zwracają deweloperów i portale.
+    """Zapytania tak, jak szuka klient (frazy z konfiguracji branży, np. "biuro nieruchomości {city}"), z kolejnymi
+    stronami wyników Google zamiast fraz typu "sprzedaż domów", które zwracają deweloperów i portale.
 
     pages: stron wyników (po 10) na frazę, z panelu (LiteScrape: wyników na frazę, domyślnie 30 = 3 strony).
     Duże miasto (dokładnie): dwie strony więcej na główne frazy i po jednej frazie na dzielnicę."""
+    search = ctx.vertical.search
     pages = max(1, min(30, pages))
     if not deep:
-        return (_pages(f"biuro nieruchomości {city}", pages) + _pages(f"agencja nieruchomości {city}", pages)
-                + _pages(f"pośrednik nieruchomości {city}", pages))
+        return [q for phrase in search.core_phrases() for q in _pages(phrase.format(city=city), pages)]
     main = min(30, pages + 2)
-    queries = (
-        _pages(f"biuro nieruchomości {city}", main)
-        + _pages(f"agencja nieruchomości {city}", main)
-        + _pages(f"pośrednik nieruchomości {city}", main)
-        + _pages(f"biura nieruchomości {city}", main)
-    )
-    for district in districts.get(city, []):
-        queries += _pages(f"biuro nieruchomości {city} {district}", pages)
+    queries = [q for phrase in search.deep_core_phrases() for q in _pages(phrase.format(city=city), main)]
+    if search.district_phrase:
+        for district in districts.get(city, []):
+            queries += _pages(search.district_phrase.format(city=city, district=district), pages)
     return queries
 
 
@@ -1164,6 +1160,7 @@ def stage_google_reviews(ctx: Context, client, config, limit: int = 400, max_age
         return fetch_place(
             client, row["name"], row["city"], row["website"],
             lambda found: name_similarity(row["name"], found) >= 0.6, config.reviews_per_place,
+            ctx.vertical.search.maps_label(),
         )
 
     with ThreadPoolExecutor(max_workers=10) as pool:  # LiteScrape pozwala na 25 zapytań naraz

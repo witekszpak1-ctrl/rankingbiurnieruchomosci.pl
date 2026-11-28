@@ -82,9 +82,9 @@ def _rating(value) -> float | None:
 
 
 def fetch_place(client: LiteScrapeClient, name: str, city: str, website: str | None, name_ok,
-                reviews_per_place: int = 50) -> PlaceResult:
+                reviews_per_place: int = 50, label: str = "biuro nieruchomości") -> PlaceResult:
     try:
-        data = client.maps_search(f"{name} biuro nieruchomości {city}")
+        data = client.maps_search(f"{name} {label} {city}")
     except LiteScrapeError as exc:
         return PlaceResult(status="error", http_status=exc.status, unavailable=isinstance(exc, LiteScrapeUnavailable))
     places = data.get("local_results") if isinstance(data.get("local_results"), list) else []

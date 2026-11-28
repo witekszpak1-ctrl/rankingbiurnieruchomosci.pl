@@ -1,0 +1,110 @@
+# Konfiguracja branży: biura rachunkowe (portal nr 2, decyzja właściciela z 28.11.2026).
+# Pakiet jest gotowy do zbierania danych, ale zbieranie (płatne zapytania LiteScrape) rusza dopiero po zgodzie
+# właściciela na budżet. Zmiany wersjonujemy w bazie (vertical_versions).
+slug: rachunkowe
+name: Biura rachunkowe
+domain: TBD   # domenę kupuje właściciel, do tego czasu brak adresu portalu
+
+registry:
+  # Kod PKD 69.20.Z: działalność rachunkowo-księgowa, doradztwo podatkowe. Spółki: lista z KRS, JDG: CEIDG.
+  # Uwaga: ten sam kod mają doradcy podatkowi (zawód regulowany), a wiele biur rachunkowych ma jako główny inny kod
+  # (np. 82.11.Z, 70.22.Z), więc rejestr daje listę niekompletną: zgodność PKD wzmacnia wynik, jej brak nie odrzuca.
+  pkd: ["69.20.Z"]
+  expected_pkd: ["69.20.Z"]
+
+# Słowa kluczowe trafności strony (porównywane po zamianie na małe litery, jako podciągi).
+keywords:
+  - rachunkow
+  - księgow
+  - ksiegow
+  - kadry
+  - płace
+
+search:
+  country: pl
+  language: pl
+  synonyms:
+    - biuro rachunkowe
+    - księgowa
+    - usługi księgowe
+    - kancelaria podatkowa   # doradcy podatkowi to zawód regulowany: wpisy z tej frazy oznaczamy (docs/geo/branza-rachunkowe.md)
+  specializations:
+    - pełna księgowość
+    - KPiR
+    - ryczałt
+    - kadry i płace
+    - księgowość JDG
+    - księgowość spółek
+    - księgowość e-commerce
+    - rozliczenia VAT
+    - KSeF
+  templates:
+    - "{synonym} {city}"
+    - "{specialization} {city}"
+    - "{synonym} {specialization} {city}"
+  max_queries_per_city: 40
+  # Kolejka miast z panelu (discover-queue): trzy frazy tak, jak szuka klient, z kolejnymi stronami wyników Google.
+  city_phrases:
+    - "biuro rachunkowe {city}"
+    - "księgowa {city}"
+    - "usługi księgowe {city}"
+  # Dokładne przeszukanie dużego miasta: czwarta fraza. Bez fraz na dzielnice (biura rachunkowe obsługują zdalnie,
+  # a dzielnice nic nie wnoszą), więc nie ma pliku districts.json.
+  deep_phrases:
+    - "biuro rachunkowe {city}"
+    - "księgowa {city}"
+    - "usługi księgowe {city}"
+    - "księgowość dla firm {city}"
+  maps_phrase: "biuro rachunkowe"   # zapytanie do Map Google: "<nazwa firmy> <fraza> <miasto>"
+
+publication:
+  min_facts: 6          # minimalna liczba zweryfikowanych faktów, by wpis wszedł do indeksu (propozycja jak w nieruchomościach)
+
+pricing:
+  # Usługi, dla których zbieramy ceny. Jednostki mieszczą się w schemacie cen (percent, pln, pln_per_month, other):
+  # "other" dla stawek za pracownika, dokument albo rok (szczegół w polu conditions wyniku).
+  services:
+    - name: abonament miesięczny KPiR
+      unit: pln_per_month
+    - name: abonament miesięczny ryczałt
+      unit: pln_per_month
+    - name: pełna księgowość od
+      unit: pln_per_month
+    - name: kadry i płace od pracownika
+      unit: other
+      note: stawka za pracownika miesięcznie
+    - name: założenie firmy (JDG, spółka)
+      unit: pln
+    - name: roczne rozliczenie PIT
+      unit: pln
+    - name: księgowość e-commerce
+      unit: pln_per_month
+
+# Domeny, które w tej branży nigdy nie są stroną jednego biura (oprogramowanie księgowe, serwisy poradnikowe, urzędy).
+# Lista startowa do potwierdzenia na próbce wzorcowej (golden/).
+blocklist:
+  infakt.pl: marketplace
+  wfirma.pl: marketplace
+  ifirma.pl: marketplace
+  fakturownia.pl: marketplace
+  saldeo.pl: marketplace
+  ksiegowosc.infor.pl: media
+  poradnikprzedsiebiorcy.pl: media
+  gofin.pl: media
+  podatki.gov.pl: media
+  ceidg.gov.pl: directory
+
+# Propozycja wag startowych (suma 100), do strojenia na pilocie. Parametry bez danych są pomijane, wagi renormalizowane.
+# Każdy parametr musi być mierzalny ze strony firmy albo z rejestru. Płatność nie wpływa na wynik.
+ranking:
+  weights:
+    staz: 10               # data wpisu do rejestru (KRS, CEIDG): długość działania, jak w nieruchomościach
+    jawnosc_cennika: 20    # cennik na stronie (price_items): główna przewaga porównywarki, stąd najwyższa waga
+    zakres_uslug: 15       # księgowość, kadry i płace, doradztwo podatkowe, rejestracja firmy, KSeF: szerokość oferty
+    uprawnienia: 10        # certyfikat księgowy MF, członkostwo w stowarzyszeniu (np. SKwP), doradca podatkowy: tylko deklarowane na stronie, z cytatem
+    ubezpieczenie_oc: 10   # polisa OC jest obowiązkowa dla biur rachunkowych: jawna informacja o ubezpieczeniu (z cytatem)
+    opinie_google: 10      # ocena i liczba opinii z Map Google (po zebraniu próby)
+    spojnosc_danych: 10    # zgodność NAP (nazwa, adres, telefon) strony z rejestrem, aktywna strona, HTTPS
+    skala: 5               # zespół, liczba obsługiwanych klientów, oddziały (jeśli jawne)
+    jakosc_techniczna: 5   # szybkość i mobilność strony
+    czas_reakcji: 5        # czas reakcji na zapytania z portalu (po zebraniu danych)

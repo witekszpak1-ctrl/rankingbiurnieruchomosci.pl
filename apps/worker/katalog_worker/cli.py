@@ -12,7 +12,7 @@ from .config import Settings
 from .db import connect, migrate
 from .fetch import PoliteFetcher
 from .queries import build_queries
-from .verticals import load_vertical
+from .verticals import load_vertical, vertical_path
 
 
 _LAST: dict = {}
@@ -42,8 +42,12 @@ def _context(args, conn):
     from .pipeline import Context
     from .repo import Repo
 
+    from .classify import DEFAULT_BLOCKLIST
+
     settings = Settings()
-    return Context(Repo(conn), load_vertical(args.vertical), settings.snapshots_dir, settings.queue_dir), settings
+    vertical = load_vertical(args.vertical)
+    blocklist = {**DEFAULT_BLOCKLIST, **vertical.blocklist}
+    return Context(Repo(conn), vertical, settings.snapshots_dir, settings.queue_dir, blocklist), settings
 
 
 def _fetcher(settings: Settings, litescrape=None):
@@ -145,7 +149,8 @@ def cmd_discover_queue(args) -> int:
     from .pipeline import stage_discover_queue
     from .search import SearchError, make_provider
 
-    districts = json.loads(Path(args.districts).read_text(encoding="utf-8")) if Path(args.districts).exists() else {}
+    districts_path = Path(args.districts) if args.districts else vertical_path(args.vertical, "districts.json")
+    districts = json.loads(districts_path.read_text(encoding="utf-8")) if districts_path.exists() else {}
     districts = {k: v for k, v in districts.items() if isinstance(v, list)}
     with connect() as conn:
         ctx, _ = _context(args, conn)
@@ -284,7 +289,7 @@ def cmd_cities(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        result = stage_cities_sync(ctx, read_city_list(Path(args.file)))
+        result = stage_cities_sync(ctx, read_city_list(Path(args.file) if args.file else vertical_path(args.vertical, "cities.txt")))
         if args.export:
             out = Path(args.export)
             out.parent.mkdir(parents=True, exist_ok=True)
@@ -583,7 +588,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--provider", choices=["auto", "litescrape", "brave", "serper"], default="auto",
                    help="auto = LiteScrape (klucz w panelu), a w zapasie Serper")
     p.add_argument("--cities", type=int, default=15, help="ile miast w jednym przebiegu")
-    p.add_argument("--districts", default="packages/verticals/nieruchomosci/districts.json")
+    p.add_argument("--districts", help="domyślnie packages/verticals/<--vertical>/districts.json")
     p = add("probe", cmd_probe, "S3: pobierz stronę główną i kontakt, sklasyfikuj")
     p.add_argument("--limit", type=int, default=50)
     p = add("verify", cmd_verify, "S4: NIP -> rejestry -> weryfikacja domeny")
@@ -609,7 +614,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=200)
     p.add_argument("--dry-run", action="store_true", help="tylko raport na stderr, bez zapisu w bazie")
     p = add("cities", cmd_cities, "dopisz miasta z listy branży do bazy i zapisz kolejkę wyszukiwania")
-    p.add_argument("--file", default="packages/verticals/nieruchomosci/cities.txt")
+    p.add_argument("--file", help="domyślnie packages/verticals/<--vertical>/cities.txt")
     p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
     p = add("prompts", cmd_prompts, "zapisz prompt opisów z panelu do pliku dla sesji Claude", vertical=False)
     p.add_argument("--export", default="queue/prompts/describe.md")
