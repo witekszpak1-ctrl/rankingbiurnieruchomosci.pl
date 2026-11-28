@@ -2,6 +2,12 @@
 
 Jedno źródło prawdy dla agentów. Nowa decyzja na górze, z datą i źródłem.
 
+## 28.11.2026 (właściciel: budżety)
+
+- Pomiary widoczności w AI (LiteScrape: Gemini, Google AI Mode, AI Overview): bez limitu budżetu. Technicznie bezpiecznik
+  1000 zapytań na jeden przebieg. Monitoring co tydzień: 20 największych miast, 3 pytania, 3 platformy.
+- Próbka biur rachunkowych: budżet do 2 USD w LiteScrape, po naprawie robota pod wiele branż i teście na jednym mieście.
+
 ## 28.11.2026 (właściciel: wszystkie 20 branż po kolei)
 
 Kolejność portali (20 branż z briefu w 18 portalach; fotowoltaika, pompy ciepła i klimatyzacja to jeden portal, decyzja z pkt 2):

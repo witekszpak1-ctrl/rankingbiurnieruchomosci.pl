@@ -22,6 +22,8 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       --max-age-days 7 --save-raw KATALOG --dry-run` (`apps/worker/katalog_worker/geo_measure.py`). Płatne: twardy limit 50 zapytań,
       domyślnie 20; świeży pomiar (ten sam klucz pamięci co w `apps/geo/lib/measure.ts`) jest używany ponownie. Nie uruchamiany
       automatycznie w CI. Parsery tolerancyjne - kształt `text_blocks`, `references`, `ai_overview` do potwierdzenia na żywo (`--save-raw`).
+- [ ] Monitoring co tydzień (poniedziałek): workflow geo-measure z harmonogramem; jeśli harmonogram GitHub nie ruszy,
+      zaplanowana sesja w poniedziałek wypycha gałąź run/geo-measure z parametrami 20 miast, 3 pytania
 - [ ] Dokładny koszt zapytań AI w LiteScrape (pole `billed` w odpowiedzi, saldo w /admin/koszty)
 - [ ] Darmowy audyt: normalizacja domeny, odczyt z rejestru firm katalogu, skan strony, prompty, pomiary, raport
 - [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
@@ -47,7 +49,7 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       eksport promptu z panelu dla każdej branży (szczegóły: docs/geo/branza-rachunkowe.md)
 - [ ] Silnik wielu branż, krok 2: wybór portalu po domenie (middleware, stałe zamienione na funkcje), reszta tekstów
       ze stron, motyw i wariant układu dla portalu biur rachunkowych (docs/geo/silnik-branz.md)
-- [!] Próbka 200 biur rachunkowych i raport jakości (zgoda na budżet LiteScrape, zapytano o 2 USD)
+- [ ] Próbka 200 biur rachunkowych i raport jakości (zgoda na 2 USD, po robocie wielobranżowym; najpierw 1 miasto)
 - [!] Domena portalu biur rachunkowych (właściciel)
 - [ ] Kolejne branże według tabeli w DECISIONS.md (nr 3-18), po jednej, każda przez bramkę jakości
 

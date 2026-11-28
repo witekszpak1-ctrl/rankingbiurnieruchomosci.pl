@@ -26,7 +26,7 @@ OWN_PORTAL_DOMAIN = "rankingbiurnieruchomosci.pl"
 PROVIDER = "litescrape"
 LOCATION = "Poland"
 LANGUAGE = "pl"
-HARD_CAP = 50  # twardy limit płatnych zapytań na jedno uruchomienie
+HARD_CAP = 1000  # bezpiecznik na jedno uruchomienie (budżet bez limitu, decyzja właściciela z 28.11.2026)
 EXCERPT_CHARS = 2000
 
 

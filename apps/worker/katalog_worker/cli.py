@@ -625,11 +625,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--per-endpoint", type=int, default=4)
     p.add_argument("--no-search", action="store_true", help="bez testu bloku AI w zwykłym wyszukiwaniu")
     p = add("geo-measure", cmd_geo_measure,
-            "pomiary odpowiedzi AI (Gemini, AI Mode, AI Overview) przez LiteScrape do schematu geo (płatne, twardy limit 50)")
+            "pomiary odpowiedzi AI (Gemini, AI Mode, AI Overview) przez LiteScrape do schematu geo (płatne, bezpiecznik 1000 na przebieg)")
     p.add_argument("--cities", type=int, default=3, help="ile największych miast (wg opublikowanych wpisów)")
     p.add_argument("--platforms", default="gemini,google_ai_mode,google_ai_overview")
     p.add_argument("--per-city-prompts", type=int, default=2, help="ile pytań z biblioteki na miasto")
-    p.add_argument("--max-calls", type=int, default=20, help="limit płatnych zapytań (twardy sufit 50)")
+    p.add_argument("--max-calls", type=int, default=20, help="limit płatnych zapytań (bezpiecznik 1000)")
     p.add_argument("--max-age-days", type=int, default=7, help="świeży pomiar młodszy niż tyle dni jest używany ponownie")
     p.add_argument("--save-raw", help="katalog na surowe odpowiedzi (jeden plik JSON na pomiar)")
     p.add_argument("--dry-run", action="store_true", help="tylko pokaż plan i trafienia pamięci podręcznej, bez zapytań")

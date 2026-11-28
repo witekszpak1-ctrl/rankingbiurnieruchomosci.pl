@@ -1,5 +1,5 @@
-# Pomiary odpowiedzi AI do schematu geo (GeoTrace) przez LiteScrape. Płatne zapytania: tylko ręcznie albo po
-# wypchnięciu gałęzi run/geo-measure, z twardym limitem zapytań. Surowe odpowiedzi trafiają do repozytorium kolejki.
+# Pomiary odpowiedzi AI do schematu geo (GeoTrace) przez LiteScrape. Płatne zapytania bez limitu budżetu (decyzja
+# właściciela z 28.11.2026), z bezpiecznikiem na przebieg. Surowe odpowiedzi trafiają do repozytorium kolejki.
 name: geo-measure
 
 on:
@@ -13,6 +13,10 @@ on:
         default: "6"
   push:
     branches: ["run/geo-measure"]
+  schedule:
+    # Co tydzień w poniedziałek: biblioteka 20 największych miast, 3 pytania, 3 platformy (ok. 180 zapytań).
+    # Harmonogramy GitHub bywają zawodne, więc zaplanowana sesja Claude też może uruchomić pomiar (push run/geo-measure).
+    - cron: "41 3 * * 1"
 
 concurrency:
   group: katalog-offers
@@ -35,9 +39,9 @@ jobs:
         run: bash scripts/queue_sync.sh pull
       - name: Pomiary
         env:
-          CITIES: ${{ inputs.cities || '1' }}
-          PROMPTS: ${{ inputs.prompts || '2' }}
-          MAX_CALLS: ${{ inputs.max_calls || '6' }}
+          CITIES: ${{ inputs.cities || (github.event_name == 'schedule' && '20') || '1' }}
+          PROMPTS: ${{ inputs.prompts || (github.event_name == 'schedule' && '3') || '2' }}
+          MAX_CALLS: ${{ inputs.max_calls || (github.event_name == 'schedule' && '1000') || '6' }}
         run: katalog geo-measure --cities "$CITIES" --per-city-prompts "$PROMPTS" --max-calls "$MAX_CALLS" --save-raw queue/results/reports/geo-raw
       - name: Surowe odpowiedzi do kolejki
         if: always()

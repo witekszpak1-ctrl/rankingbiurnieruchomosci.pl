@@ -256,10 +256,13 @@ def test_run_calls_saves_and_respects_cap():
     assert status == "done" and mentions[0].brand_id == "b-alfa"
 
 
-def test_run_hard_cap_50():
+def test_run_safety_cap():
     store, client = FakeStore(), FakeClient()
-    report = run(store, client, cities=3, per_city=4, max_calls=500, platforms=["gemini", "google_ai_mode", "google_ai_overview"])
-    assert report["cap"] == 50 and len(client.calls) == 36  # 3 miasta x 4 pytania x 3 platformy < 50
+    report = run(store, client, cities=3, per_city=4, max_calls=5000, platforms=["gemini", "google_ai_mode", "google_ai_overview"])
+    assert report["cap"] == 1000 and len(client.calls) == 36  # 3 miasta x 4 pytania x 3 platformy, bezpiecznik 1000
+    store2, client2 = FakeStore(), FakeClient()
+    run(store2, client2, cities=3, per_city=4, max_calls=10, platforms=["gemini", "google_ai_mode", "google_ai_overview"])
+    assert len(client2.calls) == 10
 
 
 def test_run_skips_cached_and_records_failure():
