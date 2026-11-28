@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Widoczność firmy w AI", template: "%s" },
+  title: { default: "GeoTrace: widoczność firmy w AI", template: "%s | GeoTrace" },
   description: "Sprawdź, czy ChatGPT i Gemini polecają Twoją firmę, i popraw to na podstawie pomiarów.",
   // Do czasu wyboru domeny i startu sprzedaży strona nie trafia do wyszukiwarek.
   robots: { index: false, follow: false },
@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <header className="site">
           <div className="wrap">
-            <Link href="/" className="logo">widoczność.ai</Link>
+            <Link href="/" className="logo">GeoTrace</Link>
             <nav className="top">
               <Link href="/partner">Program partnerski</Link>
               <Link href="/panel">Moje konto</Link>
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="wrap">{children}</div>
         </main>
         <footer className="site">
-          <div className="wrap">Wersja robocza platformy. Nazwa i domena do ustalenia.</div>
+          <div className="wrap">GeoTrace (nazwa robocza, geotrace.pl). Wersja robocza platformy.</div>
         </footer>
       </body>
     </html>
