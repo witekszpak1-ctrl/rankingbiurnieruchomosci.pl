@@ -162,12 +162,15 @@ def collect_citations(value, out: list[tuple[str, str, str | None]] | None = Non
         url = next((value[k] for k in ("link", "url") if isinstance(value.get(k), str) and value[k].startswith("http")), None)
         if url and url not in seen:
             domain = domain_of(url)
-            if domain:
+            # Linki Google (wizytówki Map, adres wyszukiwania) to nie źródła odpowiedzi.
+            if domain and not re.match(r"^(?:[a-z0-9-]+\.)*google\.[a-z.]+$", domain):
                 seen.add(url)
                 title = next((str(value[k]).strip() for k in ("title", "source", "name")
                               if isinstance(value.get(k), str) and value[k].strip()), None)
                 out.append((url, domain, title[:300] if title else None))
-        for v in value.values():
+        for k, v in value.items():
+            if k in ("search_metadata", "search_parameters"):
+                continue
             if isinstance(v, (dict, list)):
                 collect_citations(v, out, seen, depth + 1)
     elif isinstance(value, list):
@@ -295,9 +298,37 @@ class _Brand:
     case_sensitive: bool
 
 
-def _prepare_brands(known_brands) -> list[_Brand]:
+def geo_stems(names: Iterable[str]) -> set[str]:
+    """Rdzenie nazw miejsc (miasto, dzielnice): "Warszawa" -> "warsz", żeby pasowało też "warszawski", "Warszawie"."""
+    stems = set()
+    for n in names:
+        for t in re.split(r"[^a-z0-9]+", fold(n)):
+            if len(t) >= 4:
+                stems.add(t[: max(4, len(t) - 2)])
+    return stems
+
+
+def _is_geo(token: str, stems: set[str]) -> bool:
+    return any(token.startswith(st) for st in stems)
+
+
+def _full_pattern(name: str) -> re.Pattern[str] | None:
+    """Cała nazwa ze słowami ogólnymi ("Warszawski Pośrednik Nieruchomości"), gdy istotne słowa to same nazwy miejsc."""
+    toks = [t for t in re.split(r"[^a-z0-9]+", fold(name)) if t and t not in {"sp", "z", "o", "oo", "zoo", "sc", "s", "c", "sa", "sk"}]
+    if len(toks) < 2:
+        return None
+    body = r"[^a-z0-9]+".join(re.escape(t) for t in toks)
+    return re.compile(rf"(?<![a-z0-9]){body}(?![a-z0-9])")
+
+
+def _prepare_brands(known_brands, stems: set[str] | None = None) -> list[_Brand]:
     out = []
     for brand_id, name, domains in known_brands:
+        sig = significant_tokens(name)
+        if stems and sig and all(_is_geo(t, stems) for t in sig):
+            full = _full_pattern(name)
+            out.append(_Brand(str(brand_id), name, [d.lower().removeprefix("www.") for d in (domains or []) if d], full, False))
+            continue
         pat = _name_pattern(name)
         out.append(_Brand(str(brand_id), name, [d.lower().removeprefix("www.") for d in (domains or []) if d],
                           pat[0] if pat else None, bool(pat and pat[1])))
@@ -345,7 +376,16 @@ def _candidate_ok(name: str) -> bool:
     toks = fold(name)
     if toks.strip(" :.") in _BLOCK_CANDIDATES or not significant_tokens(name):
         return False
-    return not name.endswith(":")
+    if name.endswith(":") or re.search(r"\bvs\.?\b|\?", name, re.I):
+        return False
+    # Nazwa własna: najwyżej 5 słów, każde dłuższe słowo zaczyna się wielką literą lub cyfrą
+    # (odrzuca śródtytuły typu "Wysokość prowizji", "Umowa otwarta na wyłączność").
+    words = [w for w in re.split(r"[\s/&+,-]+", name) if w]
+    if len(words) > 5:
+        return False
+    legal = {"sp", "z", "oo", "zoo", "sc", "sa", "sk", "spk", "spj", "i"}
+    return all(not w[0].isalpha() or w[0].isupper() or fold(w).replace(".", "") in legal
+               for w in words if len(w) >= 3)
 
 
 def _line_bounds(text: str, start: int, end: int) -> tuple[int, int]:
@@ -354,7 +394,7 @@ def _line_bounds(text: str, start: int, end: int) -> tuple[int, int]:
     return a, len(text) if b < 0 else b
 
 
-def extract_mentions(answer_text: str, highlighted: list[str], known_brands, citations=()) -> list[Mention]:
+def extract_mentions(answer_text: str, highlighted: list[str], known_brands, citations=(), places: Iterable[str] = ()) -> list[Mention]:
     """Firmy wymienione w odpowiedzi, w kolejności pierwszego wystąpienia.
 
     known_brands: lista (brand_id, nazwa, domeny) opublikowanych firm miasta pytania. Dopasowanie po nazwie: bez wielkości
@@ -365,7 +405,7 @@ def extract_mentions(answer_text: str, highlighted: list[str], known_brands, cit
     """
     text = answer_text or ""
     folded = fold(text)
-    brands = _prepare_brands(known_brands)
+    brands = _prepare_brands(known_brands, geo_stems(places))
     hl = [h for h in (highlighted or []) if h and h.strip()]
     hl_folded = [fold(h) for h in hl]
     bold_spans = [m.span(1) for m in _BOLD_RE.finditer(text)]
@@ -476,6 +516,20 @@ TEMPLATES = [
 ]
 
 
+def city_places(city: str, industry: str = "nieruchomosci") -> list[str]:
+    """Miasto i jego dzielnice z pakietu branży (packages/verticals/<branża>/districts.json), do odróżniania nazw firm
+    od nazw miejsc ("Nieruchomości Wilanów" nie może pasować do samego słowa "Wilanów")."""
+    from .verticals import verticals_dir
+
+    places = [city]
+    try:
+        data = json.loads((verticals_dir() / industry / "districts.json").read_text(encoding="utf-8"))
+        places += [d for d in data.get(city, []) if isinstance(d, str)]
+    except (OSError, ValueError):
+        pass
+    return places
+
+
 def library_prompts(industry: str = "nieruchomosci", cities: Iterable[str] = ()) -> list[dict]:
     """Pytania biblioteki: dla każdego miasta lista słowników {text, industry, city, intent} w kolejności priorytetu."""
     out = []
@@ -582,7 +636,8 @@ def run(store, client, *, industry: str = "nieruchomosci", cities: int = 3, plat
         raw_path = _save_raw(save_raw, item, params, data)
         if item.city_id not in brands_cache:
             brands_cache[item.city_id] = store.known_brands(item.city_id) if item.city_id else []
-        mentions = extract_mentions(parsed.answer_text, parsed.highlighted, brands_cache[item.city_id], parsed.citations)
+        mentions = extract_mentions(parsed.answer_text, parsed.highlighted, brands_cache[item.city_id], parsed.citations,
+                                    city_places(item.city, item.industry))
         store.save_measurement(item, parsed, mentions, status="done", error=None)
         done += 1
         results.append({"city": item.city, "platform": item.platform, "status": "done", "chars": len(parsed.answer_text),

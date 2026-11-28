@@ -12,3 +12,7 @@
 - GeoTrace: nazwa robocza w aplikacji; rejestr pytań i pomiarów AI (schemat 0002), moduł wskaźników z testami (23 testy).
 - Zaplanowane zadanie co 4 godziny wznawia tę sesję i bierze kolejne zadanie z TASKS.md.
 - Polecenie `katalog geo-measure`: pomiary odpowiedzi AI (Gemini, AI Mode, AI Overview) przez LiteScrape do schematu `geo`, wzmianki o firmach i cytowania, pamięć podręczna zgodna z `measure.ts`; testy w `test_geo_measure.py` (bez żywych zapytań).
+- Pierwszy prawdziwy pomiar GeoTrace (28.11, 6 zapytań, Warszawa, za zgodą właściciela): 6 odpowiedzi zapisanych
+  w geo.measurements z firmami i źródłami. Po przeglądzie poprawione: nazwy miejsc (miasto, dzielnice) nie dają
+  dopasowań do firm, śródtytuły nie są firmami, linki Google (Mapy, wyszukiwanie) nie są źródłami. Te 6 pierwszych
+  pomiarów ma wzmianki według starszych reguł (dane testowe).

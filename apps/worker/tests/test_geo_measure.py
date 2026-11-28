@@ -361,3 +361,36 @@ def test_db_end_to_end_run(geo_db):
     assert report["done"] == 1
     again = run(store, client, cities=1, per_city=1, platforms=["gemini"])
     assert again["cache_hits"] == 1 and again["calls"] == 0 and len(client.calls) == 1
+
+
+def test_nazwy_miejsc_nie_daja_falszywych_dopasowan():
+    from katalog_worker.geo_measure import extract_mentions
+
+    brands = [("b1", "Warszawski Pośrednik Nieruchomości", ["warszawskiposrednik.pl"]),
+              ("b2", "Nieruchomości Wilanów", ["nieruchomosciwilanow.pl"]),
+              ("b3", "MAXON Nieruchomości", ["maxon.pl"])]
+    text = ("Na warszawskim rynku polecane jest **Maxon**. Mieszkania na Wilanowie i w Wilanów sprzedaje wiele biur.\n"
+            "Warszawski rynek jest duży.")
+    found = {m.brand_id for m in extract_mentions(text, [], brands, (), ["Warszawa", "Wilanów"])}
+    assert found == {"b3"}
+    text2 = "Polecam Warszawski Pośrednik Nieruchomości oraz biuro Nieruchomości Wilanów."
+    found2 = {m.brand_id for m in extract_mentions(text2, [], brands, (), ["Warszawa", "Wilanów"])}
+    assert found2 == {"b1", "b2"}
+
+
+def test_srodtytuly_nie_sa_firmami():
+    from katalog_worker.geo_measure import extract_mentions
+
+    text = ("**Wysokość prowizji**: 2-3%.\n**Umowa otwarta vs. na wyłączność** to ważny wybór.\n"
+            "**Konkretny agent zamiast samej marki** liczy się bardziej.\n**Bracia Strzelczyk** to znana sieć.")
+    names = [m.name for m in extract_mentions(text, [], [], ())]
+    assert names == ["Bracia Strzelczyk"]
+
+
+def test_linki_google_nie_sa_zrodlami():
+    from katalog_worker.geo_measure import collect_citations
+
+    data = {"references": [{"link": "https://www.google.com/searchviewer/10?svid=x", "title": "Mapa"},
+                           {"link": "https://immocrm.pl/ranking", "title": "Ranking"}],
+            "search_metadata": {"google_url": "https://www.google.com/search?q=x", "url": "https://maps.google.pl/x"}}
+    assert [c[1] for c in collect_citations(data)] == ["immocrm.pl"]
