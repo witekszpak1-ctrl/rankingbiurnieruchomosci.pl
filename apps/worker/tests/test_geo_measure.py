@@ -397,3 +397,28 @@ def test_linki_google_nie_sa_zrodlami():
                            {"link": "https://immocrm.pl/ranking", "title": "Ranking"}],
             "search_metadata": {"google_url": "https://www.google.com/search?q=x", "url": "https://maps.google.pl/x"}}
     assert [c[1] for c in collect_citations(data)] == ["immocrm.pl"]
+
+
+def test_run_stops_after_series_of_failures_without_more_failed_rows():
+    class Down(FakeClient):
+        def _get(self, kind, path, params, **kw):
+            self.calls.append((kind, path, params, kw))
+            raise LiteScrapeError("HTTP 503")
+
+    store, client = FakeStore(), Down()
+    report = run(store, client, cities=3, per_city=4, platforms=["gemini", "google_ai_mode"])
+    assert report["failed"] == gm.MAX_FAILED_IN_ROW and len(store.saved) == gm.MAX_FAILED_IN_ROW
+    assert "seria błędów" in report["stopped"]
+
+
+def test_run_stops_when_breaker_trips_in_real_client():
+    import httpx
+
+    from katalog_worker.litescrape import LiteScrapeClient
+
+    http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503)))
+    client = LiteScrapeClient("k", http=http, sleep=lambda s: None, breaker_threshold=2)
+    store = FakeStore()
+    report = run(store, client, cities=3, per_city=4, platforms=["gemini"])
+    assert "niedostępny" in report["stopped"] or "seria" in report["stopped"]
+    assert len(store.saved) <= 2 and not client.available

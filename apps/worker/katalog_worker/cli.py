@@ -168,6 +168,11 @@ def cmd_discover_queue(args) -> int:
             if getattr(provider, "switched", None):
                 result["fallback"] = f"LiteScrape niedostępny, dalej Serper: {provider.switched}"
             _print(result)
+            if result.get("incomplete_cities") or (result.get("search_errors") and not result.get("cities_ok")):
+                # Żaden dostawca nie odpowiedział: miasta nie dostały znacznika przeszukania, przebieg ma status "failed".
+                print("Wyszukiwanie nieudane: miasta bez odpowiedzi dostawcy nie zostały oznaczone jako przeszukane.",
+                      file=sys.stderr)
+                return 1
     return 0
 
 

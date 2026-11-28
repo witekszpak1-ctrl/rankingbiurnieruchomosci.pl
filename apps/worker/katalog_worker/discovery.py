@@ -32,6 +32,7 @@ class QueryStat:
     new_candidates: int
     blocked: int
     cost_usd: float
+    failed: bool = False  # dostawca nie odpowiedział (awaria): to nie jest wyszukanie z zerem wyników
 
 
 def discover(
@@ -58,6 +59,9 @@ def discover(
         results = provider.search(query, country=country, lang=lang, count=count)
         if getattr(provider, "skipped", False):
             continue  # kolejna strona wyników, której Google już nie ma: bez zapytania i bez statystyk
+        if query in getattr(provider, "failed_queries", ()):
+            stats.append(QueryStat(query, 0, 0, 0, 0.0, failed=True))
+            continue  # bez zapisu w search_queries: nic nie zostało wyszukane
         new_here = 0
         blocked_here = 0
         for result in results:

@@ -1442,3 +1442,54 @@ def test_extra_cities_never_removes_main_listing_after_city_move(flow):
     counts = stage_extra_cities(ctx)
     assert "extra_removed" not in counts and counts.get("extra_kept_last") == 1
     assert conn.execute("select status from listings where id = %s", (extra,)).fetchone()["status"] == "published"
+
+
+def _searched(ctx):
+    row = ctx.repo.conn.execute("select last_searched_at from cities where slug = 'wroclaw'").fetchone()
+    return bool(row and row["last_searched_at"])
+
+
+def _provider_503(backup):
+    from katalog_worker.litescrape import LiteScrapeClient
+    from katalog_worker.search import FallbackSearch, LiteScrapeSearch, PrefetchSearch
+
+    http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503)))
+    client = LiteScrapeClient("k", http=http, sleep=lambda s: None, breaker_threshold=3)
+    return PrefetchSearch(FallbackSearch(LiteScrapeSearch(client), backup), workers=1)
+
+
+def test_discover_with_all_providers_down_does_not_mark_city_or_record_zero_searches(ctx):
+    from katalog_worker.search.base import SearchError
+
+    ctx.repo.conn.execute("insert into cities (name, slug) values ('Wrocław', 'wroclaw') on conflict do nothing")
+    provider = _provider_503(None)
+    queries = [f"biuro nieruchomości Wrocław {n}" for n in range(6)]
+    provider.prefetch(queries)
+    with pytest.raises(SearchError):
+        stage_discover(ctx, provider, "Wrocław", queries=queries)
+    ctx.repo.conn.rollback()
+    assert not _searched(ctx)
+    assert ctx.repo.conn.execute("select count(*)::int as n from search_queries").fetchone()["n"] == 0
+
+
+def test_discover_when_all_queries_fail_marks_run_failed_and_city_untouched(ctx):
+    class AllFailed(FakeProvider):
+        failed_queries = {"a", "b"}
+
+    ctx.repo.conn.execute("insert into cities (name, slug) values ('Wrocław', 'wroclaw') on conflict do nothing")
+    counts = stage_discover(ctx, AllFailed(), "Wrocław", queries=["a", "b"])
+    assert counts["incomplete"] == 1 and counts["queries"] == 0 and counts["failed_queries"] == 2
+    assert not _searched(ctx)
+    assert ctx.repo.conn.execute("select status from pipeline_runs where stage = 'discover'").fetchone()["status"] == "failed"
+    assert ctx.repo.conn.execute("select count(*)::int as n from search_queries").fetchone()["n"] == 0
+
+
+def test_discover_falls_back_to_serper_and_marks_city_searched(ctx):
+    ctx.repo.conn.execute("insert into cities (name, slug) values ('Wrocław', 'wroclaw') on conflict do nothing")
+    provider = _provider_503(FakeProvider())
+    queries = [f"biuro nieruchomości Wrocław {n}" for n in range(6)]
+    provider.prefetch(queries)
+    counts = stage_discover(ctx, provider, "Wrocław", queries=queries)
+    assert counts["queries"] == 6 and "incomplete" not in counts
+    assert _searched(ctx)
+    assert ctx.repo.conn.execute("select count(*)::int as n from search_queries where results_count = 0").fetchone()["n"] == 0

@@ -19,6 +19,8 @@ sprawdzony na żywo 28.11.2026 (katalog litescrape-check):
 Udane zapytanie to jedno wywołanie z przedpłaconego salda (0,15 USD za 1000). Błędy 400, 404 i 503 nie są liczone.
 401 (zły klucz), 403 (klucz wyłączony) i 402 (brak salda albo miesięcznego przydziału) wyłączają klienta do końca
 przebiegu: wyszukiwarka przechodzi wtedy na zapas (Serper), a pobieranie stron na własny crawler.
+Bezpiecznik (28.11.2026, awaria: HTTP 503 na wszystkich endpointach): po BREAKER_THRESHOLD kolejnych nieudanych
+zapytaniach (5xx po ponowieniach albo błąd sieci) klient wyłącza się tak samo jak przy 402; udane zapytanie zeruje licznik.
 """
 
 from __future__ import annotations
@@ -44,6 +46,8 @@ MAX_SEARCH_RESULTS = 300
 DEFAULT_REVIEWS = 50  # opinii na firmę w jednym zapytaniu (API zwraca do 100)
 FATAL_STATUSES = {401, 402, 403}
 RETRY_STATUSES = {429, 500, 502, 503, 504}
+BREAKER_THRESHOLD = 5  # tyle kolejnych zapytań z błędem 5xx albo sieci wyłącza klienta do końca przebiegu
+BREAKER_REASON = "LiteScrape niedostępny (seria błędów 5xx)"
 
 
 @dataclass(frozen=True)
@@ -112,6 +116,7 @@ class LiteScrapeClient:
         budget: int | None = None,
         max_retries: int = 2,
         sleep: Callable[[float], None] = time.sleep,
+        breaker_threshold: int = BREAKER_THRESHOLD,
     ) -> None:
         if not api_key:
             raise LiteScrapeError("Brak klucza LiteScrape.")
@@ -122,6 +127,8 @@ class LiteScrapeClient:
         self._max_retries = max_retries
         self._sleep = sleep
         self._lock = threading.Lock()
+        self._breaker_threshold = max(1, breaker_threshold)
+        self._consecutive_failures = 0
         self.calls: Counter = Counter()  # rodzaj (search, maps, reviews, fetch) -> udane zapytania
         self.failures: Counter = Counter()
         self.disabled: str | None = None
@@ -146,6 +153,17 @@ class LiteScrapeClient:
             if self.disabled is None:
                 self.disabled = reason
 
+    def _server_failure(self, kind: str) -> None:
+        """Zapytanie padło po ponowieniach (5xx albo sieć). Po serii takich błędów klient się wyłącza (bezpiecznik)."""
+        with self._lock:
+            self.failures[kind] += 1
+            self._consecutive_failures += 1
+            tripped = self._consecutive_failures >= self._breaker_threshold
+            if tripped and self.disabled is None:
+                self.disabled = BREAKER_REASON
+        if tripped:
+            raise LiteScrapeUnavailable(self.disabled or BREAKER_REASON)
+
     def _get(self, kind: str, path: str, params: dict, *, retries: int | None = None, timeout: float = 70.0,
              body: dict | None = None) -> dict:
         """GET z parametrami w adresie, a z body POST z JSON (parametry liczbowe i listy, np. assert_status_code)."""
@@ -168,7 +186,7 @@ class LiteScrapeClient:
                 if attempt < retries:
                     self._sleep(2.0**attempt)
                     continue
-                self.failures[kind] += 1
+                self._server_failure(kind)
                 raise LiteScrapeError(f"LiteScrape {kind}: błąd sieci ({type(exc).__name__})") from None
             status = response.status_code
             if status == 200:
@@ -179,6 +197,7 @@ class LiteScrapeClient:
                     raise LiteScrapeError(f"LiteScrape {kind}: odpowiedź nie jest JSON", status) from None
                 with self._lock:
                     self.calls[kind] += 1
+                    self._consecutive_failures = 0
                 return data if isinstance(data, dict) else {}
             code = _error_code(response)
             if status in FATAL_STATUSES:
@@ -191,7 +210,10 @@ class LiteScrapeClient:
             if status in RETRY_STATUSES and attempt < retries:
                 self._sleep(2.0**attempt)
                 continue
-            self.failures[kind] += 1
+            if status >= 500:
+                self._server_failure(kind)
+            else:
+                self.failures[kind] += 1
             raise LiteScrapeError(f"LiteScrape {kind}: HTTP {status} {code or ''}".strip(), status, code)
         raise LiteScrapeError(f"LiteScrape {kind}: brak odpowiedzi")  # pragma: no cover
 

@@ -49,6 +49,12 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       branży, próbne zbieranie `collect-sample.yml` z twardym budżetem LiteScrape. Migracja `0021_multi_vertical.sql`
       wymaga roli właściciela bazy (szczegóły i uruchomienie próbki: docs/geo/branza-rachunkowe.md). Zostaje: eksport
       promptu z panelu per branża (prompt rachunkowych jest w pakiecie branży, panel ma jeden)
+- [x] Bezpiecznik LiteScrape po awarii 503 z 28.11 (apps/worker): po 5 kolejnych błędach 5xx albo sieci klient wyłącza się
+      ("LiteScrape niedostępny (seria błędów 5xx)"), wyszukiwanie 'auto' przechodzi na Serper jak przy 402 i powtarza
+      zapytania bez odpowiedzi; zapytanie bez odpowiedzi nie jest zapisywane jako 0 wyników, a miasto bez odpowiedzi
+      dostawcy nie dostaje `last_searched_at` (przebieg dostaje status failed i kod wyjścia 1); geo-measure staje po
+      3 błędach z rzędu albo po wyłączeniu klienta. Do sprawdzenia: miasta, które 28.11 ok. 08:40 UTC dostały znacznik
+      mimo zerowych wyników, trzeba ręcznie wyczyścić (`last_searched_at` w `cities` i `vertical_cities`)
 - [ ] Silnik wielu branż, krok 2: wybór portalu po domenie (middleware, stałe zamienione na funkcje), reszta tekstów
       ze stron, motyw i wariant układu dla portalu biur rachunkowych (docs/geo/silnik-branz.md)
 - [ ] Próbka 200 biur rachunkowych i raport jakości (zgoda na 2 USD, po robocie wielobranżowym; najpierw 1 miasto)

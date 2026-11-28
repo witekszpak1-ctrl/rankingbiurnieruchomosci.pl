@@ -587,6 +587,9 @@ def measure_item(client, item: PlanItem) -> tuple[Parsed, dict, dict]:
     return PARSERS[item.platform](data), params, data
 
 
+MAX_FAILED_IN_ROW = 3  # tyle nieudanych pomiarów z rzędu kończy przebieg (awaria dostawcy), bez zapisu kolejnych wierszy
+
+
 def run(store, client, *, industry: str = "nieruchomosci", cities: int = 3, platforms: list[str] | None = None,
         per_city: int = 2, max_calls: int = 20, max_age_days: int = 7, save_raw: Path | None = None,
         dry_run: bool = False) -> dict:
@@ -615,7 +618,7 @@ def run(store, client, *, industry: str = "nieruchomosci", cities: int = 3, plat
 
     if client is None:
         raise ValueError("Brak klienta LiteScrape (potrzebny klucz w panelu /admin/koszty).")
-    calls = done = failed = 0
+    calls = done = failed = streak = 0
     results = []
     brands_cache: dict[str, list] = {}
     for item in to_call:
@@ -631,8 +634,13 @@ def run(store, client, *, industry: str = "nieruchomosci", cities: int = 3, plat
         except LiteScrapeError as exc:
             store.save_measurement(item, None, [], status="failed", error=str(exc)[:500])
             failed += 1
+            streak += 1
             results.append({"city": item.city, "platform": item.platform, "status": "failed", "error": str(exc)[:200]})
+            if streak >= MAX_FAILED_IN_ROW:
+                report["stopped"] = f"seria błędów ({streak} z rzędu), przerwano bez dalszych zapisów"
+                break
             continue
+        streak = 0
         raw_path = _save_raw(save_raw, item, params, data)
         if item.city_id not in brands_cache:
             brands_cache[item.city_id] = store.known_brands(item.city_id) if item.city_id else []

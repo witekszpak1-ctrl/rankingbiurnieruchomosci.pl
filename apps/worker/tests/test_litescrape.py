@@ -243,3 +243,89 @@ def test_single_failed_query_is_skipped_not_fatal():
     assert provider.search("biuro nieruchomości Gdynia") == []
     assert provider.search("biuro nieruchomości Gdynia (strona 2)") == [] and provider.skipped
     assert provider.query_errors == 1 and len(calls) == 1
+
+
+# ----------------------------------------------------------------------------- bezpiecznik (awaria 503 z 28.11.2026)
+
+def _always_503(request):
+    return httpx.Response(503, json={"error_code": "unavailable"})
+
+
+def test_breaker_trips_after_series_of_5xx_and_success_resets_counter():
+    ok = {"on": False}
+
+    def handler(request):
+        return httpx.Response(200, json={"organic_results": []}) if ok["on"] else httpx.Response(503)
+
+    client = client_for(handler, breaker_threshold=5)
+    for _ in range(4):
+        with pytest.raises(LiteScrapeError) as err:
+            client.search("q")
+        assert not isinstance(err.value, LiteScrapeUnavailable)
+    assert client.available
+    ok["on"] = True
+    client.search("q")  # udane zapytanie zeruje licznik serii
+    ok["on"] = False
+    for _ in range(4):
+        with pytest.raises(LiteScrapeError):
+            client.search("q")
+    assert client.available
+    with pytest.raises(LiteScrapeUnavailable):
+        client.search("q")  # piąty błąd z rzędu
+    assert not client.available and client.disabled == "LiteScrape niedostępny (seria błędów 5xx)"
+    with pytest.raises(LiteScrapeUnavailable):
+        client.search("q")
+
+
+def test_breaker_counts_network_errors_but_not_4xx():
+    def boom(request):
+        raise httpx.ConnectError("x")
+
+    client = client_for(boom, breaker_threshold=2)
+    with pytest.raises(LiteScrapeError):
+        client.search("q")
+    with pytest.raises(LiteScrapeUnavailable):
+        client.search("q")
+    client4 = client_for(lambda r: httpx.Response(404), breaker_threshold=2)
+    for _ in range(5):
+        with pytest.raises(LiteScrapeError):
+            client4.search("q")
+    assert client4.available
+
+
+def test_breaker_is_thread_safe():
+    from concurrent.futures import ThreadPoolExecutor
+
+    client = client_for(_always_503, breaker_threshold=5)
+
+    def call(_):
+        try:
+            client.search("q")
+        except LiteScrapeError:
+            pass
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(call, range(40)))
+    assert client.disabled and client.failures["search"] >= 5
+
+
+class BackupSerper:
+    name, cost_per_query_usd = "serper", 0.001
+
+    def search(self, query, **kw):
+        return [SearchResult("https://z.pl/", "Z", "", 1)]
+
+
+def test_auto_provider_falls_back_to_serper_after_503_series():
+    from katalog_worker.search import PrefetchSearch
+
+    client = client_for(_always_503, breaker_threshold=3)
+    queries = ["biuro nieruchomości Gdynia", "biuro nieruchomości Gdynia (strona 2)", "agencja Gdynia",
+               "pośrednik Gdynia", "biuro Gdynia"]
+    provider = PrefetchSearch(FallbackSearch(LiteScrapeSearch(client), BackupSerper()), workers=1)
+    provider.prefetch(queries)
+    assert provider.switched and provider.name == "serper"
+    # zapytania, które padły przed wyłączeniem klienta, są powtarzane na Serperze, a nie liczone jako 0 wyników
+    for query in queries:
+        assert [r.url for r in provider.search(query)] == ["https://z.pl/"]
+        assert query not in provider.failed_queries

@@ -40,6 +40,8 @@ class LiteScrapeSearch:
         self._last_page: dict[str, int] = {}  # fraza -> ostatnia strona, jaką Google ma
         self.skipped = False
         self.query_errors = 0  # pojedyncze nieudane zapytania (np. przekroczony czas), pominięte bez zatrzymania
+        self._failed_bases: set[str] = set()
+        self.failed_queries: set[str] = set()  # frazy (z "(strona n)"), które NIE dostały odpowiedzi: to nie "0 wyników"
 
     def search(self, query: str, *, country: str = "pl", lang: str = "pl", count: int = 10) -> list[SearchResult]:
         results, self.skipped = self.search_ex(query, country=country, lang=lang)
@@ -48,11 +50,15 @@ class LiteScrapeSearch:
     def search_ex(self, query: str, *, country: str = "pl", lang: str = "pl", count: int = 10) -> tuple[list[SearchResult], bool]:
         """Jak search, ale zwraca (wyniki, pominięta). Bezpieczne w wątkach: różne frazy idą równolegle."""
         page = 1
+        original = query
         if match := PAGE_SUFFIX.search(query):
             page = int(match.group(1))
             query = query[: match.start()]
         last = self._last_page.get(query)
         if last is not None and page > last:
+            if query in self._failed_bases:
+                # Strona nie została pominięta, bo Google jej nie ma, tylko bo poprzednia nie dostała odpowiedzi.
+                self.failed_queries.add(original)  # (pominięta jak dotąd, ale po awarii do powtórzenia na zapasie)
             return [], True
         token = self._tokens.pop((query, page), None) if page > 1 else None
         try:
@@ -62,7 +68,10 @@ class LiteScrapeSearch:
             raise SearchError(str(exc)) from None  # zły klucz, brak salda, limit: koniec LiteScrape w tym przebiegu
         except LiteScrapeError:
             # Pojedynczy błąd (przekroczony czas, 503): pomijamy to zapytanie i dalsze strony tej frazy.
+            # Zapytanie trafia do failed_queries: odkrywanie nie zapisze go jako wyszukania z zerem wyników.
             self.query_errors += 1
+            self.failed_queries.add(original)
+            self._failed_bases.add(query)
             self._last_page[query] = page - 1
             return [], False
         organic = data.get("organic_results") if isinstance(data.get("organic_results"), list) else []
@@ -90,6 +99,10 @@ class FallbackSearch:
         self._backup = backup
         self._current = primary
         self.switched: str | None = None
+
+    @property
+    def failed_queries(self) -> set[str]:
+        return getattr(self._primary, "failed_queries", set())
 
     @property
     def name(self) -> str:
@@ -120,6 +133,9 @@ class FallbackSearch:
                     raise
                 self.switched = str(exc)[:200]
                 self._current = self._backup
+        failed = self.failed_queries
+        if query in failed:
+            failed.discard(query)  # to zapytanie nie dostało odpowiedzi od LiteScrape: powtarzamy je na zapasie
         return self._backup.search(query, **kwargs), False
 
 
@@ -149,6 +165,10 @@ class PrefetchSearch:
         return getattr(self._provider, "switched", None)
 
     @property
+    def failed_queries(self) -> set[str]:
+        return getattr(self._provider, "failed_queries", set())
+
+    @property
     def query_errors(self) -> int:
         return int(getattr(self._provider, "query_errors", 0))
 
@@ -174,6 +194,8 @@ class PrefetchSearch:
 
     def search(self, query: str, *, country: str = "pl", lang: str = "pl", count: int = 10) -> list[SearchResult]:
         cached = self._cache.pop(query, None)
+        if cached is not None and not isinstance(cached, SearchError) and query in self.failed_queries and self.switched:
+            cached = None  # pobrane przed awarią LiteScrape bez odpowiedzi: szukamy ponownie na zapasie
         if cached is None:
             cached = self._provider.search_ex(query, country=country, lang=lang)
         if isinstance(cached, SearchError):

@@ -188,9 +188,24 @@ def stage_discover(
     for candidate in candidates:
         _, is_new = repo.upsert_domain(candidate.host, candidate.home_url, city, vertical_id)
         new_domains += is_new
-    counts = {"queries": len(stats), "candidates": len(candidates), "new_domains": new_domains,
+    failed = sum(1 for s in stats if s.failed)
+    done_queries = len(stats) - failed
+    counts = {"queries": done_queries, "candidates": len(candidates), "new_domains": new_domains,
               "blocked_results": sum(s.blocked for s in stats)}
-    repo.finish_run(run_id, "ok", counts, cost_usd=round(sum(s.cost_usd for s in stats), 4))
+    # Miasto jest przeszukane tylko, gdy zapytania faktycznie dostały odpowiedź. Tolerujemy pojedyncze błędy (do 20%
+    # zapytań, np. przekroczony czas), ale seria błędów (awaria dostawcy) zostawia miasto bez znacznika na następny przebieg.
+    incomplete = failed > 0 and (done_queries == 0 or failed * 5 > len(stats))
+    if failed:
+        counts["failed_queries"] = failed
+    cost = round(sum(s.cost_usd for s in stats), 4)
+    if incomplete:
+        counts["incomplete"] = 1
+        message = f"{city}: {failed} z {len(stats)} zapytań bez odpowiedzi dostawcy, miasto NIE jest oznaczone jako przeszukane"
+        repo.finish_run(run_id, "failed", counts, cost_usd=cost, errors=[{"message": message}])
+        repo.conn.commit()
+        print(message, file=sys.stderr)
+        return counts
+    repo.finish_run(run_id, "ok", counts, cost_usd=cost)
     repo.mark_city_searched(city, vertical_id)
     repo.conn.commit()
     return counts
@@ -270,6 +285,12 @@ def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, di
         for key, value in counts.items():
             if isinstance(value, int):
                 totals[key] += value
+        if counts.get("incomplete"):
+            # Dostawca nie odpowiada (awaria): dalsze miasta też by przepadły, więc kończymy bez znacznika przeszukania.
+            totals["incomplete_cities"] += 1
+            done.append(f"{city['name']}: dostawca nie odpowiedział na zapytania, miasto nie oznaczone jako przeszukane")
+            break
+        totals["cities_ok"] += 1
         done.append(f"{city['name']}{' (dokładnie)' if city['deep'] else ''}: {counts.get('new_domains', 0)}")
         print(json.dumps({"city": city["name"], "deep": city["deep"], **counts}, ensure_ascii=False), file=sys.stderr)
     totals["cities"] = len(done)
