@@ -25,7 +25,7 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [ ] Monitoring co tydzień (poniedziałek): workflow geo-measure z harmonogramem; jeśli harmonogram GitHub nie ruszy,
       zaplanowana sesja w poniedziałek wypycha gałąź run/geo-measure z parametrami 20 miast, 3 pytania
 - [x] Koszt zapytań AI w LiteScrape: pole `billed` to tylko true (zapytanie policzone), jedna odpowiedź = jedno zapytanie z salda (ok. 0,15 USD za 1000); różnicę sprawdzać w saldzie /admin/koszty
-- [~] Darmowy audyt: wersja 1 z pomiarów biblioteki i katalogu (bez nowych zapytań), agent na gałęzi claude/audyt-mvp
+- [~] Darmowy audyt: wersja 1 z pomiarów biblioteki i katalogu (bez nowych zapytań) gotowa na gałęzi claude/audyt-mvp (`/audyt`, `/audyt/<domena>`, `docs/geo/audyt.md`, testy i sprawdzenie na lokalnej bazie). Przed scaleniem: właściciel nakłada `db/geo/0004_catalog_read.sql`. Dalej: pomiar na żywo za budżetem, skan strony, rozpoznawanie branży
 - [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
 - [ ] Faktury zgodne z KSeF (wybór programu do faktur)
 - [x] Silnik uprawnień (`apps/geo/lib/entitlements.ts`): limity z `plans.entitlements`, powrót do Free przy zaległości

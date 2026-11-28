@@ -22,3 +22,4 @@
 - Robot wielobranżowy na produkcji (migracja 0021 zastosowana rolą właściciela: domeny z branżą, kolejka miast per branża).
   Pierwszy pełny pomiar AI: 103 odpowiedzi z 12 miast przed limitem czasu workflow (podniesiony do 150 min, ponowiony).
   Zlecone: próbka biur rachunkowych w 1 mieście (collect-sample, bezpiecznik 3000 zapytań).
+- Darmowy audyt widoczności w AI, wersja 1 (28.11, gałąź `claude/audyt-mvp`): `/audyt` i `/audyt/<domena>` w `apps/geo` z samych danych w bazie (biblioteka pomiarów + katalog, bez płatnych zapytań), `lib/audit.ts` (normalizacja domeny z ochroną SSRF, wskaźniki z `measure.ts`), `lib/audit-repo.ts`, migracja `db/geo/0004_catalog_read.sql` (SELECT dla `geo_app`, do nałożenia przez właściciela), 23 nowe testy, sprawdzone na lokalnym PostgreSQL 16. Opis: `docs/geo/audyt.md`.

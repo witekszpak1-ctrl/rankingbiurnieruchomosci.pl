@@ -30,6 +30,7 @@ import {
   startSession,
   validatePassword,
 } from "@/lib/auth";
+import { normalizeDomain } from "@/lib/audit";
 import { query, withTransaction } from "@/lib/db";
 
 function field(form: FormData, name: string, max = 300): string {
@@ -40,17 +41,6 @@ function field(form: FormData, name: string, max = 300): string {
 function back(path: string, error: string): never {
   const sep = path.includes("?") ? "&" : "?";
   redirect(`${path}${sep}error=${encodeURIComponent(error)}`);
-}
-
-function normalizeDomain(raw: string): string | null {
-  if (!raw) return null;
-  try {
-    const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
-    return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(host) ? host : null;
-  } catch {
-    return null;
-  }
 }
 
 async function refCookie() {
@@ -181,15 +171,25 @@ export async function savePayoutAction(form: FormData): Promise<void> {
 
 export async function joinWaitlistAction(form: FormData): Promise<void> {
   const email = field(form, "email", 254);
-  const domain = normalizeDomain(field(form, "domain", 253));
-  if (!EMAIL_RE.test(email)) back("/", "Podaj poprawny adres e-mail.");
-  if (form.get("consent") !== "on") back("/", "Zaznacz zgodę na jedną wiadomość o starcie audytu.");
+  const domain = normalizeDomain(field(form, "domain", 300));
+  // Formularz może być na stronie audytu: wracamy tam, gdzie był (tylko ścieżki audytu, bez otwartego przekierowania).
+  const from = safeRedirectPath(field(form, "from", 300));
+  const path = from && (from === "/audyt" || from.startsWith("/audyt/")) && !from.includes("?") ? from : "/";
+  if (!EMAIL_RE.test(email)) back(path, "Podaj poprawny adres e-mail.");
+  if (form.get("consent") !== "on") back(path, "Zaznacz zgodę na jedną wiadomość o starcie audytu.");
   const ref = await refCookie();
   await query(
     `insert into geo.waitlist (email, domain, affiliate_code) values ($1, $2, $3) on conflict (lower(email)) do nothing`,
     [email, domain, ref?.code ?? null],
   );
-  redirect("/?zapisano=1");
+  redirect(`${path}?zapisano=1`);
+}
+
+/** Formularz audytu: sprawdza adres i przekierowuje na wynik. Nic nie pobiera z sieci. */
+export async function auditFormAction(form: FormData): Promise<void> {
+  const domain = normalizeDomain(field(form, "domain", 300));
+  if (!domain) back("/audyt", "Wpisz adres strony firmy jako zwykłą domenę, np. mojafirma.pl.");
+  redirect(`/audyt/${encodeURIComponent(domain)}`);
 }
 
 export async function settlePayoutAction(form: FormData): Promise<void> {

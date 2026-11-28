@@ -15,8 +15,15 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
       </p>
 
       <h2>Darmowy audyt widoczności</h2>
+      <p>
+        Biuro nieruchomości z miasta, które już mierzymy, sprawdzi za darmo, czy asystenci AI je wymieniają, kogo wymieniają
+        zamiast niego i z jakich stron korzystają.
+      </p>
+      <p>
+        <Link href="/audyt" className="btn">Sprawdź swoją stronę</Link>
+      </p>
       <p className="muted">
-        Audyt jest w przygotowaniu. Zostaw adres, a wyślemy jedną wiadomość, gdy będzie gotowy dla Twojej strony.
+        Pełny audyt z pomiarem na żywo dla każdej firmy jest w przygotowaniu. Zostaw adres, a wyślemy jedną wiadomość, gdy będzie gotowy.
       </p>
       <Notice error={one(sp.error)} ok={sp.zapisano ? "Zapisane. Napiszemy, gdy audyt będzie gotowy." : null} />
       <form action={joinWaitlistAction} className="stack">
