@@ -1,4 +1,7 @@
-# Praca Claude Code (uruchamiana z harmonogramu co 2 godziny, tryb szybki)
+# Praca Claude Code (3 razy dziennie, świeża sesja na Sonnecie 5.5)
+
+Gdy nie ma paczek do opisania, nie instaluj niczego i nie uruchamiaj subagentów: zapisz raport z described 0
+i uruchom automat (sekcja 4). Oszczędzaj tokeny.
 
 Pipeline na GitHub Actions co noc buduje paczki opisów i publikuje gotowe wpisy, a workflow `import` co 3 godziny
 zapisuje w bazie wyniki z gałęzi `queue-data` prywatnego repozytorium `witekszpak1-ctrl/rankingbiur-kolejka`. Ta sesja robi część, której nie da się zrobić bez modelu: pisze opisy
@@ -35,7 +38,8 @@ bash scripts/queue_sync.sh pull
 
 ## 2. Szukanie nowych biur
 
-Nie szukasz. Biura w kolejnych miastach wyszukuje automat GitHub przez Serper (wyniki Google), 15 miast co 3 godziny.
+Nie szukasz. Biura w kolejnych miastach wyszukuje automat GitHub przez LiteScrape (wyniki Google, w zapasie Serper),
+15 miast na przebieg.
 Plik kandydatów zbierasz narzędziem WebSearch według `prompts/candidates.md` tylko wtedy, gdy w `queue/cities.json`
 jest miasto z `deep_requested_at` późniejszym niż `last_searched_at`, a od zlecenia minęło ponad 6 godzin (automat
 z jakiegoś powodu go nie przeszukał).
@@ -63,10 +67,12 @@ w `errors` (lista obiektów `{"message": "..."}`). Potem `bash scripts/queue_syn
 ## 4. Uruchomienie automatu GitHub
 
 Harmonogram GitHub Actions w tym repozytorium się nie uruchamia, więc to sesja go zastępuje. Na koniec, po wysłaniu
-wyników, uruchom narzędziem GitHub (actions_run_trigger, method run_workflow, ref main) workflow `pipeline.yml`:
-zapisze opisy, opublikuje firmy, przeszuka kolejne miasta przez Serper i przygotuje nowe paczki. W sesji, która startuje
-między 6:00 a 7:59 czasu polskiego, uruchom też `offers.yml` (oferty, kontakty, opinie Google). Nie uruchamiaj, jeśli
-ten sam workflow jest już w kolejce lub trwa (sprawdź actions_list, list_workflow_runs, status queued/in_progress).
+wyników, uruchom workflow `pipeline.yml` przez REST API (GraphQL jest niedostępny):
+`gh api -X POST repos/witekszpak1-ctrl/rankingbiurnieruchomosci.pl/actions/workflows/pipeline.yml/dispatches -f ref=main`.
+Zapisze opisy, opublikuje firmy, przeszuka kolejne miasta przez LiteScrape i przygotuje nowe paczki. W sesji, która startuje
+między 6:00 a 7:59 czasu polskiego, uruchom też `offers.yml` (oferty, kontakty, opinie z Map Google). Nie uruchamiaj, jeśli
+ten sam workflow jest już w kolejce lub trwa: `gh api "repos/witekszpak1-ctrl/rankingbiurnieruchomosci.pl/actions/workflows/<plik>/runs?per_page=5" --jq '.workflow_runs[] | .status'`
+(status queued albo in_progress).
 
 ## Zasady
 

@@ -12,6 +12,7 @@ import {
   type Run,
   type Slot,
 } from "@/lib/automat-plan";
+import { runStats, type StatItem } from "@/lib/run-stats";
 import { METRICS, dailyTotals, dayDetail, isDay, runsOfDay, warsawToday, type DayRow } from "@/lib/automat-report";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ const STEPS = [
   {
     n: "1",
     title: "Szuka stron www biur",
-    text: "Automat GitHub przez Serper (wyniki Google) wpisuje zapytania typu \"biuro nieruchomości Kraków\", \"agencja nieruchomości Mokotów Warszawa\". W dużych miastach osobno dla każdej dzielnicy. Pomija portale (Otodom, OLX, Gratka, Morizon), katalogi firm i Facebooka, zostawia tylko własne strony biur.",
+    text: "Automat GitHub przez LiteScrape (wyniki Google, w zapasie Serper) wpisuje zapytania typu \"biuro nieruchomości Kraków\", \"agencja nieruchomości Mokotów Warszawa\". W dużych miastach osobno dla każdej dzielnicy. Pomija portale (Otodom, OLX, Gratka, Morizon), katalogi firm i Facebooka, zostawia tylko własne strony biur.",
   },
   {
     n: "2",
@@ -53,13 +54,13 @@ const STEPS = [
   {
     n: "7",
     title: "Codziennie uzupełnia dane",
-    text: "Pobiera aktualne oferty z cenami, telefon, e-mail, adres, Facebook i Instagram, logo i zdjęcie firmy. Z Map Google pobiera ocenę i liczbę opinii (gdy jest klucz Google).",
+    text: "Pobiera aktualne oferty z cenami, telefon, e-mail, adres, Facebook i Instagram, logo i zdjęcie firmy. Z Map Google (przez LiteScrape) pobiera ocenę, liczbę opinii i do 50 opinii z treścią.",
   },
 ];
 
 const STAGE_NAME: Record<string, string> = {
   claude_session: "Sesja Claude",
-  search: "Szukanie biur (Serper)",
+  search: "Szukanie biur (LiteScrape)",
   discover: "Szukanie w mieście",
   probe: "Otwieranie stron",
   verify: "Sprawdzanie w KRS i VAT",
@@ -69,7 +70,8 @@ const STAGE_NAME: Record<string, string> = {
   publish: "Publikacja firm",
   offers: "Oferty",
   contacts: "Kontakty i zdjęcia",
-  google_reviews: "Opinie Google",
+  google_reviews: "Opinie z Map Google",
+  reverify: "Ponowne sprawdzenie w rejestrach",
 };
 
 const SHORT: { key: keyof DayRow; label: string }[] = [
@@ -91,6 +93,91 @@ const STATE_CLASS: Record<string, string> = {
   waiting_report: "warn",
   planned: "",
 };
+
+type RunRow = {
+  id: string;
+  stage: string;
+  status: string;
+  counts: Record<string, unknown>;
+  startedAt: Date;
+  finishedAt: Date | null;
+};
+
+const RUN_STATUS: Record<string, [string, string]> = {
+  ok: ["gotowe", "ok"],
+  running: ["trwa", "live"],
+  failed: ["błąd", "bad"],
+  partial: ["częściowo", "warn"],
+};
+
+function minutes(r: RunRow): string {
+  if (!r.finishedAt) return "trwa";
+  const sec = Math.max(0, Math.round((r.finishedAt.getTime() - r.startedAt.getTime()) / 1000));
+  return sec < 60 ? `${sec} s` : `${Math.round(sec / 60)} min`;
+}
+
+function Items({ items, empty = "" }: { items: StatItem[]; empty?: string }) {
+  if (items.length === 0) return <span className="note">{empty}</span>;
+  return (
+    <ul className="stat-list">
+      {items.map((x) => (
+        <li key={x.label}>
+          <b>{x.n.toLocaleString("pl-PL")}</b> {x.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Każdy przebieg kroku w osobnym wierszu: kiedy, co, ile znalazł, czego nie znalazł i ile było błędów. */
+function RunTable({ runs }: { runs: RunRow[] }) {
+  if (runs.length === 0) return <p className="note">Brak przebiegów.</p>;
+  return (
+    <div className="table-wrap">
+      <table className="report run-table">
+        <thead>
+          <tr>
+            <th>Godzina</th>
+            <th>Krok</th>
+            <th>Znaleziono i zrobiono</th>
+            <th>Nie znaleziono, pominięto</th>
+            <th>Błędy</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map((r) => {
+            const st = runStats(r.counts);
+            const [statusLabel, statusClass] = RUN_STATUS[r.status] ?? [r.status, ""];
+            const message = typeof r.counts?.error === "string" ? r.counts.error : typeof r.counts?.stopped === "string" ? r.counts.stopped : null;
+            return (
+              <tr key={r.id} className={r.status === "failed" ? "bad-row" : ""}>
+                <td>
+                  <b>{hhmm(r.startedAt)}</b>
+                  <span className="note"> {minutes(r)}</span>
+                </td>
+                <td>
+                  {STAGE_NAME[r.stage] ?? r.stage}{" "}
+                  <span className={`badge mini ${statusClass}`}>{statusLabel}</span>
+                  {st.calls != null && st.calls > 0 && <div className="note">{st.calls} zapytań LiteScrape</div>}
+                </td>
+                <td className="wrap">
+                  <Items items={[...st.done, ...st.other]} empty="nic nowego" />
+                </td>
+                <td className="wrap">
+                  <Items items={st.missed} empty="-" />
+                </td>
+                <td className="wrap">
+                  <Items items={st.errors} empty="brak" />
+                  {message && <div className="note">{message.slice(0, 200)}</div>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function dayLabel(day: string): string {
   if (day === warsawToday()) return "dziś";
@@ -297,6 +384,10 @@ export default async function RunsPage({ searchParams }: Props) {
       </p>
       <Timeline slots={todayPlan} />
 
+      <h2>Dziś krok po kroku</h2>
+      <p className="note">Każdy przebieg osobno: co i ile znalazł, czego nie znalazł albo pominął, i błędy.</p>
+      <RunTable runs={todayRuns as RunRow[]} />
+
       <h2>Dziś i wczoraj w liczbach</h2>
       <div className="table-wrap">
         <table className="report">
@@ -402,6 +493,8 @@ export default async function RunsPage({ searchParams }: Props) {
             </p>
           )}
           <Timeline slots={chosenPlan} showFuture={false} />
+          <h3>Krok po kroku</h3>
+          <RunTable runs={chosenRuns as RunRow[]} />
           {detail.published.length > 0 && (
             <>
               <h3>Firmy dodane tego dnia ({detail.published.length})</h3>
@@ -431,8 +524,9 @@ export default async function RunsPage({ searchParams }: Props) {
           ))}
         </div>
         <p className="note">
-          Sesje Claude działają w chmurze Anthropic jako zaplanowane zadanie i piszą opisy firm. Szukanie stron w Google
-          robi automat GitHub przez płatne API Serper (około 1 dolar za 1000 wyszukiwań).
+          Sesje Claude (Sonnet 5.5, każda w świeżej sesji) działają w chmurze Anthropic jako zaplanowane zadanie i piszą
+          opisy firm. Szukanie stron w Google robi automat GitHub przez LiteScrape (0,15 USD za 1000 zapytań), w zapasie
+          Serper.
           Automat GitHub to nasz program w Pythonie na serwerach GitHub Actions: pobiera strony (przez LiteScrape, a w zapasie
           własnym crawlerem httpx, zawsze z poszanowaniem robots.txt), czyta je (BeautifulSoup), sprawdza firmy w wykazie VAT
           Ministerstwa Finansów i w KRS, oceny i opinie bierze z Map Google przez LiteScrape. Dane są w bazie Postgres (Neon), strona i panel na Vercel. Nic nie musi być włączone na Twoim

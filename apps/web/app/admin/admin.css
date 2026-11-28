@@ -397,3 +397,10 @@
 .adm .cost-fill.warn { background: #b7791f; }
 .adm .cost-fill.bad { background: #c53030; }
 .adm .inline-form input[type="number"] { width: 120px; padding: 2px 6px; font: inherit; }
+
+.adm .run-table td { vertical-align: top; white-space: normal; }
+.adm .run-table td:first-child { white-space: nowrap; }
+.adm .run-table td.wrap { min-width: 180px; }
+.adm .stat-list { list-style: none; padding: 0; margin: 0; font-size: 0.86rem; line-height: 1.45; }
+.adm .stat-list b { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+.adm .run-table tr.bad-row td { background: var(--a-bad-soft); }
