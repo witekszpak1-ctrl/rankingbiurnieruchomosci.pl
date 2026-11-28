@@ -331,6 +331,23 @@ def cmd_litescrape_check(args) -> int:
             except LiteScrapeError as exc:
                 _print({"ok": False, "error": str(exc)})
                 return 2
+            import time as _time
+
+            out["search_variants"] = {}
+            for name, extra in {"szybki_bez_rozwijania": {"fast_mode": "true", "resolve_all_links": "false"},
+                                "z_rozwijaniem": {"fast_mode": "true", "resolve_all_links": "true"}}.items():
+                t0 = _time.monotonic()
+                try:
+                    data = client._get("search", "/api/google/search", {"q": f"agencja nieruchomości {args.city}", "gl": "pl",
+                                       "hl": "pl", "num": 10, "timeout": 90, **extra}, timeout=110)
+                    organic = data.get("organic_results") or []
+                    out["search_variants"][name] = {
+                        "sekund": round(_time.monotonic() - t0, 1), "wynikow": len(organic),
+                        "przyklady": [{"link": (o.get("link") or "")[:60], "displayed_link": o.get("displayed_link"),
+                                       "source": o.get("source")} for o in organic[:5]],
+                    }
+                except LiteScrapeError as exc:
+                    out["search_variants"][name] = {"sekund": round(_time.monotonic() - t0, 1), "error": str(exc)}
             search = LiteScrapeSearch(client)
             out["search"] = {}
             for query in (f"biuro nieruchomości {args.city}", f"biuro nieruchomości {args.city} (strona 2)"):
