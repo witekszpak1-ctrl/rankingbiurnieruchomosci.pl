@@ -44,9 +44,11 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [~] Silnik wielu branż w stronie (apps/web): branża, nazwy, teksty, dane strukturalne i wygląd z konfiguracji
   - krok 1 zrobiony: konfiguracja portalu (`lib/portal.ts`, `portals/nieruchomosci.ts`), część wspólna (nazwa, adres, meta, llms, manifest, stopka, dane strukturalne, motyw `data-theme`) na konfiguracji, bez zmiany wyglądu; zostaje wybór po domenie, motywy i układy per portal, reszta tekstów (`docs/geo/silnik-branz.md`)
 - [x] Pakiet branży biura rachunkowe (packages/verticals/rachunkowe): konfiguracja, prompty, miasta (28.11; blokery: docs/geo/branza-rachunkowe.md)
-- [ ] Robot wielobranżowy: branża przy domenie (powiązanie przez search_queries.vertical_id albo nowa kolumna
-      domains.vertical_id po decyzji), osobna kolejka miast dla każdej branży, przekazywanie --vertical w workflow,
-      eksport promptu z panelu dla każdej branży (szczegóły: docs/geo/branza-rachunkowe.md)
+- [x] Robot wielobranżowy (28.11, gałąź claude/robot-branze): `domains.vertical_id`, osobna kolejka miast (`vertical_cities`)
+      dla branż innych niż nieruchomości, `--vertical` we wszystkich etapach i workflowach, ścieżki kolejki z prefiksem
+      branży, próbne zbieranie `collect-sample.yml` z twardym budżetem LiteScrape. Migracja `0021_multi_vertical.sql`
+      wymaga roli właściciela bazy (szczegóły i uruchomienie próbki: docs/geo/branza-rachunkowe.md). Zostaje: eksport
+      promptu z panelu per branża (prompt rachunkowych jest w pakiecie branży, panel ma jeden)
 - [ ] Silnik wielu branż, krok 2: wybór portalu po domenie (middleware, stałe zamienione na funkcje), reszta tekstów
       ze stron, motyw i wariant układu dla portalu biur rachunkowych (docs/geo/silnik-branz.md)
 - [ ] Próbka 200 biur rachunkowych i raport jakości (zgoda na 2 USD, po robocie wielobranżowym; najpierw 1 miasto)

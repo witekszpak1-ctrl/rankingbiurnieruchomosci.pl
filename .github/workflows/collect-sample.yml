@@ -1,0 +1,83 @@
+# Próbne zbieranie firm nowej branży (biura rachunkowe) w kilku miastach, z twardym budżetem zapytań LiteScrape.
+# Uruchamiane ręcznie (workflow_dispatch) albo wypchnięciem gałęzi run/collect-rachunkowe. Bez harmonogramu.
+#
+# Kroki: migracje, kolejka miast branży, szukanie w N miastach (tylko LiteScrape, bez zapasu Serper), probe, verify,
+# crawl-deep, bundle i wysłanie paczek do repozytorium kolejki (scripts/queue_sync.sh). Nie publikuje wpisów, nie
+# importuje wyników, nie pobiera opinii ani kontaktów (to osobne, płatne kroki po decyzji właściciela).
+#
+# Budżet: LITESCRAPE_RUN_BUDGET to łączna liczba zapytań LiteScrape całego przebiegu (wszystkie polecenia razem; zużycie
+# zapisuje plik LITESCRAPE_BUDGET_FILE). Po jego wyczerpaniu klient nic nie wysyła: wyszukiwanie się kończy, a strony
+# pobiera już tylko własny robot (bez opłat). Miesięczny limit z panelu /admin/koszty obowiązuje dodatkowo (wygrywa mniejszy).
+# Klucza LiteScrape nie podajemy w workflow: jest w panelu (settings.litescrape) albo w LITESCRAPE_API_KEY.
+name: collect-sample
+
+on:
+  workflow_dispatch:
+    inputs:
+      cities:
+        description: "Ile miast przeszukać (kolejka branży, największe miasta pierwsze)"
+        default: "1"
+      budget:
+        description: "Twardy budżet zapytań LiteScrape na cały przebieg"
+        default: "3000"
+      limit:
+        description: "Limit domen na etap (probe, verify, crawl-deep, bundle)"
+        default: "300"
+  push:
+    branches: [run/collect-rachunkowe]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: katalog-db
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      QUEUE_REPO_TOKEN: ${{ secrets.QUEUE_REPO_TOKEN }}
+      CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
+      QUEUE_DIR: ./queue
+      SNAPSHOTS_DIR: ./snapshots
+      VERTICAL: rachunkowe
+      # Przy pushu inputs jest puste: wartości domyślne (1 miasto, 3000 zapytań, 300 domen).
+      CITIES: ${{ inputs.cities || '1' }}
+      LIMIT: ${{ inputs.limit || '300' }}
+      LITESCRAPE_RUN_BUDGET: ${{ inputs.budget || '3000' }}
+      LITESCRAPE_BUDGET_FILE: ./litescrape-budget.json
+      # Celowo bez SERPER_API_KEY i BRAVE_API_KEY: zapas wyszukiwania jest płatny i poza budżetem LiteScrape.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Bez zapamiętanego tokenu tego repozytorium: przykrywałby on token kolejki (QUEUE_REPO_TOKEN).
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e apps/worker
+      - name: Migracje
+        run: katalog migrate
+      - name: Lista miast branży w kolejce
+        run: katalog cities --vertical "$VERTICAL"
+      - name: S1 szukanie biur w miastach z kolejki (tylko LiteScrape)
+        run: |
+          timeout 40m katalog discover-queue --provider litescrape --cities "$CITIES" --vertical "$VERTICAL" || echo "szukanie: limit czasu albo budżet"
+      - name: S3-S6
+        run: |
+          timeout 40m katalog probe --limit "$LIMIT" --vertical "$VERTICAL" || echo "probe: limit czasu"
+          timeout 20m katalog verify --limit "$((LIMIT * 2))" --vertical "$VERTICAL" || echo "verify: limit czasu"
+          timeout 40m katalog crawl-deep --limit "$((LIMIT / 3))" --vertical "$VERTICAL" || echo "crawl-deep: limit czasu"
+          katalog bundle --limit "$LIMIT" --vertical "$VERTICAL"
+          katalog status --vertical "$VERTICAL"
+      - name: Zużycie budżetu LiteScrape w tym przebiegu
+        if: ${{ always() }}
+        run: |
+          cat "$LITESCRAPE_BUDGET_FILE" 2>/dev/null || echo '{"used": 0}'
+      # Paczki rachunkowych leżą w queue/pending/rachunkowe/..., więc sesja opisów nieruchomości ich nie widzi.
+      - name: Publikacja paczek w repozytorium kolejki
+        if: ${{ always() }}
+        run: bash scripts/queue_sync.sh push-pending

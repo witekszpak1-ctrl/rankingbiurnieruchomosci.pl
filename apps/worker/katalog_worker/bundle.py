@@ -202,14 +202,16 @@ def contact_fields(bundle: dict) -> list[str]:
     return found
 
 
-def write_bundle(bundle: dict, queue_dir: Path) -> Path:
-    """Zapisuje paczkę do queue/pending/<typ>/<firm_id>.json. Odmawia, gdy w paczce są kontakty."""
+def write_bundle(bundle: dict, queue_dir: Path, vertical: str | None = None) -> Path:
+    """Zapisuje paczkę do queue/pending/<typ>/<firm_id>.json, a dla branży innej niż nieruchomości (vertical) do
+    queue/pending/<branża>/<typ>/<firm_id>.json. Odmawia, gdy w paczce są kontakty."""
     # Każde pole osobno: w sklejonym tekście cyfry z końca jednego pola i początku następnego
     # potrafiły razem wyglądać jak numer telefonu, choć żadne pole go nie zawierało.
     leaks = contact_fields(bundle)
     if leaks:
         raise ContactLeakError(leaks)
-    target = queue_dir / "pending" / bundle["type"] / f"{bundle['firm_id']}.json"
+    base = queue_dir / "pending" / vertical if vertical else queue_dir / "pending"
+    target = base / bundle["type"] / f"{bundle['firm_id']}.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return target

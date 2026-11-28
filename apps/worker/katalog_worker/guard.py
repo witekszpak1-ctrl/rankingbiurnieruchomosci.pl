@@ -29,8 +29,8 @@ MAIN_JUMP_ABS = 30
 UNCONFIRMED_PP = 5.0
 
 
-def catalog_stats(repo) -> dict:
-    rows = repo.published_listings_overview()
+def catalog_stats(repo, vertical_id: str | None = None) -> dict:
+    rows = repo.published_listings_overview(vertical_id) if vertical_id else repo.published_listings_overview()
     cities: Counter = Counter(r["city_name"] for r in rows)
     main: Counter = Counter(r["city_name"] for r in rows if not r["is_extra"])
     extra: Counter = Counter(r["city_name"] for r in rows if r["is_extra"])
@@ -88,29 +88,38 @@ def compare(previous: dict | None, current: dict) -> list[str]:
     return problems
 
 
-def run_guard(repo, accept: bool = False) -> dict:
-    current = catalog_stats(repo)
-    previous = repo.setting("guard_snapshot", None)
+def _keys(vertical: str | None) -> tuple[str, str]:
+    """Klucze ustawień stanu kontroli: nieruchomości jak dotąd, inne branże z przyrostkiem (osobny stan na branżę)."""
+    suffix = f":{vertical}" if vertical else ""
+    return f"guard_snapshot{suffix}", f"guard_block{suffix}"
+
+
+def run_guard(repo, accept: bool = False, vertical: str | None = None, vertical_id: str | None = None) -> dict:
+    """vertical: slug branży innej niż nieruchomości (None = nieruchomości, stan w kluczach bez przyrostka);
+    vertical_id: id branży, której wpisy kontrolujemy (None = wszystkie)."""
+    snapshot_key, block_key = _keys(vertical)
+    current = catalog_stats(repo, vertical_id)
+    previous = repo.setting(snapshot_key, None)
     now = datetime.now(UTC).isoformat(timespec="seconds")
     if accept:
-        repo.set_setting("guard_snapshot", {**current, "accepted_at": now})
-        repo.set_setting("guard_block", None)
-        repo.write_audit("pipeline", "guard.accept", "settings", "guard_snapshot", None, {"at": now})
+        repo.set_setting(snapshot_key, {**current, "accepted_at": now})
+        repo.set_setting(block_key, None)
+        repo.write_audit("pipeline", "guard.accept", "settings", snapshot_key, None, {"at": now})
         repo.conn.commit()
         return {"accepted": True, "brands": current["brands"]}
     problems = compare(previous, current)
     if problems:
-        repo.set_setting("guard_block", {"at": now, "problems": problems})
-        repo.write_audit("pipeline", "guard.block", "settings", "guard_block", None, {"problems": problems})
+        repo.set_setting(block_key, {"at": now, "problems": problems})
+        repo.write_audit("pipeline", "guard.block", "settings", block_key, None, {"problems": problems})
     else:
-        repo.set_setting("guard_snapshot", {**current, "accepted_at": now})
-        repo.set_setting("guard_block", None)
+        repo.set_setting(snapshot_key, {**current, "accepted_at": now})
+        repo.set_setting(block_key, None)
     repo.conn.commit()
     return {"ok": not problems, "problems": problems, "brands": current["brands"]}
 
 
-def publishing_blocked(repo) -> list[str] | None:
-    block = repo.setting("guard_block", None)
+def publishing_blocked(repo, vertical: str | None = None) -> list[str] | None:
+    block = repo.setting(_keys(vertical)[1], None)
     return block.get("problems") if isinstance(block, dict) else None
 
 

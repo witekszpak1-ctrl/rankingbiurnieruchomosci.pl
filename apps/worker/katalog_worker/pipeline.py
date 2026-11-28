@@ -35,7 +35,7 @@ from .fetch import FetchResult, PoliteFetcher
 from .offers import scan_offers
 from .queries import build_queries
 from .registry import KrsClient, MfVatClient, RegistryEntity, RegistryError
-from .repo import Repo, slugify
+from .repo import DEFAULT_VERTICAL, Repo, slugify
 from .search.base import SearchError, SearchProvider
 from .urls import canonical_url, pick_pages, registrable_domain, is_legal_url, pick_legal_pages
 from .validate import validate_result
@@ -53,10 +53,32 @@ class Context:
     snapshots_dir: Path
     queue_dir: Path
     blocklist: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_BLOCKLIST))
+    _vertical_id: str | None = field(default=None, init=False, repr=False)
 
     @property
     def keywords(self) -> list[str]:
         return self.vertical.keywords
+
+    @property
+    def vertical_id(self) -> str:
+        """Id branży w bazie (wiersz powstaje przy pierwszym użyciu). Każdy etap filtruje dane po tej branży."""
+        if self._vertical_id is None:
+            self._vertical_id = self.repo.ensure_vertical(self.vertical)
+        return self._vertical_id
+
+    @property
+    def is_default(self) -> bool:
+        """Nieruchomości: branża domyślna, z zachowaniem dotychczasowych ścieżek kolejki i ustawień."""
+        return self.vertical.slug == DEFAULT_VERTICAL
+
+    @property
+    def queue_vertical(self) -> str | None:
+        """Prefiks ścieżek kolejki (queue/pending/<branża>/..., queue/results/<branża>/...). Nieruchomości bez prefiksu,
+        więc istniejące paczki i wyniki w repozytorium kolejki zostają ważne."""
+        return None if self.is_default else self.vertical.slug
+
+    def results_dir(self) -> Path:
+        return self.queue_dir / "results" / self.queue_vertical if self.queue_vertical else self.queue_dir / "results"
 
 
 # ----------------------------------------------------------------------------- snapshoty
@@ -164,12 +186,12 @@ def stage_discover(
     )
     new_domains = 0
     for candidate in candidates:
-        _, is_new = repo.upsert_domain(candidate.host, candidate.home_url, city)
+        _, is_new = repo.upsert_domain(candidate.host, candidate.home_url, city, vertical_id)
         new_domains += is_new
     counts = {"queries": len(stats), "candidates": len(candidates), "new_domains": new_domains,
               "blocked_results": sum(s.blocked for s in stats)}
     repo.finish_run(run_id, "ok", counts, cost_usd=round(sum(s.cost_usd for s in stats), 4))
-    repo.mark_city_searched(city)
+    repo.mark_city_searched(city, vertical_id)
     repo.conn.commit()
     return counts
 
@@ -201,7 +223,7 @@ def city_queries(ctx: Context, city: str, deep: bool, districts: dict[str, list[
 def cities_to_search(ctx: Context, limit: int) -> list[dict]:
     """Miasta z kolejki panelu, które trzeba przeszukać: nigdy nieszukane albo z dokładnym przeszukaniem zleconym później."""
     out = []
-    for row in ctx.repo.city_search_queue():
+    for row in ctx.repo.city_search_queue(ctx.vertical_id):
         last, requested = row["last_searched_at"], row["deep_requested_at"]
         if last is None or (requested is not None and requested > last):
             out.append({"name": row["name"], "deep": bool(row["deep"]) or requested is not None})
@@ -274,14 +296,17 @@ def stage_cities_sync(ctx: Context, names: list[str]) -> dict:
     repo = ctx.repo
     added = 0
     for index, name in enumerate(names):
-        added += repo.ensure_city_with_priority(name, index + 1)
+        if ctx.is_default:
+            added += repo.ensure_city_with_priority(name, index + 1)
+        else:
+            added += repo.ensure_city_for_vertical(ctx.vertical_id, name, index + 1)
     repo.conn.commit()
     return {"cities": len(names), "added": added}
 
 
 def cities_export(ctx: Context) -> dict:
     """Kolejka miast do wyszukiwania dla porannej sesji Claude Code (queue/cities.json na gałęzi queue-data)."""
-    rows = ctx.repo.city_search_queue()
+    rows = ctx.repo.city_search_queue(ctx.vertical_id)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "note": "Miasta włączone w panelu, w kolejności szukania: najpierw zlecone do dokładnego przeszukania, potem te, "
@@ -327,9 +352,9 @@ def _probe_fetch(fetcher: PoliteFetcher, row: dict) -> tuple[FetchResult, list[t
 def stage_probe(ctx: Context, fetcher: PoliteFetcher, limit: int = 50) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
-    run_id = repo.start_run("probe", None)
+    run_id = repo.start_run("probe", ctx.vertical_id)
     repo.conn.commit()
-    rows = list(repo.domains_to_probe(limit))
+    rows = list(repo.domains_to_probe(limit, ctx.vertical_id))
     for row, (home, fetched) in _fetch_parallel(fetcher, rows, _probe_fetch):
         if home.error == "robots_unreachable":
             # robots.txt chwilowo niedostępny: nie pobieramy strony, ale nie odrzucamy jej na stałe (próba za dobę).
@@ -454,7 +479,7 @@ def stage_verify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 50)
     repo.conn.commit()
 
     loaded: list[tuple[dict, list[PageExtraction], PageExtraction]] = []
-    for row in repo.domains_to_verify(limit):
+    for row in repo.domains_to_verify(limit, vertical_id):
         pages = _load_pages(ctx, row["id"])
         if pages:
             loaded.append((row, pages, merge_extractions(pages)))
@@ -542,7 +567,7 @@ def stage_reverify(ctx: Context, mf: MfVatClient, krs: KrsClient, limit: int = 1
     vertical_id = repo.ensure_vertical(ctx.vertical)
     counts: Counter = Counter()
     loaded: list[tuple[dict, list[PageExtraction], PageExtraction]] = []
-    for row in repo.domains_to_reverify(limit):
+    for row in repo.domains_to_reverify(limit, vertical_id):
         pages = _load_pages(ctx, row["id"])
         if not pages:
             counts["no_snapshots"] += 1  # zrzuty z innego runnera: spróbujemy przy kolejnym przebiegu
@@ -608,7 +633,8 @@ def stage_crawl_deep(ctx: Context, fetcher: PoliteFetcher, limit: int = 20, max_
     repo = ctx.repo
     counts: Counter = Counter()
     candidates: dict[str, dict] = {}
-    for row in list(repo.domains_for_deep_crawl(limit)) + list(repo.domains_awaiting_bundle(limit)):
+    vertical_id = ctx.vertical_id
+    for row in list(repo.domains_for_deep_crawl(limit, vertical_id)) + list(repo.domains_awaiting_bundle(limit, vertical_id)):
         candidates.setdefault(str(row["id"]), row)
     # Strony z bazy i zrzutów wczytujemy w głównym wątku; w wątkach idzie tylko pobieranie z sieci.
     jobs = [(row, _load_pages(ctx, row["id"])) for row in candidates.values()]
@@ -672,7 +698,7 @@ def stage_requeue_lost(ctx: Context) -> dict:
     przed crawl-deep, bo inaczej każde zadanie wyglądałoby na zgubione.
     """
     lost = 0
-    for item in ctx.repo.pending_queue_items():
+    for item in ctx.repo.pending_queue_items(vertical_id=ctx.vertical_id):
         if not Path(item["bundle_path"]).is_file():
             ctx.repo.finish_queue_item(
                 item["id"], "failed", None,
@@ -686,7 +712,7 @@ def stage_requeue_lost(ctx: Context) -> dict:
 def stage_bundle(ctx: Context, limit: int = 50) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
-    for row in repo.brands_needing_description(limit):
+    for row in repo.brands_needing_description(limit, ctx.vertical_id):
         pages = [p for p in _load_pages(ctx, row["domain_id"]) if not is_legal_url(p.url)]
         if not pages:
             counts["no_pages"] += 1
@@ -702,7 +728,7 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
             pages=pages, preset_facts=facts,
         )
         try:
-            path = write_bundle(bundle, ctx.queue_dir)
+            path = write_bundle(bundle, ctx.queue_dir, ctx.queue_vertical)
         except ContactLeakError as exc:
             # Pojedyncza paczka z niewyczyszczonym kontaktem nie zatrzymuje etapu. Fakty tej marki wycofujemy.
             repo.conn.rollback()
@@ -715,7 +741,7 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
         if is_new:
             counts["describe_new"] += 1  # nowa praca dla sesji opisów (ta sama paczka zbudowana ponownie się nie liczy)
         repo.conn.commit()
-    for row in repo.domains_needing_classification(limit):
+    for row in repo.domains_needing_classification(limit, ctx.vertical_id):
         pages = [p for p in _load_pages(ctx, row["id"]) if not is_legal_url(p.url)]
         if not pages:
             continue
@@ -725,7 +751,7 @@ def stage_bundle(ctx: Context, limit: int = 50) -> dict:
             reasons=list(row["classification_reasons"] or []),
         )
         try:
-            path = write_bundle(bundle, ctx.queue_dir)
+            path = write_bundle(bundle, ctx.queue_dir, ctx.queue_vertical)
         except ContactLeakError as exc:
             print(f"Pominięto paczkę classify dla domeny {row['id']}: {exc}", file=sys.stderr)
             counts["blocked_contacts"] += 1
@@ -780,10 +806,11 @@ def stage_import(ctx: Context) -> dict:
     repo = ctx.repo
     counts: Counter = Counter()
     max_overlap = _max_overlap(ctx)
-    for item in repo.pending_queue_items():
+    results = ctx.results_dir()
+    for item in repo.pending_queue_items(vertical_id=ctx.vertical_id):
         firm_id = str(item["brand_id"] or item["domain_id"])
-        result_path = ctx.queue_dir / "results" / item["type"] / f"{firm_id}.json"
-        skip_path = ctx.queue_dir / "results" / "skipped" / item["type"] / f"{firm_id}.json"
+        result_path = results / item["type"] / f"{firm_id}.json"
+        skip_path = results / "skipped" / item["type"] / f"{firm_id}.json"
         if not result_path.exists() and skip_path.exists():
             # Claude Code uznał, że paczka nie dotyczy firmy z branży: zamykamy zadanie, żeby nie wracało.
             try:
@@ -860,8 +887,10 @@ def stage_offers(ctx: Context, fetcher: PoliteFetcher, limit: int = 200, dry_run
 
     Gdy odczyt się nie uda, poprzednie oferty zostają (strona ukrywa te niewidziane od 14 dni)."""
     repo = ctx.repo
+    if not ctx.is_default:
+        return {"skipped": f"oferty dotyczą tylko nieruchomości, nie branży {ctx.vertical.slug}"}
     counts: Counter = Counter()
-    for row in repo.domains_for_offers(limit):
+    for row in repo.domains_for_offers(limit, ctx.vertical_id):
         home = row["canonical_url"] or f"https://{row['host']}/"
         scan = scan_offers(fetcher, home, known_index=row["offers_url"])
         report = {
@@ -1105,7 +1134,7 @@ def stage_contacts(ctx: Context, fetcher: PoliteFetcher, limit: int = 300, only_
     """Telefon, e-mail firmowy i profile społecznościowe ze strony głównej i podstrony Kontakt zweryfikowanych biur."""
     repo = ctx.repo
     counts: Counter = Counter()
-    for row in repo.domains_for_contacts(limit, only_new=only_new):
+    for row in repo.domains_for_contacts(limit, only_new=only_new, vertical_id=ctx.vertical_id):
         home_url = row["canonical_url"] or f"https://{row['host']}/"
         home = fetcher.fetch(home_url)
         if not home.ok:
@@ -1151,7 +1180,7 @@ def stage_google_reviews(ctx: Context, client, config, limit: int = 400, max_age
     if not config.use_maps:
         return {"skipped": "oceny z Map Google wyłączone w panelu"}
     repo = ctx.repo
-    rows = list(repo.brands_for_google_reviews(limit, max_age_days))
+    rows = list(repo.brands_for_google_reviews(limit, max_age_days, ctx.vertical_id))
     counts: Counter = Counter()
 
     def work(row: dict):
@@ -1194,16 +1223,19 @@ def stage_publish_ready(ctx: Context, limit: int = 200) -> dict:
     Każda publikacja zapisuje wpis w audit_log (aktor: pipeline). Wpis można wycofać w panelu.
     """
     repo = ctx.repo
-    if repo.setting("auto_publish", False) is not True:
-        return {"auto_publish": "wyłączone"}
+    # Strona katalogu pokazuje opublikowane wpisy wszystkich branż, więc inna branża niż nieruchomości ma własny
+    # wyłącznik (auto_publish_<branża>, domyślnie wyłączony): publikacja dopiero po decyzji właściciela.
+    switch = "auto_publish" if ctx.is_default else f"auto_publish_{ctx.vertical.slug}"
+    if repo.setting(switch, False) is not True:
+        return {switch: "wyłączone"}
     from .guard import publishing_blocked
 
-    if publishing_blocked(repo):
+    if publishing_blocked(repo, ctx.queue_vertical):
         return {"auto_publish": "wstrzymane przez kontrolę (katalog guard)"}
     min_facts = int(repo.setting("publish_min_facts", 6))
     counts: Counter = Counter()
     known = known_cities(repo.city_names())
-    for row in repo.listings_ready_to_publish(min_facts, limit):
+    for row in repo.listings_ready_to_publish(min_facts, limit, ctx.vertical_id):
         city_id, city_name = str(row["city_id"]), row["city_name"]
         decision = brand_city_decision(repo, str(row["brand_id"]), row["city_hint"], row["brand_name"], known)
         target = decision.city if decision.source in STRONG_CITY_SOURCES else None
@@ -1340,6 +1372,8 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
     (np. oferty wygasły), wpis jest wycofywany, a gdy znów spełnia, wraca. Wpisów wycofanych ręcznie nie przywracamy.
     """
     repo = ctx.repo
+    if not ctx.is_default:
+        return {"skipped": f"dodatkowe miasta z ofert dotyczą tylko nieruchomości, nie branży {ctx.vertical.slug}"}
     from .guard import publishing_blocked
 
     if publishing_blocked(repo):
@@ -1362,6 +1396,8 @@ def stage_extra_cities(ctx: Context, min_offers: int = 3, max_extra: int = 10) -
         addresses_of[str(r["brand_id"])].append(_tokens(r["v"]))
     for brand in repo.brands_with_published_listing():
         brand_id, vertical_id = str(brand["brand_id"]), str(brand["vertical_id"])
+        if vertical_id != ctx.vertical_id:
+            continue  # wpisy innych branż nie mają ofert, więc ten krok ich nie dotyczy
         listings = listings_of[(brand_id, vertical_id)]
         auto = auto_of[(brand_id, vertical_id)]
         offer_texts = offers_of[brand_id]
@@ -1447,7 +1483,7 @@ def stage_cities_report(ctx: Context, out_dir: str, apply: bool = False) -> dict
     before: Counter = Counter()
     after: Counter = Counter()
     rows_out: list[dict] = []
-    rows = repo.primary_listings_for_city_report()
+    rows = repo.primary_listings_for_city_report(ctx.vertical_id)
     decisions = [brand_city_decision(repo, str(r["brand_id"]), r["city_hint"], r["brand_name"], known) for r in rows]
     # Kody pocztowe (dwie pierwsze cyfry) miast z wpisów potwierdzonych adresem w obecnym mieście. Przeniesienie
     # z adresem o kodzie spoza tych kodów idzie do przeglądu: "05-084 Leszno" (wieś pod Warszawą) to nie Leszno 64-100.
@@ -1577,9 +1613,9 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def _published_by_brand(repo: Repo) -> dict[str, dict]:
+def _published_by_brand(repo: Repo, vertical_id: str | None = None) -> dict[str, dict]:
     brands: dict[str, dict] = {}
-    for r in repo.published_listings_overview():
+    for r in repo.published_listings_overview(vertical_id):
         b = brands.setdefault(str(r["brand_id"]), {**r, "listings": []})
         b["listings"].append(r)
     return brands
@@ -1613,7 +1649,7 @@ def stage_names_report(ctx: Context, out_dir: str, apply: bool = False) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     counts: Counter = Counter()
     rows: list[dict] = []
-    for brand_id, b in _published_by_brand(repo).items():
+    for brand_id, b in _published_by_brand(repo, ctx.vertical_id).items():
         host = b["host"] or ""
         if is_catalog_host(host):
             problem, new_name, source, verdict = "strona katalogu firm", None, "", "ukrycie"
@@ -1659,7 +1695,7 @@ def stage_duplicates_report(ctx: Context, out_dir: str, apply: bool = False) -> 
     repo = ctx.repo
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    brands = _published_by_brand(repo)
+    brands = _published_by_brand(repo, ctx.vertical_id)
     parent = {b: b for b in brands}
 
     def find(x: str) -> str:

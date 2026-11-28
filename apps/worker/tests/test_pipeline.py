@@ -477,7 +477,7 @@ def test_bundle_skips_leaking_brand_without_stopping_and_rolls_back_its_facts(ct
     stage_verify(ctx, make_mf(), make_krs(), 50)
     stage_crawl_deep(ctx, fetcher, 10)
 
-    def leaking(bundle, queue_dir):
+    def leaking(bundle, queue_dir, vertical=None):
         raise ContactLeakError(["facts[f1:site_title].value"])
 
     monkeypatch.setattr(pipeline_module, "write_bundle", leaking)

@@ -261,7 +261,50 @@ def open_client(repo, *, budget_for: str = "litescrape") -> tuple[LiteScrapeClie
         return None, config
     used, limit = repo.api_usage_status(budget_for)
     budget = None if limit is None else max(0, limit - used)
+    run_budget = run_budget_remaining()
+    if run_budget is not None:
+        budget = run_budget if budget is None else min(budget, run_budget)
     return LiteScrapeClient(config.api_key, budget=budget), config
+
+
+def run_budget_remaining() -> int | None:
+    """Ile zapytań zostało z twardego budżetu całego przebiegu workflowu (None = bez budżetu).
+
+    Zmienna LITESCRAPE_RUN_BUDGET to budżet łączny dla kilku poleceń uruchamianych jedno po drugim (np. próbne zbieranie
+    nowej branży), niezależny od miesięcznego limitu z panelu. Zużycie poprzednich poleceń zapisuje plik z
+    LITESCRAPE_BUDGET_FILE (record_run_usage). Nieparsowalna wartość = 0, czyli bezpiecznie: nic nie jest wydawane."""
+    raw = os.environ.get("LITESCRAPE_RUN_BUDGET", "").strip()
+    if not raw:
+        return None
+    try:
+        total = max(0, int(raw))
+    except ValueError:
+        return 0
+    return max(0, total - _run_used())
+
+
+def _run_used() -> int:
+    path = os.environ.get("LITESCRAPE_BUDGET_FILE", "").strip()
+    if not path:
+        return 0
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return max(0, int(json.load(handle).get("used", 0)))
+    except (OSError, ValueError, AttributeError):
+        return 0
+
+
+def record_run_usage(calls: int) -> None:
+    """Dopisuje zapytania ostatniego polecenia do pliku budżetu przebiegu (jeśli LITESCRAPE_BUDGET_FILE jest ustawione)."""
+    path = os.environ.get("LITESCRAPE_BUDGET_FILE", "").strip()
+    if not path or calls <= 0:
+        return
+    used = _run_used() + int(calls)  # odczyt przed otwarciem do zapisu (otwarcie zeruje plik)
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"used": used}, handle)
+    except OSError:
+        pass
 
 
 # ----------------------------------------------------------------------------- pobieranie stron

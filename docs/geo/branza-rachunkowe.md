@@ -41,22 +41,31 @@ Zmiany w kodzie roboczym (bez zmiany zachowania dla nieruchomości, testy w `app
 
 ## 2. Co w robocie nadal jest specyficzne dla nieruchomości
 
-Blokery przed uruchomieniem zbierania biur rachunkowych (wymagają decyzji lub zmiany schematu, nie ruszałem):
+Blokery przed uruchomieniem zbierania biur rachunkowych zostały rozwiązane w gałęzi `claude/robot-branze` (28.11.2026):
 
-1. **`domains` nie ma `vertical_id`** (`db/migrations/0001_init.sql:78`). Etapy `probe`, `verify`, `crawl-deep`, `bundle`
-   wybierają domeny globalnie (`apps/worker/katalog_worker/repo.py:166` `domains_to_probe`, `:248` `domains_for_deep_crawl`).
-   Nocny przebieg dla nieruchomości (domyślne `--vertical`) oceniłby domeny biur rachunkowych słowami kluczowymi
-   nieruchomości i odrzucił je jako `irrelevant`. Rozwiązanie bez zmiany schematu: wiązać domenę z branżą przez
-   `search_queries.vertical_id` -> `search_results` (zapytania mają już `vertical_id`, `record_query`) i filtrować etapy
-   po branży. Rozwiązanie ze zmianą schematu (`alter table`) wymaga roli właściciela bazy.
-2. **Kolejka miast jest wspólna** (`cities.last_searched_at`, `deep_requested_at`, `search_enabled`, `search_priority`,
-   `db/migrations/0006_city_search.sql:4`; `repo.py:79` `mark_city_searched`, `:82` `city_search_queue`). Miasto
-   przeszukane dla nieruchomości zostanie pominięte w kolejce dla biur rachunkowych. Bez zmiany schematu: stan per branża
-   w tabeli ustawień albo ręcznie `katalog discover --vertical rachunkowe --city X`.
-3. **Workflowy GitHub nie przekazują `--vertical`** (`.github/workflows/pipeline.yml:98-142`, `offers.yml:46-62`), więc
-   działają tylko dla nieruchomości. Trzeba dodać parametr branży, gdy punkty 1 i 2 będą rozwiązane.
-4. **Eksport promptu z panelu jest jeden** (`katalog prompts`, `cli.py:303`, `:620` domyślnie `queue/prompts/describe.md`).
-   Ścieżka zapasowa w `daily.md` wskazuje już plik pakietu, ale panel nie ma wersji promptu per branża.
+| Bloker | Rozwiązanie |
+|---|---|
+| 1. `domains` bez branży | Migracja `db/migrations/0021_multi_vertical.sql`: kolumna `domains.vertical_id` (nullable, klucz obcy do `verticals`), uzupełnienie istniejących domen branżą `nieruchomosci`, indeks. Nowa domena dostaje branżę wyszukiwania, które ją znalazło. Etapy `probe`, `verify`, `reverify`, `crawl-deep`, `bundle`, `import`, `contacts`, `google-reviews`, `publish-ready` i raporty wybierają dane tylko wskazanej branży. Domena bez branży (dodana przez stary kod między migracją a wdrożeniem) liczy się jako nieruchomości. `domains.host` zostaje unikalny globalnie: domena znaleziona najpierw w jednej branży nie trafia drugi raz do drugiej (firma robiąca obie rzeczy zostaje przy pierwszej branży). |
+| 2. Wspólna kolejka miast | Nieruchomości zostają przy kolumnach `cities.*` (steruje nimi panel, zakładka Miasta). Inne branże mają tabelę `vertical_cities(vertical_id, city_id, search_enabled, search_priority, deep_search, last_searched_at, deep_requested_at)`, wypełnianą poleceniem `katalog cities --vertical rachunkowe` (kolejność z `cities.txt`). Miasto znane tylko innej branży powstaje w `cities` z wyłączonym szukaniem, więc nie wchodzi do kolejki nieruchomości. Kopii stanu nieruchomości w `vertical_cities` celowo nie ma: rozjechałaby się z panelem. |
+| 3. Workflowy | `pipeline.yml` i `import.yml` mają parametr `vertical` (domyślnie `nieruchomosci`, z harmonogramu zawsze to), każde polecenie dostaje `--vertical "$VERTICAL"`. Harmonogramu dla rachunkowych nie ma. Kolejka miast z panelu i prompt z panelu są wysyłane tylko dla nieruchomości. Nowy `collect-sample.yml` służy do próbki. |
+| 4. Prompt z panelu | Nadal jeden (`settings.describe_prompt`, nieruchomości). Prompt rachunkowych jest w `packages/verticals/rachunkowe/prompts/describe.md`; panel per branża to osobne zadanie. |
+
+Dodatkowe zabezpieczenia wprowadzone przy tej zmianie:
+
+- Strona katalogu pokazuje opublikowane wpisy wszystkich branż (zapytania w `apps/web/lib/catalog.ts` nie filtrują po branży), więc `publish-ready` dla innej branży wymaga własnego wyłącznika `settings.auto_publish_<branża>` (domyślnie wyłączony). Nie włączać go, dopóki silnik wielu branż w `apps/web` nie rozdzieli portali.
+- `offers`, `extra-cities` i `indexnow` dla branży innej niż nieruchomości nic nie robią (zwracają `skipped`).
+- Kontrola `guard` ma osobny stan na branżę (`guard_snapshot:<branża>`, `guard_block:<branża>`); stan nieruchomości zostaje pod dotychczasowymi kluczami.
+- Ścieżki kolejki: nieruchomości bez zmian (`queue/pending/<typ>/<id>.json`, `queue/results/<typ>/<id>.json`, `queue/results/skipped/<typ>/...`), więc istniejące dane w repozytorium kolejki są ważne. Inne branże: `queue/pending/<branża>/<typ>/<id>.json` i `queue/results/<branża>/<typ>/<id>.json` (oraz `queue/results/<branża>/skipped/<typ>/<id>.json`). Sesja opisów nieruchomości nie zobaczy paczek rachunkowych, a sesja rachunkowych ma je w osobnym katalogu. Identyfikatory są UUID, więc nazwy plików i tak się nie powtarzają.
+- Twardy budżet zapytań LiteScrape na przebieg: zmienna `LITESCRAPE_RUN_BUDGET` (łącznie dla wszystkich poleceń przebiegu, zużycie zapisuje plik z `LITESCRAPE_BUDGET_FILE`), działa razem z miesięcznym limitem z panelu (obowiązuje mniejszy). Po wyczerpaniu budżetu wyszukiwanie się kończy, a strony pobiera już tylko własny robot.
+
+### Jak uruchomić próbkę (po zgodzie właściciela na budżet)
+
+1. Właściciel bazy stosuje migrację `0021_multi_vertical.sql` (rola właściciela, `katalog migrate` z rolą bez DDL jej nie wykona) i wpisuje ją w `schema_migrations` albo uruchamia `katalog migrate` rolą właściciela.
+2. Uruchomić workflow `collect-sample` (Actions, ręcznie): parametry `cities` (domyślnie 1), `budget` (domyślnie 3000 zapytań LiteScrape), `limit` (300 domen na etap). To samo robi wypchnięcie gałęzi `run/collect-rachunkowe` z wartościami domyślnymi.
+3. Workflow synchronizuje listę miast, szuka tylko przez LiteScrape (bez zapasu Serper), robi probe, verify, crawl-deep, bundle i wysyła paczki do repozytorium kolejki w `queue/pending/rachunkowe/`. Nie publikuje, nie importuje, nie pobiera opinii ani kontaktów.
+4. Sesja opisów dla rachunkowych czyta `queue/pending/rachunkowe/describe/*.json`, zapisuje wyniki w `queue/results/rachunkowe/describe/`, a `import.yml` z parametrem `vertical = rachunkowe` je importuje (bez publikacji, patrz wyłącznik wyżej).
+
+Lokalnie to samo: `katalog cities --vertical rachunkowe`, `katalog discover-queue --provider litescrape --cities 1 --vertical rachunkowe` itd.
 
 Reszta (drobniejsze, nie blokują próbki):
 
@@ -130,7 +139,7 @@ To jest moja wiedza ogólna, nie opinia prawna.
 ## 5. Następne kroki
 
 1. Zgoda właściciela na budżet próbki i zakup domeny.
-2. Rozwiązać blokery 1 i 2 z sekcji 2 (najpierw bez zmiany schematu).
+2. ~~Rozwiązać blokery 1 i 2 z sekcji 2~~ (zrobione, migracja `0021` do zastosowania przez właściciela bazy).
 3. Próbka w 2-3 miastach, zestaw wzorcowy (`golden/README.md`), pomiar precyzji klasyfikatora, uzupełnienie `blocklist`.
 4. Dodać `abonament` do słów cenowych, słowa nazw (`ksiegowosc`, `rachunkowe`) do `names.py`.
 5. Silnik wielu branż w `apps/web` (osobne zadanie, `TASKS.md`).

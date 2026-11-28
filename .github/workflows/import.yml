@@ -5,6 +5,12 @@ name: import
 
 on:
   workflow_dispatch:
+    inputs:
+      vertical:
+        description: "Branża (packages/verticals/<nazwa>). Harmonogram zawsze używa nieruchomosci"
+        type: choice
+        options: [nieruchomosci, rachunkowe]
+        default: nieruchomosci
   schedule:
     - cron: "47 * * * *" # co godzinę: opisy z sesji Claude trafiają na stronę najpóźniej po około godzinie
 
@@ -21,6 +27,8 @@ jobs:
       # Kolejka paczek leży w prywatnym repozytorium rankingbiur-kolejka (scripts/queue_sync.sh).
       QUEUE_REPO_TOKEN: ${{ secrets.QUEUE_REPO_TOKEN }}
       QUEUE_DIR: ./queue
+      # Z harmonogramu inputs jest puste, więc zostaje nieruchomosci (dotychczasowe zachowanie).
+      VERTICAL: ${{ inputs.vertical || 'nieruchomosci' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,10 +43,10 @@ jobs:
       - name: Pobranie kolejki z repozytorium kolejki
         run: bash scripts/queue_sync.sh pull
       - name: S7 import
-        run: katalog import
+        run: katalog import --vertical "$VERTICAL"
       - name: Publikacja wpisów spełniających bramkę
-        run: katalog publish-ready
+        run: katalog publish-ready --vertical "$VERTICAL"
       - name: Usunięcie danych z formularzy po okresie przechowywania (polityka prywatności)
         run: katalog purge-personal
       - name: Stan
-        run: katalog status
+        run: katalog status --vertical "$VERTICAL"

@@ -12,6 +12,7 @@ from .config import Settings
 from .db import connect, migrate
 from .fetch import PoliteFetcher
 from .queries import build_queries
+from .repo import DEFAULT_VERTICAL
 from .verticals import load_vertical, vertical_path
 
 
@@ -64,7 +65,7 @@ def _fetcher(settings: Settings, litescrape=None):
 @contextmanager
 def _litescrape(ctx):
     """Klient LiteScrape na czas polecenia (klucz z panelu). Na końcu zapytania trafiają do licznika miesiąca."""
-    from .litescrape import open_client
+    from .litescrape import open_client, record_run_usage
 
     client, config = open_client(ctx.repo)
     try:
@@ -74,6 +75,7 @@ def _litescrape(ctx):
         raise
     finally:
         if client is not None and client.total:
+            record_run_usage(client.total)  # budżet przebiegu workflowu (LITESCRAPE_RUN_BUDGET), niezależny od bazy
             try:
                 ctx.repo.api_usage_add(client.usage())
             except Exception as exc:  # noqa: BLE001 - zerwane połączenie nie może ukryć liczby zapytań
@@ -248,7 +250,7 @@ def cmd_guard(args) -> int:
 
     with connect() as conn:
         ctx, settings = _context(args, conn)
-        result = run_guard(ctx.repo, accept=args.accept)
+        result = run_guard(ctx.repo, accept=args.accept, vertical=ctx.queue_vertical, vertical_id=ctx.vertical_id)
         _print(result)
     # Kod błędu oznacza przebieg na GitHubie jako nieudany (powiadomienie), publikacja jest już wstrzymana.
     return 0 if result.get("ok", True) else 3
@@ -469,6 +471,10 @@ def cmd_indexnow(args) -> int:
     from .repo import Repo
 
     settings = Settings()
+    if args.vertical != DEFAULT_VERTICAL:
+        # IndexNow zgłasza mapę strony portalu nieruchomości; inne branże nie mają jeszcze własnego portalu.
+        _print({"skipped": f"IndexNow dotyczy portalu nieruchomości, nie branży {args.vertical}"})
+        return 0
     with connect() as conn, httpx.Client(timeout=30.0, headers={"User-Agent": settings.crawler_user_agent}) as client:
         _print(stage_indexnow(Repo(conn), client, all_urls=args.all, dry_run=args.dry_run))
     return 0
@@ -536,20 +542,29 @@ def cmd_purge_personal(args) -> int:
 
 def cmd_backlog(args) -> int:
     """Ile pracy czeka na automat: domeny do otwarcia, domeny do pobrania podstron i nieprzeszukane miasta."""
+    from .repo import Repo
+
     with connect() as conn:
-        one = lambda sql: int(next(iter(dict(conn.execute(sql).fetchone()).values())))  # noqa: E731
+        repo = Repo(conn)
+        vertical_id = repo.vertical_id_by_slug(args.vertical)
+        if vertical_id is None:
+            # Branża jeszcze bez wiersza w bazie: nie ma domen ani wpisów, więc nie ma pracy.
+            _print({"probe": 0, "deep_crawl": 0, "cities": 0, "total": 0})
+            return 0
+        scope, params = repo.domain_scope(vertical_id)
+        one = lambda sql, p=(): int(next(iter(dict(conn.execute(sql, p).fetchone()).values())))  # noqa: E731
         data = {
             "probe": one(
-                "select count(*) from domains where classification = 'unknown' and verification_status = 'candidate'"
-                " and (last_checked_at is null or last_checked_at < now() - interval '1 day')"
+                "select count(*) from domains d where d.classification = 'unknown' and d.verification_status = 'candidate'"
+                f" and (d.last_checked_at is null or d.last_checked_at < now() - interval '1 day') and {scope}", params
             ),
             "deep_crawl": one(
                 "select count(*) from domains d where (d.verification_status = 'verified'"
                 " or (d.verification_status = 'needs_review' and d.brand_id is not null))"
                 " and (select count(*) from crawl_pages p where p.domain_id = d.id) < 3"
-                " and (d.deep_crawled_at is null or d.deep_crawled_at < now() - interval '7 days')"
+                f" and (d.deep_crawled_at is null or d.deep_crawled_at < now() - interval '7 days') and {scope}", params
             ),
-            "cities": one("select count(*) from cities where search_enabled and last_searched_at is null"),
+            "cities": repo.cities_unsearched_count(vertical_id),
         }
     data["total"] = data["probe"] + data["deep_crawl"] + data["cities"]
     _print(data)
@@ -560,7 +575,12 @@ def cmd_status(args) -> int:
     from .repo import Repo
 
     with connect() as conn:
-        _print(Repo(conn).status_counts())
+        repo = Repo(conn)
+        vertical_id = repo.vertical_id_by_slug(args.vertical)
+        if vertical_id is None and args.vertical != DEFAULT_VERTICAL:
+            _print({"vertical": args.vertical, "note": "brak wiersza branży w bazie (jeszcze nic nie zebrano)"})
+            return 0
+        _print(repo.status_counts(vertical_id))
     return 0
 
 
@@ -648,7 +668,7 @@ def build_parser() -> argparse.ArgumentParser:
         "requeue-lost", cmd_requeue_lost,
         "zadania bez pliku paczki oznacz jako failed (tylko po pobraniu kolejki z queue-data, przed crawl-deep)",
     )
-    p = add("indexnow", cmd_indexnow, "zgłoś Bingowi (IndexNow) nowe i zmienione strony z mapy strony", vertical=False)
+    p = add("indexnow", cmd_indexnow, "zgłoś Bingowi (IndexNow) nowe i zmienione strony z mapy strony (tylko nieruchomości)")
     p.add_argument("--all", action="store_true", help="zgłoś wszystkie adresy z mapy strony, nie tylko zmienione")
     p.add_argument("--dry-run", action="store_true", help="tylko policz adresy, bez wysyłki")
     p = add("bundle", cmd_bundle, "S6: przygotuj paczki dla Claude Code")
@@ -663,8 +683,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--csv", required=True)
     p.add_argument("--providers", default="brave,serper")
     p.add_argument("--queries-per-entity", type=int, default=2)
-    add("status", cmd_status, "liczby rekordów według statusów", vertical=False)
-    add("backlog", cmd_backlog, "ile pracy czeka na automat (do decyzji o kolejnym przebiegu)", vertical=False)
+    add("status", cmd_status, "liczby rekordów według statusów (domeny, wpisy i kolejka wskazanej branży)")
+    add("backlog", cmd_backlog, "ile pracy czeka na automat (do decyzji o kolejnym przebiegu)")
     add(
         "purge-personal", cmd_purge_personal,
         "usuń dane z formularzy i statystyki wejść po okresie przechowywania (12 lub 24 mies.)", vertical=False,
@@ -683,7 +703,7 @@ def _run_logged(args) -> int:
     try:
         log_conn = connect()
         repo = Repo(log_conn)
-        run_id = repo.start_run(LOGGED[args.cmd], None)
+        run_id = repo.start_run(LOGGED[args.cmd], repo.vertical_id_by_slug(getattr(args, "vertical", None)))
         log_conn.commit()
     except Exception:  # noqa: BLE001 - brak bazy nie może zatrzymać właściwej pracy
         return args.func(args)

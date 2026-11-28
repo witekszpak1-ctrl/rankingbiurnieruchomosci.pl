@@ -5,7 +5,10 @@
 #   repozytorium rankingbiur-kolejka (scripts/queue_sync.sh), bo sesje Claude Code nie mają dostępu do artefaktów Actions. Wyniki importuje
 #   workflow import.yml,
 # - biała lista VAT bywa blokowana przez ochronę przed botami dla adresów centrów danych (Incapsula),
-# - przy uruchomieniu z harmonogramu nie ma parametrów: pliki kandydatów i Serper (gdy jest klucz), limit 450.
+# - przy uruchomieniu z harmonogramu nie ma parametrów: pliki kandydatów i Serper (gdy jest klucz), limit 450,
+#   branża nieruchomosci. Inną branżę (np. rachunkowe) uruchamia się tylko ręcznie parametrem vertical; harmonogramu
+#   dla innych branż nie ma i nie dodajemy go bez decyzji właściciela (płatne zapytania). Do próbnego zbierania nowej
+#   branży służy workflow collect-sample.yml (twardy budżet LiteScrape).
 name: pipeline
 
 on:
@@ -26,6 +29,11 @@ on:
       chain:
         description: "Numer przebiegu w serii uruchamianej automatycznie (0 = uruchomiony ręcznie lub z harmonogramu)"
         default: "0"
+      vertical:
+        description: "Branża (packages/verticals/<nazwa>). Harmonogram zawsze używa nieruchomosci"
+        type: choice
+        options: [nieruchomosci, rachunkowe]
+        default: nieruchomosci
   # Co godzinę (szybkie uzupełnianie katalogu): import wyników, publikacja, nowi kandydaci, probe, verify, crawl,
   # paczki. Przebieg trwa 45-70 minut, a grupa katalog-db pilnuje, żeby naraz szedł tylko jeden.
   schedule:
@@ -52,6 +60,8 @@ jobs:
       CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
       QUEUE_DIR: ./queue
       SNAPSHOTS_DIR: ./snapshots
+      # Z harmonogramu inputs jest puste, więc zostaje nieruchomosci (dotychczasowe zachowanie).
+      VERTICAL: ${{ inputs.vertical || 'nieruchomosci' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,19 +76,19 @@ jobs:
       - name: Pobranie kolejki z repozytorium kolejki
         run: bash scripts/queue_sync.sh pull
       - name: S7 import wyników Claude Code
-        run: katalog import
+        run: katalog import --vertical "$VERTICAL"
       - name: Publikacja wpisów spełniających bramkę
-        run: katalog publish-ready
+        run: katalog publish-ready --vertical "$VERTICAL"
       # Bing (i wyszukiwanie w ChatGPT) dostaje od razu nowe i zmienione strony z mapy strony. Google nie obsługuje
       # IndexNow, tam działa mapa strony w Search Console. Błąd usługi nie zatrzymuje przebiegu.
       - name: Zgłoszenie nowych stron do Binga (IndexNow)
         continue-on-error: true
-        run: katalog indexnow
+        run: katalog indexnow --vertical "$VERTICAL"
       - name: Firmy w kolejnych miastach (oferty lub biuro w mieście)
         continue-on-error: true
-        run: katalog extra-cities
+        run: katalog extra-cities --vertical "$VERTICAL"
       - name: Odtworzenie zadań bez plików paczek
-        run: katalog requeue-lost
+        run: katalog requeue-lost --vertical "$VERTICAL"
       # Zrzuty stron przechodzą między przebiegami przez cache Actions (runner jest tymczasowy).
       - name: Przywrócenie zrzutów stron
         uses: actions/cache/restore@v4
@@ -95,7 +105,7 @@ jobs:
             echo "Brak plików w queue/candidates w repozytorium kolejki."
           fi
           for f in "${files[@]}"; do
-            katalog discover --provider file --file "$f"
+            katalog discover --provider file --file "$f" --vertical "$VERTICAL"
           done
       # Szukanie biur (wyniki Google) w kolejnych miastach z kolejki panelu: 15 miast na przebieg (frazy równolegle), duże miasta
       # dokładnie (po dzielnicach). LiteScrape z kluczem z panelu (/admin/koszty, tam też liczba wyników na frazę),
@@ -104,13 +114,13 @@ jobs:
         if: ${{ (inputs.city || '') == '' }}
         # Twardy limit 40 min: miasta zapisują się porcjami po 10, przerwane szukanie dokończy następny przebieg.
         run: |
-          timeout 40m katalog discover-queue --provider auto --cities 15 || echo "szukanie: limit czasu, reszta w następnym przebiegu"
+          timeout 40m katalog discover-queue --provider auto --cities 15 --vertical "$VERTICAL" || echo "szukanie: limit czasu, reszta w następnym przebiegu"
       - name: S1 discover przez API wyszukiwarki
         if: ${{ (inputs.provider || 'file') != 'file' && inputs.city != '' }}
         env:
           INPUT_CITY: ${{ inputs.city }}
           INPUT_PROVIDER: ${{ inputs.provider }}
-        run: katalog discover --city "$INPUT_CITY" --provider "$INPUT_PROVIDER"
+        run: katalog discover --city "$INPUT_CITY" --provider "$INPUT_PROVIDER" --vertical "$VERTICAL"
       - name: S3-S6
         env:
           INPUT_LIMIT: ${{ inputs.limit || '450' }}
@@ -118,28 +128,28 @@ jobs:
           # Cały przebieg ma 180 minut (szukanie do 40 min, ten krok do 95 min). Otwieranie 400 stron trwało ok. 47 min, a pobranie 200 serwisów ponad godzinę,
           # więc zadanie było przerywane przed przygotowaniem paczek. Mniejsze porcje i twarde limity czasu: paczki
           # (bundle) powstają zawsze, a reszta stron przechodzi do następnego przebiegu (co 3 godziny).
-          timeout 30m katalog probe --limit "$INPUT_LIMIT" || echo "probe: limit czasu, reszta w następnym przebiegu"
-          timeout 15m katalog verify --limit "$((INPUT_LIMIT * 2))" || echo "verify: limit czasu"
-          timeout 35m katalog crawl-deep --limit "$((INPUT_LIMIT / 3))" || echo "crawl-deep: limit czasu, reszta w następnym przebiegu"
+          timeout 30m katalog probe --limit "$INPUT_LIMIT" --vertical "$VERTICAL" || echo "probe: limit czasu, reszta w następnym przebiegu"
+          timeout 15m katalog verify --limit "$((INPUT_LIMIT * 2))" --vertical "$VERTICAL" || echo "verify: limit czasu"
+          timeout 35m katalog crawl-deep --limit "$((INPUT_LIMIT / 3))" --vertical "$VERTICAL" || echo "crawl-deep: limit czasu, reszta w następnym przebiegu"
           # Biura bez potwierdzenia: ponowne szukanie NIP na wszystkich pobranych podstronach (każde raz na 30 dni).
-          timeout 10m katalog reverify --limit 150 || echo "reverify: limit czasu"
-          katalog bundle --limit "$INPUT_LIMIT" > bundle-result.json
+          timeout 10m katalog reverify --limit 150 --vertical "$VERTICAL" || echo "reverify: limit czasu"
+          katalog bundle --limit "$INPUT_LIMIT" --vertical "$VERTICAL" > bundle-result.json
           cat bundle-result.json
-          katalog status
+          katalog status --vertical "$VERTICAL"
       # Nowe firmy dostają telefon, e-mail, social media i logo od razu, a nie dopiero następnego ranka.
       - name: Kontakty i zdjęcia nowych firm
-        run: katalog contacts --only-new --limit 150
+        run: katalog contacts --only-new --limit 150 --vertical "$VERTICAL"
       # Publikacja i zapis zrzutów także po błędzie: paczki zapisane w bazie muszą mieć swoje pliki na gałęzi.
       - name: Publikacja paczek w repozytorium kolejki
         if: ${{ always() }}
         run: bash scripts/queue_sync.sh push-pending
       - name: Kolejka miast z panelu dla porannej sesji
-        if: ${{ always() }}
+        if: ${{ always() && env.VERTICAL == 'nieruchomosci' }}
         run: |
           katalog cities --export queue/cities.json
           bash scripts/queue_sync.sh push-cities
       - name: Prompt opisów z panelu dla sesji Claude
-        if: ${{ always() }}
+        if: ${{ always() && env.VERTICAL == 'nieruchomosci' }}
         run: |
           katalog prompts --export queue/prompts/describe.md
           if [ -f queue/prompts/describe.md ]; then bash scripts/queue_sync.sh push-prompts; fi
@@ -154,14 +164,14 @@ jobs:
       - name: Kontrole po przebiegu (skoki liczby biur, złe nazwy, duplikaty)
         id: guard
         continue-on-error: true
-        run: katalog guard
+        run: katalog guard --vertical "$VERTICAL"
       - name: Kolejny przebieg, gdy została praca
         if: ${{ success() }}
         env:
           GH_TOKEN: ${{ github.token }}
           CHAIN: ${{ inputs.chain || '0' }}
         run: |
-          katalog backlog > backlog.json
+          katalog backlog --vertical "$VERTICAL" > backlog.json
           cat backlog.json
           more=$(python - <<'PY'
           import json, pathlib
@@ -188,7 +198,7 @@ jobs:
           )
           if [ "$more" = "1" ] && [ "$CHAIN" -lt 24 ]; then
             echo "Została praca, uruchamiam przebieg nr $((CHAIN + 1)) w serii."
-            gh workflow run pipeline.yml --repo "$GITHUB_REPOSITORY" --ref main -f chain="$((CHAIN + 1))"
+            gh workflow run pipeline.yml --repo "$GITHUB_REPOSITORY" --ref main -f chain="$((CHAIN + 1))" -f vertical="$VERTICAL"
           else
             echo "Bez kolejnego przebiegu (praca: $more, przebieg w serii: $CHAIN)."
           fi

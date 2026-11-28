@@ -43,9 +43,33 @@ class DbCache:
         )
 
 
+DEFAULT_VERTICAL = "nieruchomosci"
+
+
 class Repo:
     def __init__(self, conn: psycopg.Connection) -> None:
         self.conn = conn
+        self._default_flags: dict[str, bool] = {}
+
+    # ------------------------------------------------------------------ zakres branży
+
+    def is_default_vertical(self, vertical_id: str) -> bool:
+        """Czy to branża domyślna (nieruchomości). Tylko ona dostaje domeny bez branży (sprzed migracji 0021)."""
+        key = str(vertical_id)
+        if key not in self._default_flags:
+            row = self.conn.execute("select slug from verticals where id = %s", (key,)).fetchone()
+            self._default_flags[key] = bool(row) and row["slug"] == DEFAULT_VERTICAL
+        return self._default_flags[key]
+
+    def domain_scope(self, vertical_id: str | None, alias: str = "d") -> tuple[str, tuple]:
+        """Warunek SQL ograniczający domeny do branży (fragment i parametry). Bez branży (None) bez ograniczenia.
+        Domena bez branży (dodana przez kod sprzed migracji 0021) należy do nieruchomości."""
+        if vertical_id is None:
+            return "true", ()
+        return (
+            f"({alias}.vertical_id = %s or ({alias}.vertical_id is null and %s))",
+            (str(vertical_id), self.is_default_vertical(vertical_id)),
+        )
 
     # ------------------------------------------------------------------ słowniki
 
@@ -57,6 +81,13 @@ class Repo:
             (cfg.slug, cfg.name, cfg.domain),
         ).fetchone()
         return str(row["id"])
+
+    def vertical_id_by_slug(self, slug: str | None) -> str | None:
+        """Id istniejącej branży (bez tworzenia wiersza); None, gdy brak slugu albo wiersza."""
+        if not slug:
+            return None
+        row = self.conn.execute("select id from verticals where slug = %s", (slug,)).fetchone()
+        return str(row["id"]) if row else None
 
     def ensure_city(self, name: str) -> str:
         row = self.conn.execute(
@@ -76,10 +107,46 @@ class Repo:
         ).fetchone()
         return int(bool(row["inserted"]))
 
-    def mark_city_searched(self, name: str) -> None:
+    def ensure_city_for_vertical(self, vertical_id: str, name: str, priority: int) -> int:
+        """Miasto z listy branży innej niż nieruchomości: wpis w vertical_cities (stan kolejki tej branży). Nowe miasto
+        w tabeli cities powstaje z wyłączonym szukaniem, żeby nie trafiło do kolejki nieruchomości. Zwraca 1, gdy
+        miasto było nowe w kolejce tej branży."""
+        city = self.conn.execute(
+            """insert into cities (name, slug, search_enabled) values (%s, %s, false)
+               on conflict (slug) do update set name = cities.name returning id""",
+            (name, slugify(name)),
+        ).fetchone()
+        row = self.conn.execute(
+            """insert into vertical_cities (vertical_id, city_id, search_priority) values (%s, %s, %s)
+               on conflict (vertical_id, city_id) do update
+                 set search_priority = coalesce(vertical_cities.search_priority, excluded.search_priority)
+               returning (xmax = 0) as inserted""",
+            (vertical_id, city["id"], priority),
+        ).fetchone()
+        return int(bool(row["inserted"]))
+
+    def mark_city_searched(self, name: str, vertical_id: str | None = None) -> None:
+        if vertical_id is not None and not self.is_default_vertical(vertical_id):
+            self.conn.execute(
+                """update vertical_cities set last_searched_at = now()
+                   where vertical_id = %s and city_id = (select id from cities where slug = %s)""",
+                (vertical_id, slugify(name)),
+            )
+            return
         self.conn.execute("update cities set last_searched_at = now() where slug = %s", (slugify(name),))
 
-    def city_search_queue(self) -> list[dict]:
+    def city_search_queue(self, vertical_id: str | None = None) -> list[dict]:
+        """Kolejka miast. Nieruchomości (i brak branży): kolumny cities.* sterowane z panelu. Inne branże: vertical_cities."""
+        if vertical_id is not None and not self.is_default_vertical(vertical_id):
+            return self.conn.execute(
+                """select c.name, c.slug, v.last_searched_at, v.deep_requested_at,
+                          (v.deep_search or coalesce(v.search_priority, 999) <= 12) as deep
+                   from vertical_cities v join cities c on c.id = v.city_id
+                   where v.vertical_id = %s and v.search_enabled
+                   order by (v.deep_requested_at is null), v.deep_requested_at,
+                            (v.last_searched_at is not null), v.search_priority nulls last, c.name""",
+                (vertical_id,),
+            ).fetchall()
         return self.conn.execute(
             """select name, slug, last_searched_at, deep_requested_at,
                       (deep_search or coalesce(search_priority, 999) <= 12) as deep
@@ -87,6 +154,18 @@ class Repo:
                order by (deep_requested_at is null), deep_requested_at,
                         (last_searched_at is not null), search_priority nulls last, name"""
         ).fetchall()
+
+    def cities_unsearched_count(self, vertical_id: str | None = None) -> int:
+        if vertical_id is not None and not self.is_default_vertical(vertical_id):
+            row = self.conn.execute(
+                "select count(*) as n from vertical_cities where vertical_id = %s and search_enabled and last_searched_at is null",
+                (vertical_id,),
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                "select count(*) as n from cities where search_enabled and last_searched_at is null"
+            ).fetchone()
+        return int(row["n"])
 
     # ------------------------------------------------------------------ przebiegi i wyszukiwanie
 
@@ -152,24 +231,29 @@ class Repo:
 
     # ------------------------------------------------------------------ domeny
 
-    def upsert_domain(self, host: str, canonical_url: str, city_hint: str | None = None) -> tuple[str, bool]:
+    def upsert_domain(
+        self, host: str, canonical_url: str, city_hint: str | None = None, vertical_id: str | None = None,
+    ) -> tuple[str, bool]:
+        """Nowa domena dostaje branżę wyszukiwania, które ją znalazło. Istniejąca zostaje przy swojej branży."""
         row = self.conn.execute(
-            """insert into domains (host, canonical_url, city_hint) values (%s, %s, %s)
+            """insert into domains (host, canonical_url, city_hint, vertical_id) values (%s, %s, %s, %s)
                on conflict (host) do nothing returning id""",
-            (host, canonical_url, city_hint),
+            (host, canonical_url, city_hint, vertical_id),
         ).fetchone()
         if row:
             return str(row["id"]), True
         existing = self.conn.execute("select id from domains where host = %s", (host,)).fetchone()
         return str(existing["id"]), False
 
-    def domains_to_probe(self, limit: int) -> list[dict]:
+    def domains_to_probe(self, limit: int, vertical_id: str | None = None) -> list[dict]:
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select id, host, canonical_url, city_hint from domains
-               where classification = 'unknown' and verification_status = 'candidate'
-                 and (last_checked_at is null or last_checked_at < now() - interval '1 day')
-               order by first_seen_at limit %s""",
-            (limit,),
+            f"""select d.id, d.host, d.canonical_url, d.city_hint from domains d
+               where d.classification = 'unknown' and d.verification_status = 'candidate'
+                 and (d.last_checked_at is null or d.last_checked_at < now() - interval '1 day')
+                 and {scope}
+               order by d.first_seen_at limit %s""",
+            (*params, limit),
         ).fetchall()
 
     def update_domain_classification(
@@ -199,26 +283,30 @@ class Repo:
             (Jsonb(reasons), robots_status, domain_id),
         )
 
-    def domains_to_verify(self, limit: int) -> list[dict]:
+    def domains_to_verify(self, limit: int, vertical_id: str | None = None) -> list[dict]:
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select id, host, canonical_url, city_hint, classification, brand_id from domains
-               where (classification in ('official', 'uncertain') and verification_status = 'candidate')
-                  or (classification in ('official', 'uncertain') and verification_status = 'needs_review'
-                      and brand_id is null)
-               order by first_seen_at limit %s""",
-            (limit,),
+            f"""select d.id, d.host, d.canonical_url, d.city_hint, d.classification, d.brand_id from domains d
+               where ((d.classification in ('official', 'uncertain') and d.verification_status = 'candidate')
+                  or (d.classification in ('official', 'uncertain') and d.verification_status = 'needs_review'
+                      and d.brand_id is null))
+                 and {scope}
+               order by d.first_seen_at limit %s""",
+            (*params, limit),
         ).fetchall()
 
-    def domains_to_reverify(self, limit: int) -> list[dict]:
+    def domains_to_reverify(self, limit: int, vertical_id: str | None = None) -> list[dict]:
         """Biura bez potwierdzenia w rejestrze (z marką), sprawdzane ponownie najwyżej raz na 30 dni."""
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select d.id, d.host, d.canonical_url, d.city_hint, d.classification, d.brand_id from domains d
+            f"""select d.id, d.host, d.canonical_url, d.city_hint, d.classification, d.brand_id from domains d
                where d.verification_status = 'needs_review' and d.brand_id is not null
                  and d.classification = 'official'
                  and (d.reverified_at is null or d.reverified_at < now() - interval '30 days')
                  and exists (select 1 from crawl_pages p where p.domain_id = d.id)
+                 and {scope}
                order by d.reverified_at nulls first, d.first_seen_at limit %s""",
-            (limit,),
+            (*params, limit),
         ).fetchall()
 
     def mark_reverified(self, domain_id: str) -> None:
@@ -245,23 +333,26 @@ class Repo:
             (score, status, legal_entity_id, brand_id, Jsonb(reasons or []), domain_id),
         )
 
-    def domains_for_deep_crawl(self, limit: int) -> list[dict]:
+    def domains_for_deep_crawl(self, limit: int, vertical_id: str | None = None) -> list[dict]:
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select d.id, d.host, d.canonical_url from domains d
+            f"""select d.id, d.host, d.canonical_url from domains d
                where (d.verification_status = 'verified' or (d.verification_status = 'needs_review' and d.brand_id is not null))
                  and (select count(*) from crawl_pages p where p.domain_id = d.id) < 3
                  and (d.deep_crawled_at is null or d.deep_crawled_at < now() - interval '7 days')
+                 and {scope}
                order by d.first_seen_at limit %s""",
-            (limit,),
+            (*params, limit),
         ).fetchall()
 
     def mark_deep_crawled(self, domain_id: str) -> None:
         self.conn.execute("update domains set deep_crawled_at = now() where id = %s", (domain_id,))
 
-    def domains_awaiting_bundle(self, limit: int) -> list[dict]:
+    def domains_awaiting_bundle(self, limit: int, vertical_id: str | None = None) -> list[dict]:
         """Zweryfikowane domeny marek, które czekają na paczkę opisu (do ponownego pobrania stron, gdy zrzutów brak)."""
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select distinct d.id, d.host, d.canonical_url, d.first_seen_at from domains d
+            f"""select distinct d.id, d.host, d.canonical_url, d.first_seen_at from domains d
                join brands b on b.id = d.brand_id
                join listings l on l.brand_id = b.id and l.status in ('verified', 'needs_review')
                where d.verification_status in ('verified', 'needs_review')
@@ -272,9 +363,10 @@ class Repo:
                  -- pobieramy jej stron w każdym przebiegu; inaczej zajmowały limit crawl-deep przed firmami bez opisu
                  and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
                                  and q.status = 'rejected'
-                                 and q.validator_report -> 'errors' @> '[{"code": "skipped"}]'::jsonb)
+                                 and q.validator_report -> 'errors' @> '[{{"code": "skipped"}}]'::jsonb)
+                 and {scope}
                order by d.first_seen_at limit %s""",
-            (limit,),
+            (*params, limit),
         ).fetchall()
 
     # ------------------------------------------------------------------ strony
@@ -384,7 +476,7 @@ class Repo:
         ).fetchone()
         return row["host"] if row else None
 
-    def primary_listings_for_city_report(self) -> list[dict]:
+    def primary_listings_for_city_report(self, vertical_id: str | None = None) -> list[dict]:
         """Opublikowane wpisy główne (bez wpisów z kroku miast dodatkowych) z miastem wyszukiwania."""
         return self.conn.execute(
             """select l.id, l.brand_id, l.vertical_id, l.slug, l.city_id, c.name as city_name, c.slug as city_slug,
@@ -395,7 +487,9 @@ class Repo:
                where l.status = 'published'
                  and not exists (select 1 from audit_log a where a.entity_type = 'listing'
                                  and a.entity_id = l.id::text and a.action = 'listing.publish_extra_city')
-               order by c.name, b.name"""
+                 and (%s::uuid is null or l.vertical_id = %s::uuid)
+               order by c.name, b.name""",
+            (vertical_id, vertical_id),
         ).fetchall()
 
     def brand_listing_in_city(self, brand_id: str, vertical_id: str, city_id: str) -> dict | None:
@@ -414,7 +508,7 @@ class Repo:
             (from_path, listing_id),
         )
 
-    def published_listings_overview(self) -> list[dict]:
+    def published_listings_overview(self, vertical_id: str | None = None) -> list[dict]:
         """Opublikowane wpisy z danymi marki do raportów nazw i duplikatów (etap 3 planu poprawy)."""
         return self.conn.execute(
             """select l.id, l.brand_id, l.vertical_id, l.city_id, l.slug, c.name as city_name, c.slug as city_slug,
@@ -430,7 +524,9 @@ class Repo:
                from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
                left join legal_entities le on le.id = b.legal_entity_id
                where l.status = 'published' and l.slug is not null
-               order by b.id, l.published_at nulls last"""
+                 and (%s::uuid is null or l.vertical_id = %s::uuid)
+               order by b.id, l.published_at nulls last""",
+            (vertical_id, vertical_id),
         ).fetchall()
 
     def brand_titles(self, brand_id: str) -> list[str]:
@@ -514,9 +610,11 @@ class Repo:
         ).fetchone()
         return str(row["id"])
 
-    def brands_needing_description(self, limit: int) -> list[dict]:
+    def brands_needing_description(self, limit: int, vertical_id: str | None = None) -> list[dict]:
+        scope, params = self.domain_scope(vertical_id)
+        listing_scope, listing_params = ("true", ()) if vertical_id is None else ("l.vertical_id = %s", (str(vertical_id),))
         return self.conn.execute(
-            """select b.id as brand_id, b.name, l.city_id, c.name as city, d.id as domain_id, d.host
+            f"""select b.id as brand_id, b.name, l.city_id, c.name as city, d.id as domain_id, d.host
                from brands b
                join listings l on l.brand_id = b.id and l.status in ('verified', 'needs_review')
                join cities c on c.id = l.city_id
@@ -527,19 +625,22 @@ class Repo:
                  -- firma pominięta przez sesję opisów (urząd, deweloper, portal): paczki nie budujemy od nowa
                  and not exists (select 1 from queue_items q where q.brand_id = b.id and q.type = 'describe'
                                  and q.status = 'rejected'
-                                 and q.validator_report -> 'errors' @> '[{"code": "skipped"}]'::jsonb)
+                                 and q.validator_report -> 'errors' @> '[{{"code": "skipped"}}]'::jsonb)
+                 and {scope} and {listing_scope}
                order by b.created_at limit %s""",
-            (limit,),
+            (*params, *listing_params, limit),
         ).fetchall()
 
-    def domains_needing_classification(self, limit: int) -> list[dict]:
+    def domains_needing_classification(self, limit: int, vertical_id: str | None = None) -> list[dict]:
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select d.id, d.host, d.canonical_url, d.classification_reasons from domains d
+            f"""select d.id, d.host, d.canonical_url, d.classification_reasons from domains d
                where d.classification = 'uncertain' and d.verification_status = 'candidate'
                  and not exists (select 1 from queue_items q where q.domain_id = d.id and q.type = 'classify'
                                  and q.status in ('pending', 'claimed', 'done'))
+                 and {scope}
                order by d.first_seen_at limit %s""",
-            (limit,),
+            (*params, limit),
         ).fetchall()
 
     def rename_brand(self, brand_id: str, name: str) -> None:
@@ -627,10 +728,11 @@ class Repo:
                 "update settings set value = %s, updated_at = now() where key = %s", (Jsonb(new_value), SETTINGS_KEY)
             )
 
-    def listings_ready_to_publish(self, min_facts: int, limit: int) -> list[dict]:
+    def listings_ready_to_publish(self, min_facts: int, limit: int, vertical_id: str | None = None) -> list[dict]:
         """Wpisy spełniające bramkę publikacji: domena zweryfikowana, zwalidowany opis, minimum faktów."""
+        listing_scope, listing_params = ("true", ()) if vertical_id is None else ("l.vertical_id = %s", (str(vertical_id),))
         return self.conn.execute(
-            """select l.id, l.vertical_id, l.city_id, l.slug, c.name as city_name, b.id as brand_id, b.name as brand_name,
+            f"""select l.id, l.vertical_id, l.city_id, l.slug, c.name as city_name, b.id as brand_id, b.name as brand_name,
                       (select d.city_hint from domains d where d.brand_id = b.id
                         and d.verification_status in ('verified', 'needs_review')
                         order by d.verification_score desc nulls last limit 1) as city_hint,
@@ -645,8 +747,9 @@ class Repo:
                  and (select x.status from descriptions x where x.brand_id = b.id and x.status <> 'rejected'
                        order by x.version desc limit 1) = 'validated'
                  and (select count(*) from facts f where f.brand_id = b.id and f.is_current) >= %s
+                 and {listing_scope}
                order by l.created_at limit %s""",
-            (min_facts, limit),
+            (min_facts, *listing_params, limit),
         ).fetchall()
 
     def brand_has_listing_in_city(self, brand_id: str, vertical_id: str, city_id: str, except_listing_id: str) -> bool:
@@ -750,14 +853,16 @@ class Repo:
 
     # ------------------------------------------------------------------ oferty
 
-    def domains_for_offers(self, limit: int) -> list[dict]:
+    def domains_for_offers(self, limit: int, vertical_id: str | None = None) -> list[dict]:
         """Zweryfikowane domeny marek z opublikowanym wpisem, najdawniej sprawdzane pierwsze."""
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select d.id, d.host, d.canonical_url, d.brand_id, d.offers_url, d.offers_checked_at from domains d
+            f"""select d.id, d.host, d.canonical_url, d.brand_id, d.offers_url, d.offers_checked_at from domains d
                where d.verification_status in ('verified', 'needs_review') and d.brand_id is not null
                  and exists (select 1 from listings l where l.brand_id = d.brand_id and l.status = 'published')
+                 and {scope}
                order by d.offers_checked_at nulls first, d.host limit %s""",
-            (limit,),
+            (*params, limit),
         ).fetchall()
 
     def save_offers(self, domain_id: str, brand_id: str, offers: list) -> dict:
@@ -792,20 +897,22 @@ class Repo:
         ).rowcount
         return counts
 
-    def domains_for_contacts(self, limit: int, only_new: bool = False) -> list[dict]:
+    def domains_for_contacts(self, limit: int, only_new: bool = False, vertical_id: str | None = None) -> list[dict]:
         """Zweryfikowane domeny marek z wpisem w katalogu albo w przygotowaniu, jedna domena na markę.
         Najpierw marki jeszcze nigdy niesprawdzone; only_new = tylko takie (szybkie uzupełnienie nowych firm)."""
+        scope, params = self.domain_scope(vertical_id)
         return self.conn.execute(
-            """select * from (
+            f"""select * from (
                  select distinct on (d.brand_id) d.id, d.host, d.canonical_url, d.brand_id, b.image_checked_at
                  from domains d join brands b on b.id = d.brand_id
                  where d.verification_status in ('verified', 'needs_review')
                    and exists (select 1 from listings l where l.brand_id = d.brand_id
                                and l.status in ('published', 'verified', 'needs_review'))
                    and (not %s or b.image_checked_at is null)
+                   and {scope}
                  order by d.brand_id, d.verification_score desc nulls last
                ) x order by image_checked_at nulls first limit %s""",
-            (only_new, limit),
+            (only_new, *params, limit),
         ).fetchall()
 
     def save_contacts(self, brand_id: str, found: dict) -> None:
@@ -830,17 +937,19 @@ class Repo:
                 (brand_id, network, url, source),
             )
 
-    def brands_for_google_reviews(self, limit: int, max_age_days: int) -> list[dict]:
+    def brands_for_google_reviews(self, limit: int, max_age_days: int, vertical_id: str | None = None) -> list[dict]:
+        listing_scope, listing_params = ("true", ()) if vertical_id is None else ("l.vertical_id = %s", (str(vertical_id),))
         return self.conn.execute(
-            """select b.id as brand_id, b.name, c.name as city, d.canonical_url as website from listings l
+            f"""select b.id as brand_id, b.name, c.name as city, d.canonical_url as website from listings l
                join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
                left join lateral (select canonical_url from domains where brand_id = b.id
                                   order by verification_score desc nulls last limit 1) d on true
                left join google_places g on g.brand_id = b.id
                where l.status = 'published'
                  and (g.fetched_at is null or g.fetched_at < now() - make_interval(days => %s))
+                 and {listing_scope}
                order by g.fetched_at nulls first limit %s""",
-            (max_age_days, limit),
+            (max_age_days, *listing_params, limit),
         ).fetchall()
 
     def save_google_place(self, brand_id: str, result) -> None:
@@ -930,11 +1039,16 @@ class Repo:
         ).fetchone()
         return str(row["id"])
 
-    def pending_queue_items(self, type_: str | None = None) -> list[dict]:
+    def pending_queue_items(self, type_: str | None = None, vertical_id: str | None = None) -> list[dict]:
+        """Zadania do zaimportowania. Z branżą tylko zadania jej domen (zadanie opisu przez markę, klasyfikacji przez domenę)."""
+        scope, params = self.domain_scope(vertical_id, "dd")
         return self.conn.execute(
-            """select id, type, brand_id, domain_id, bundle_path, bundle_sha256 from queue_items
-               where status = 'pending' and (%s::text is null or type = %s) order by created_at""",
-            (type_, type_),
+            f"""select q.id, q.type, q.brand_id, q.domain_id, q.bundle_path, q.bundle_sha256 from queue_items q
+               where q.status = 'pending' and (%s::text is null or q.type = %s)
+                 and exists (select 1 from domains dd
+                             where (dd.id = q.domain_id or (q.domain_id is null and dd.brand_id = q.brand_id)) and {scope})
+               order by q.created_at""",
+            (type_, type_, *params),
         ).fetchall()
 
     def finish_queue_item(self, item_id: str, status: str, result_path: str | None, report: dict) -> None:
@@ -946,23 +1060,39 @@ class Repo:
 
     # ------------------------------------------------------------------ status
 
-    def status_counts(self) -> dict:
-        def counts(sql: str) -> dict:
-            return {r["k"]: r["n"] for r in self.conn.execute(sql).fetchall()}
+    def status_counts(self, vertical_id: str | None = None) -> dict:
+        """Liczby rekordów według statusów; z branżą tylko jej domeny, wpisy, zadania i opisy."""
+        scope, params = self.domain_scope(vertical_id)
+        listing_scope, listing_params = ("true", ()) if vertical_id is None else ("l.vertical_id = %s", (str(vertical_id),))
+
+        def counts(sql: str, p: tuple = ()) -> dict:
+            return {r["k"]: r["n"] for r in self.conn.execute(sql, p).fetchall()}
 
         return {
             "domains_by_status": counts(
-                "select verification_status as k, count(*)::int as n from domains group by 1 order by 1"
+                f"select d.verification_status as k, count(*)::int as n from domains d where {scope} group by 1 order by 1",
+                params,
             ),
             "domains_by_classification": counts(
-                "select classification as k, count(*)::int as n from domains group by 1 order by 1"
+                f"select d.classification as k, count(*)::int as n from domains d where {scope} group by 1 order by 1",
+                params,
             ),
-            "listings_by_status": counts("select status as k, count(*)::int as n from listings group by 1 order by 1"),
+            "listings_by_status": counts(
+                f"select l.status as k, count(*)::int as n from listings l where {listing_scope} group by 1 order by 1",
+                listing_params,
+            ),
             "queue_by_status": counts(
-                "select type || ':' || status as k, count(*)::int as n from queue_items group by 1 order by 1"
+                f"""select q.type || ':' || q.status as k, count(*)::int as n from queue_items q
+                    where exists (select 1 from domains d
+                                  where (d.id = q.domain_id or (q.domain_id is null and d.brand_id = q.brand_id)) and {scope})
+                    group by 1 order by 1""",
+                params,
             ),
             "descriptions_by_status": counts(
-                "select status as k, count(*)::int as n from descriptions group by 1 order by 1"
+                f"""select x.status as k, count(*)::int as n from descriptions x
+                    where exists (select 1 from listings l where l.brand_id = x.brand_id and {listing_scope})
+                    group by 1 order by 1""",
+                listing_params,
             ),
         }
 
