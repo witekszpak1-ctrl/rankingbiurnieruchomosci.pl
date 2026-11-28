@@ -2,6 +2,12 @@
 
 Jedno źródło prawdy dla agentów. Nowa decyzja na górze, z datą i źródłem.
 
+## 28.11.2026 (pomiar AI po teście LiteScrape)
+
+- Gemini, Google AI Mode i Google AI Overview mierzymy przez LiteScrape (już opłacany, odpowiedzi po polsku,
+  AI Mode i AI Overview z cytowanymi źródłami, Gemini sam tekst). ChatGPT: później przez DataForSEO albo innego
+  dostawcę (pkt 13). Test: 12 udanych zapytań, 4-19 s na odpowiedź.
+
 ## 28.11.2026 (właściciel, odpowiedzi na pytania 1-20 z raportu)
 
 | Nr | Pytanie | Decyzja |
