@@ -22,17 +22,17 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       --max-age-days 7 --save-raw KATALOG --dry-run` (`apps/worker/katalog_worker/geo_measure.py`). Płatne: twardy limit 50 zapytań,
       domyślnie 20; świeży pomiar (ten sam klucz pamięci co w `apps/geo/lib/measure.ts`) jest używany ponownie. Nie uruchamiany
       automatycznie w CI. Parsery tolerancyjne - kształt `text_blocks`, `references`, `ai_overview` do potwierdzenia na żywo (`--save-raw`).
-- [ ] Monitoring co tydzień (poniedziałek): workflow geo-measure z harmonogramem; jeśli harmonogram GitHub nie ruszy,
+- [x] Monitoring co tydzień (poniedziałek): workflow geo-measure z harmonogramem (cron pon. 03:41 UTC, 20 miast, 4 pytania); jeśli harmonogram GitHub nie ruszy,
       zaplanowana sesja w poniedziałek wypycha gałąź run/geo-measure z parametrami 20 miast, 3 pytania
 - [x] Koszt zapytań AI w LiteScrape: pole `billed` to tylko true (zapytanie policzone), jedna odpowiedź = jedno zapytanie z salda (ok. 0,15 USD za 1000); różnicę sprawdzać w saldzie /admin/koszty
-- [~] Darmowy audyt: wersja 1 z pomiarów biblioteki i katalogu (bez nowych zapytań) gotowa na gałęzi claude/audyt-mvp (`/audyt`, `/audyt/<domena>`, `docs/geo/audyt.md`, testy i sprawdzenie na lokalnej bazie). Przed scaleniem: właściciel nakłada `db/geo/0004_catalog_read.sql`. Dalej: pomiar na żywo za budżetem, skan strony, rozpoznawanie branży
+- [x] Darmowy audyt: wersja 1 (scalona, 0004 na produkcji) z pomiarów biblioteki i katalogu (bez nowych zapytań) gotowa na gałęzi claude/audyt-mvp (`/audyt`, `/audyt/<domena>`, `docs/geo/audyt.md`, testy i sprawdzenie na lokalnej bazie). Przed scaleniem: właściciel nakłada `db/geo/0004_catalog_read.sql`. Dalej: pomiar na żywo za budżetem, skan strony, rozpoznawanie branży
 - [x] Nowy wygląd GeoTrace (28.11): system projektowy, strona główna z prawdziwymi liczbami, raport audytu z celem i historią tygodniową, powłoka z paskiem bocznym dla panelu, partnera i administracji, wykresy w SVG (`docs/geo/wyglad.md`)
 - [ ] Wygląd: po starcie pomiarów ChatGPT dodać go do podpisów i pasków liczb; edycja danych firmy w `/panel/ustawienia`
 - [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
 - [ ] Faktury zgodne z KSeF (wybór programu do faktur)
 - [x] Panel administratora GeoTrace `/admin` (28.11, apps/geo): przegląd, pomiary z filtrami i szczegółami, źródła, firmy (kandydaci do katalogu), lista oczekujących z CSV, użytkownicy z przełącznikiem administratora; tylko odczyt z bazy, bez płatnych zapytań, bez migracji (`docs/geo/panel-admina.md`)
 - [x] Silnik uprawnień (`apps/geo/lib/entitlements.ts`): limity z `plans.entitlements`, powrót do Free przy zaległości
-- [~] Master Dashboard `/admin` (gałąź claude/master-dashboard, `docs/geo/master-dashboard.md`): przegląd całości z alertami, portale (rejestr + szczegóły), robot i kolejki, koszty API, ruch i boty. Tylko odczyt, bez płatnych zapytań. Przed scaleniem: właściciel bazy nakłada `db/geo/0005_master_dashboard.sql` (`npm run migrate` w apps/geo z GEO_MIGRATE_URL; wymaga 0021)
+- [x] Master Dashboard `/admin` (scalony 28.11, 0005 nałożona na produkcji; `docs/geo/master-dashboard.md`): przegląd całości z alertami, portale (rejestr + szczegóły), robot i kolejki, koszty API, ruch i boty. Tylko odczyt, bez płatnych zapytań. Przed scaleniem: właściciel bazy nakłada `db/geo/0005_master_dashboard.sql` (`npm run migrate` w apps/geo z GEO_MIGRATE_URL; wymaga 0021)
 - [ ] Regulamin platformy i programu partnerskiego (prawnik)
 
 ## Katalogi
@@ -46,13 +46,13 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       https://portal-weterynarze-witek1.vercel.app (puste do czasu zbierania danych; widoczne po zalogowaniu do Vercel)
 
 - [x] Opinie Google na profilach: tylko ocena, liczba i link (wdrożone 28.11)
-- [~] Przycisk "sprawdź widoczność w AI" na profilach: gotowy na gałęzi claude/premium, pokazuje się po ustawieniu `NEXT_PUBLIC_GEO_AUDIT_URL` (dziś nieustawione, produkcja bez zmian)
+- [x] Przycisk "sprawdź widoczność w AI" na profilach (scalony), pokazuje się po ustawieniu `NEXT_PUBLIC_GEO_AUDIT_URL` (dziś nieustawione, produkcja bez zmian)
 - [!] DNS rankingbiurnieruchomosci.pl do Cloudflare (właściciel: dodanie strony w Cloudflare i zmiana serwerów DNS w aftermarket.pl)
 
-- [ ] Wielobranżowość strony: konfiguracja portalu z bazy, teksty branży z pakietu, nie z kodu
+- [x] Teksty portali per branża (28.11): odmiana jednostki, kroki, pytania, kolejność sekcji z konfiguracji portalu, test blokujący słownictwo nieruchomości na innych portalach (`docs/geo/silnik-branz.md`). Konfiguracja z bazy zamiast z kodu: później
 - [ ] Motywy i warianty układu per portal (decyzja: portale mają się różnić)
-- [~] Profil Premium: gałąź claude/premium (render sekcji "Informacje od firmy", podgląd szkicu `/podglad/<token>`, tabela `listing_premium`, testy; opis `docs/geo/profil-premium.md`). Przed scaleniem: właściciel nakłada `db/migrations/0022_listing_premium.sql`. Dalej: zapisy z GeoTrace (migracja z prawami zapisu), generowanie linków podglądu
-- [~] Strony miast w ISR: widok domyślny `/[city]` z pamięci podręcznej, filtry i strony (`?cel=`, `?filtr=`, `?strona=`) przez przepisanie na `/widok/[city]` (gałąź claude/premium); po wdrożeniu sprawdzić na Vercelu nagłówki i obciążenie Neona
+- [x] Profil Premium (scalony, 0022 na produkcji) (render sekcji "Informacje od firmy", podgląd szkicu `/podglad/<token>`, tabela `listing_premium`, testy; opis `docs/geo/profil-premium.md`). Przed scaleniem: właściciel nakłada `db/migrations/0022_listing_premium.sql`. Dalej: zapisy z GeoTrace (migracja z prawami zapisu), generowanie linków podglądu
+- [x] Strony miast w ISR: widok domyślny `/[city]` z pamięci podręcznej, filtry i strony (`?cel=`, `?filtr=`, `?strona=`) przez przepisanie na `/widok/[city]` (gałąź claude/premium); po wdrożeniu sprawdzić na Vercelu nagłówki i obciążenie Neona
 - [x] Wagi rankingu z konfiguracji portalu (`ranking.weights` w `portals/*.ts`), wyniki nieruchomości bez zmian (test z wartościami referencyjnymi; gałąź claude/premium)
 - [ ] Powiadomienia z art. 14 RODO do firm (informacja bez reklamy)
 - [~] Silnik wielu branż w stronie (apps/web): branża, nazwy, teksty, dane strukturalne i wygląd z konfiguracji
@@ -80,7 +80,7 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
         domeny TBD. Opis, kody PKD z oceną pewności, szacunek zapytań i uwagi prawne: `docs/geo/branze-3-8.md`
   - [ ] Warsztaty bez własnej strony: etap odkrywania firm z Map Google i wpis firmy bez domeny i NIP (zmiana schematu: właściciel bazy), po pomiarze odsetka firm ze stroną w 1 mieście
   - [ ] Weterynarze: opinia prawna (reklama i ranking lekarzy weterynarii) przed publikacją
-  - [ ] Logo, ikony i obrazek do udostępniania per portal 3-8; teksty wspólnych stron jeszcze z rzeczownikami "biuro" (np. przycisk wyszukiwania)
+  - [ ] Logo, ikony i obrazek do udostępniania per portal 3-8; teksty wspólnych stron poprawione 28.11
   - [!] Domeny i nazwy marek portali 3-8 (właściciel), zgoda na budżet LiteScrape per branża (ok. 0,7 USD na próbkę 200 firm, `docs/geo/branze-3-8.md`)
 
 ## Koszty
