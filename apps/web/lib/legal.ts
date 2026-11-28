@@ -10,6 +10,7 @@
  */
 
 import { CONTACT_EMAIL, SITE_URL } from "./format";
+import { currentPortal } from "./portal";
 
 export const LEGAL_EFFECTIVE_DATE = "12 listopada 2026 r.";
 
@@ -37,7 +38,7 @@ function env(key: string): string | null {
 export const DEFAULT_OPERATOR_NAME = "Luk Chok";
 export const DEFAULT_OPERATOR_ADDRESS = "11/4 Moo 4, Maenam, Koh Samui, Surat Thani 84330, Tajlandia";
 export const DEFAULT_OPERATOR_REG_NO = "0845568016111";
-export const DEFAULT_CONTACT_EMAIL = "info@rankingbiurnieruchomosci.pl";
+export const DEFAULT_CONTACT_EMAIL = currentPortal().contactEmail;
 
 export function operator(): Operator {
   return {

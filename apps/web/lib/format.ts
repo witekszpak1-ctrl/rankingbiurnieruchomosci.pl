@@ -1,8 +1,11 @@
 import type { PriceRow } from "./catalog";
+import { currentPortal } from "./portal";
 
-export const SITE_URL = (process.env.SITE_URL ?? "https://rankingbiurnieruchomosci.pl").replace(/\/+$/, "");
-export const SITE_NAME = "Ranking biur nieruchomości";
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "info@rankingbiurnieruchomosci.pl";
+// Nazwa, adres i kontakt pochodzą z konfiguracji portalu (lib/portal.ts, portals/*.ts); zmienne środowiska mają pierwszeństwo.
+const portal = currentPortal();
+export const SITE_URL = (process.env.SITE_URL ?? portal.siteUrl).replace(/\/+$/, "");
+export const SITE_NAME = portal.siteName;
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || portal.contactEmail;
 
 export function formatDate(value: Date | string | null | undefined): string {
   if (!value) return "brak danych";

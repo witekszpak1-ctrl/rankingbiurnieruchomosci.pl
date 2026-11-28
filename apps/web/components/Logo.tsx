@@ -1,3 +1,4 @@
+import { currentPortal } from "@/lib/portal";
 import {
   LOGO_FRAME_SIZE,
   LOGO_FRAME_STROKE,
@@ -25,7 +26,7 @@ function Frame() {
   );
 }
 
-const NAME = "Ranking Biur Nieruchomości";
+const NAME = currentPortal().brandName;
 
 /** Pełne logo: ramka z RBN i nazwa w dwóch liniach. Kolor z CSS (currentColor), więc działa też w trybie ciemnym. */
 export function Logo() {

@@ -5,6 +5,7 @@ import { inCity } from "@/lib/cities";
 import { SITE_NAME, absoluteUrl } from "@/lib/format";
 import { operator } from "@/lib/legal";
 import { nBiur } from "@/lib/plural";
+import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
 
@@ -13,18 +14,19 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const [cities, blogOverrides] = await Promise.all([listCities(), getBlogOverrides()]);
   const op = operator();
+  const portal = currentPortal();
   const lines = [
     `# ${SITE_NAME}`,
     "",
-    "> Niezależny katalog i ranking biur nieruchomości w Polsce, podzielony na miasta. Dane z rejestrów publicznych (KRS, wykaz VAT) i oficjalnych stron biur, jawna metodologia rankingu (wynik w rankingu 0-100, punkty za potwierdzenie w rejestrze, staż, cennik, spójność danych, usługi, opinie w Google i aktualne oferty), płatność nie wpływa na pozycję. Biura potwierdzone w rejestrze są oznaczone; biura bez potwierdzenia są w katalogu niżej w rankingu.",
+    `> ${portal.texts.llmsSummary}`,
     "",
     "## Zasady",
     `- [Ranking ogólnopolski](${absoluteUrl("/ranking")}): najwyżej ocenione biura w całym katalogu`,
     `- [Metodologia rankingu](${absoluteUrl("/metodologia")}): źródła danych, parametry, wagi, progi publikacji`,
     `- [Reklama i niezależność](${absoluteUrl("/reklama")})`,
-    `- [Dla biur nieruchomości](${absoluteUrl("/dla-firm")}): jakie dane publikujemy, korekta i usunięcie wpisu`,
+    `- [Dla ${firmPhrase("many")}](${absoluteUrl("/dla-firm")}): jakie dane publikujemy, korekta i usunięcie wpisu`,
     `- [Lista miast według województw](${absoluteUrl("/miasta")})`,
-    `- [Prowizje biur nieruchomości 2026](${absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026")}): mediana prowizji za sprzedaż według miast, z cenników biur`,
+    ...portal.texts.llmsReports.map((r) => `- [${r.label}](${absoluteUrl(r.href)}): ${r.description}`),
     `- [O nas](${absoluteUrl("/o-nas")}): kto prowadzi serwis (${op.name ?? "operator serwisu"}), skąd są dane i jak często je odświeżamy`,
     `- [Kontakt](${absoluteUrl("/kontakt")})${op.email ? `: ${op.email}` : ""}`,
     "",
@@ -33,7 +35,7 @@ export async function GET() {
     ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides)).map((p) => `- [${p.h1}](${absoluteUrl(blogPath(p.slug))})`),
     "",
     "## Miasta",
-    ...cities.map((c) => `- [Biura nieruchomości ${c.name}](${absoluteUrl(`/${c.slug}`)}): ${nBiur(c.listings)} ${inCity(c.name)}`),
+    ...cities.map((c) => `- [${capitalize(firmPhrase("few"))} ${c.name}](${absoluteUrl(`/${c.slug}`)}): ${nBiur(c.listings)} ${inCity(c.name)}`),
     "",
   ];
   return new Response(lines.join("\n"), { headers: { "content-type": "text/plain; charset=utf-8" } });

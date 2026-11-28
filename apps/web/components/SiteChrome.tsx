@@ -6,10 +6,12 @@ import { MobileNav } from "@/components/MobileNav";
 import { listCities } from "@/lib/catalog";
 import { operator } from "@/lib/legal";
 import { SITE_NAME } from "@/lib/format";
+import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
 
 export { Logo, LogoMark };
 
 export function SiteHeader() {
+  const { texts } = currentPortal();
   return (
     <header className="site-header">
       <div className="wrap header-inner">
@@ -21,10 +23,10 @@ export function SiteHeader() {
           <Link href="/ranking">Ranking</Link>
           <Link href="/blog">Blog</Link>
           <Link href="/metodologia">Jak oceniamy</Link>
-          <Link href="/dla-firm">Dla biur</Link>
+          <Link href="/dla-firm">{texts.navForFirms}</Link>
         </nav>
         <Link className="header-cta" href="/#szukaj">
-          Znajdź biuro
+          {texts.headerCta}
         </Link>
         <MobileNav />
       </div>
@@ -35,6 +37,7 @@ export function SiteHeader() {
 export async function SiteFooter() {
   const cities = await listCities().catch(() => []);
   const op = operator();
+  const { texts } = currentPortal();
   return (
     <footer className="site-footer">
       <div className="wrap footer-grid">
@@ -42,17 +45,14 @@ export async function SiteFooter() {
           <Link className="brand" href="/" title={`${SITE_NAME}: strona główna`}>
             <Logo />
           </Link>
-          <p>
-            Niezależny katalog biur nieruchomości. Dane pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT) i ze
-            stron firm. Płatność nie wpływa na pozycję w rankingu.
-          </p>
+          <p>{texts.footerAbout}</p>
         </div>
         <div>
           <h3>Miasta</h3>
           <ul>
             {cities.slice(0, 8).map((c) => (
               <li key={c.slug}>
-                <Link href={`/${c.slug}`}>Biura nieruchomości {c.name}</Link>
+                <Link href={`/${c.slug}`}>{`${capitalize(firmPhrase("few"))} `}{c.name}</Link>
               </li>
             ))}
           </ul>
@@ -60,31 +60,15 @@ export async function SiteFooter() {
         <div>
           <h3>Katalog</h3>
           <ul>
-            <li>
-              <Link href="/ranking">Najlepsze biura w Polsce</Link>
-            </li>
-            <li>
-              <Link href="/wyroznienia-2026">Wyróżnienia 2026</Link>
-            </li>
-            <li>
-              <Link href="/oferty">Aktualne oferty biur</Link>
-            </li>
-            <li>
-              <Link href="/metodologia">Jak powstaje ranking</Link>
-            </li>
-            <li>
-              <Link href="/raporty/prowizje-biur-nieruchomosci-2026">Prowizje biur 2026</Link>
-            </li>
-            <li>
-              <Link href="/poradnik/jak-sprawdzic-biuro-nieruchomosci">Jak sprawdzić biuro</Link>
-            </li>
-            <li>
-              <Link href="/blog">Blog</Link>
-            </li>
+            {texts.footerCatalogLinks.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href}>{l.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>
-          <h3>Dla biur</h3>
+          <h3>{texts.footerForFirmsHeading}</h3>
           <ul>
             <li>
               <Link href="/dla-firm">Korekta lub usunięcie wpisu</Link>

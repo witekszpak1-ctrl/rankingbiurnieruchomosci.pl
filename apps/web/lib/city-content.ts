@@ -8,6 +8,7 @@ import { inCity } from "./cities";
 import { formatDate, formatPrice } from "./format";
 import { nBiur, nBiurGen, plural } from "./plural";
 import { isPlausible, priceBasis, priceKind } from "./prices";
+import { capitalize, currentPortal, expertPhrase, firmPhrase } from "./portal";
 import { PRICE_STAT_MIN } from "./ranking";
 
 export type CityFirm = {
@@ -72,7 +73,7 @@ export function serviceGroups(services: CityData["services"]): { label: string; 
 const pct = (v: number) => `${v.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}%`;
 
 export function cityH1(cityName: string, ranked: boolean, year: number): string {
-  return ranked ? `Ranking biur nieruchomości ${inCity(cityName)} ${year}` : `Biura nieruchomości ${inCity(cityName)}`;
+  return ranked ? `Ranking ${firmPhrase("many")} ${inCity(cityName)} ${year}` : `${capitalize(firmPhrase("few"))} ${inCity(cityName)}`;
 }
 
 export function cityIntro(d: CityData): string {
@@ -82,7 +83,7 @@ export function cityIntro(d: CityData): string {
   const withPrices = d.firms.filter((f) => f.hasPublicPrices).length;
   const withOffers = d.firms.filter((f) => f.offersCount > 0).length;
   const parts = [
-    `Zestawienie obejmuje ${nBiur(n)} nieruchomości ${where}, które mają własną stronę internetową.`,
+    `Zestawienie obejmuje ${nBiur(n)} ${currentPortal().terms.domainGen} ${where}, które mają własną stronę internetową.`,
     confirmed === n
       ? "Każde z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT)."
       : `${confirmed} z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT), pozostałe opisujemy na podstawie ich stron i oznaczamy jako niepotwierdzone.`,
@@ -116,7 +117,7 @@ export function commissionSection(d: CityData): CommissionSection {
   const sentences: string[] = [];
   if (withPrices === 0) {
     sentences.push(
-      `Żadne z biur nieruchomości ${where} w naszym katalogu (${nBiur(n)}) nie publikuje na swojej stronie stawek prowizji, więc wysokość wynagrodzenia trzeba ustalić bezpośrednio z biurem.`,
+      `Żadne z ${firmPhrase("many")} ${where} w naszym katalogu (${nBiur(n)}) nie publikuje na swojej stronie stawek prowizji, więc wysokość wynagrodzenia trzeba ustalić bezpośrednio z biurem.`,
     );
   } else {
     const share = n > 0 ? Math.round((100 * withPrices) / n) : 0;
@@ -200,7 +201,7 @@ export function cityFaq(d: CityData): FaqItem[] {
   const commission = commissionSection(d);
   const faq: FaqItem[] = [];
   faq.push({
-    q: `Ile kosztuje pośrednik nieruchomości ${where}?`,
+    q: `Ile kosztuje ${expertPhrase()} ${where}?`,
     a:
       d.median != null && d.medianN >= PRICE_STAT_MIN
         ? `Według cenników publikowanych przez biura mediana najniższych stawek prowizji od sprzedaży ${where} wynosi ${pct(d.median)} ceny transakcyjnej (${nBiur(d.medianN)} z jawną stawką). Do prowizji często dochodzi VAT, a ostateczną kwotę określa umowa.`
@@ -213,12 +214,12 @@ export function cityFaq(d: CityData): FaqItem[] {
   });
   if (top) {
     faq.push({
-      q: `Które biuro nieruchomości ma najwyższy wynik w rankingu ${where}?`,
+      q: `Które ${firmPhrase("one")} ma najwyższy wynik w rankingu ${where}?`,
       a: `Najwyższy wynik w naszym zestawieniu ma ${top.name} (${top.score}/100). To ocena według jawnej metodologii katalogu (m.in. potwierdzenie w rejestrze, staż, cennik, usługi i oferty), a nie opinia o jakości obsługi.`,
     });
   }
   faq.push({
-    q: `Czy wszystkie biura nieruchomości ${where} publikują cenniki?`,
+    q: `Czy wszystkie ${firmPhrase("few")} ${where} publikują cenniki?`,
     a:
       withPrices === 0
         ? `Nie. Żadne z ${nBiurGen(n)} w naszym katalogu nie podaje stawek na stronie.`
@@ -227,13 +228,13 @@ export function cityFaq(d: CityData): FaqItem[] {
           : `Nie. Ceny usług na swojej stronie podaje ${withPrices} z ${nBiurGen(n)} w naszym katalogu. Jawny cennik jest jednym z parametrów rankingu.`,
   });
   faq.push({
-    q: "Jak sprawdzić wiarygodność biura nieruchomości?",
+    q: `Jak sprawdzić wiarygodność ${currentPortal().terms.firm.genOne} ${currentPortal().terms.domainGen}?`,
     a: `Poproś o NIP i sprawdź go w wykazie podatników VAT lub w KRS, przeczytaj umowę pośrednictwa i zapytaj o ubezpieczenie OC. W naszym katalogu ${
       confirmed === n ? "wszystkie biura z tego miasta mają" : `${confirmed} z ${nBiurGen(n)} ${where} ma`
     } potwierdzenie w rejestrze, oznaczone na profilu.`,
   });
   faq.push({
-    q: "Od czego zależy prowizja biura nieruchomości?",
+    q: `Od czego zależy ${currentPortal().terms.fee.nom} ${currentPortal().terms.firm.genOne} ${currentPortal().terms.domainGen}?`,
     a: "Najczęściej od wartości nieruchomości, rodzaju transakcji (sprzedaż, kupno, wynajem), zakresu usług, rodzaju umowy (na wyłączność lub otwarta) i od tego, czy w cenie są np. zdjęcia, reklama i pomoc prawna. Stawka bywa podawana netto, brutto albo z doliczanym VAT.",
   });
   return faq.slice(0, 6);

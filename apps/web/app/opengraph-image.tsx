@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+import { currentPortal } from "@/lib/portal";
+
 import {
   LOGO_FRAME_SIZE,
   LOGO_FRAME_STROKE,
@@ -10,7 +12,9 @@ import {
   LOGO_WIDTH,
 } from "@/lib/logo-paths";
 
-export const alt = "Ranking biur nieruchomości w Polsce";
+const portal = currentPortal();
+
+export const alt = portal.texts.ogAlt;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -42,10 +46,8 @@ export default function OgImage() {
           <img src={LOGO_WHITE} width={LOGO_WIDTH} height={LOGO_HEIGHT} alt="" />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1.05 }}>Ranking biur nieruchomości w Polsce</div>
-          <div style={{ fontSize: 34, color: "#cbd5e1" }}>
-            Porównaj biura w swoim mieście: prowizje, zakres usług, oferty i dane z rejestrów.
-          </div>
+          <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1.05 }}>{portal.texts.ogHeadline}</div>
+          <div style={{ fontSize: 34, color: "#cbd5e1" }}>{portal.texts.ogSubline}</div>
         </div>
       </div>
     ),

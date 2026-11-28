@@ -1,14 +1,11 @@
+import { currentPortal, nounForm } from "./portal";
+
 /**
  * Polska odmiana rzeczowników po liczebnikach: 1 oferta, 2-4 oferty (poza 12-14), 5+ ofert.
  * Liczby ułamkowe i duże liczby obsługujemy według ostatnich cyfr, tak jak w mowie.
  */
 export function plural(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(Math.trunc(n));
-  if (abs === 1) return one;
-  const last = abs % 10;
-  const lastTwo = abs % 100;
-  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return few;
-  return many;
+  return nounForm(n, { one, few, many });
 }
 
 /** Liczba z odmienionym rzeczownikiem, np. "3 biura", "5 biur". */
@@ -16,14 +13,28 @@ export function count(n: number, one: string, few: string, many: string): string
   return `${n.toLocaleString("pl-PL")} ${plural(n, one, few, many)}`;
 }
 
-export const nBiur = (n: number) => count(n, "biuro", "biura", "biur");
+/** Jednostka katalogu z konfiguracji portalu: "3 biura", "5 biur" (inna branża: "3 kancelarie"). */
+export const nFirmUnits = (n: number) => {
+  const { one, few, many } = currentPortal().terms.firm;
+  return count(n, one, few, many);
+};
+/** Dopełniacz jednostki katalogu po liczebniku: "1 biura", "4 biur". */
+export const nFirmUnitsGen = (n: number) => {
+  const { genOne, many } = currentPortal().terms.firm;
+  return `${n.toLocaleString("pl-PL")} ${n === 1 ? genOne : many}`;
+};
+/** Aliasy używane w dotychczasowym kodzie (branża nieruchomości): to samo co nFirmUnits i nFirmUnitsGen. */
+export const nBiur = nFirmUnits;
 export const nMiast = (n: number) => count(n, "miasto", "miasta", "miast");
 export const nOfert = (n: number) => count(n, "oferta", "oferty", "ofert");
 export const nOpinii = (n: number) => count(n, "opinia", "opinie", "opinii");
 export const nLat = (n: number) => count(n, "rok", "lata", "lat");
 /** Dopełniacz po "na podstawie", "z": 1 biura, 4 biur, 5 biur. */
-export const nBiurGen = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "biura" : "biur"}`;
-export const nFirm = (n: number) => count(n, "firma", "firmy", "firm");
+export const nBiurGen = nFirmUnitsGen;
+export const nFirm = (n: number) => {
+  const { one, few, many } = currentPortal().terms.company;
+  return count(n, one, few, many);
+};
 /** Narzędnik po "z" w znaczeniu "mające": "z 1 opinią", "z 10 opiniami". */
 export const nOpiniami = (n: number) => `${n.toLocaleString("pl-PL")} ${n === 1 ? "opinią" : "opiniami"}`;
 /** Miejscownik po "przy": "przy 1 opinii", "przy 10 opiniach". */

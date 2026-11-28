@@ -21,6 +21,7 @@ import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } fro
 import { BlogLinks } from "@/components/BlogLinks";
 import { blogPairLinks, cityBlogLinks } from "@/lib/blog-links";
 import { getBlogOverrides } from "@/lib/blog-overrides";
+import { capitalize, firmPhrase } from "@/lib/portal";
 
 export const revalidate = 300;
 
@@ -449,13 +450,13 @@ export default async function CityPage({ params, searchParams }: Props) {
           "@type": "CollectionPage",
           "@id": `${absoluteUrl(`/${city.slug}`)}#strona`,
           url: absoluteUrl(`/${city.slug}`),
-          name: `Biura nieruchomości ${city.name}`,
+          name: `${capitalize(firmPhrase("few"))} ${city.name}`,
           inLanguage: "pl-PL",
           dateModified: updatedAt.toISOString(),
           isPartOf: websiteRef(),
           mainEntity: {
             "@type": "ItemList",
-            name: ranked ? `Ranking biur nieruchomości ${city.name}` : `Biura nieruchomości ${city.name}`,
+            name: ranked ? `Ranking ${firmPhrase("many")} ${city.name}` : `${capitalize(firmPhrase("few"))} ${city.name}`,
             itemListOrder: ranked ? "https://schema.org/ItemListOrderDescending" : "https://schema.org/ItemListOrderAscending",
             numberOfItems: listings.length,
             itemListElement: pageRows.map((row) => ({
@@ -467,7 +468,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           },
         }}
       />
-      <JsonLd data={breadcrumbLd([{ name: "Strona główna", path: "/" }, { name: `Biura nieruchomości ${city.name}`, path: `/${city.slug}` }])} />
+      <JsonLd data={breadcrumbLd([{ name: "Strona główna", path: "/" }, { name: `${capitalize(firmPhrase("few"))} ${city.name}`, path: `/${city.slug}` }])} />
     </PublicShell>
   );
 }

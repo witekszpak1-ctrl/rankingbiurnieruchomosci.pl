@@ -24,6 +24,9 @@ import { blogPairLinks, firmBlogLinks } from "@/lib/blog-links";
 import { getBlogOverrides } from "@/lib/blog-overrides";
 import { breadcrumbLd, pageMetadata, postalAddressLd, websiteRef } from "@/lib/seo";
 import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare } from "@/lib/ranking";
+import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
+
+const portal = currentPortal();
 
 export const revalidate = 300;
 
@@ -204,7 +207,7 @@ export default async function FirmPage({ params }: Props) {
             <h1 className="profile-name">{listing.name}</h1>
             <TrackEvent
               name="ViewContent"
-              params={{ content_name: listing.name, content_category: listing.cityName, content_type: "biuro_nieruchomosci" }}
+              params={{ content_name: listing.name, content_category: listing.cityName, content_type: portal.schema.trackingContentType }}
             />
             <p className="profile-intro">{intro}</p>
             {listing.googleRating && listing.googleCount ? (
@@ -585,12 +588,12 @@ export default async function FirmPage({ params }: Props) {
               name: listing.name,
               inLanguage: "pl-PL",
               dateModified: new Date(listing.updatedAt).toISOString(),
-              about: { "@id": `${absoluteUrl(path)}#biuro` },
+              about: { "@id": `${absoluteUrl(path)}#${portal.schema.profileAnchor}` },
               isPartOf: websiteRef(),
             },
             {
-              "@type": "RealEstateAgent",
-              "@id": `${absoluteUrl(path)}#biuro`,
+              "@type": portal.schema.firmType,
+              "@id": `${absoluteUrl(path)}#${portal.schema.profileAnchor}`,
               name: listing.name,
               url: listing.websiteUrl ?? absoluteUrl(path),
               mainEntityOfPage: absoluteUrl(path),
@@ -621,7 +624,7 @@ export default async function FirmPage({ params }: Props) {
       <JsonLd
         data={breadcrumbLd([
           { name: "Strona główna", path: "/" },
-          { name: `Biura nieruchomości ${listing.cityName}`, path: `/${listing.citySlug}` },
+          { name: `${capitalize(firmPhrase("few"))} ${listing.cityName}`, path: `/${listing.citySlug}` },
           { name: listing.name, path },
         ])}
       />

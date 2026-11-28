@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SITE_NAME, absoluteUrl } from "./format";
 import { operator, operatorJsonLd } from "./legal";
+import { currentPortal } from "./portal";
 
 /** Domyślny obrazek do udostępniania (app/opengraph-image.tsx). */
 export const DEFAULT_OG_IMAGE = "/opengraph-image";
@@ -72,8 +73,7 @@ export const ORG_ID = absoluteUrl("/#organizacja");
 export const SITE_ID = absoluteUrl("/#witryna");
 /** Kwadratowy znak serwisu (180x180 px); obrazek do udostępniania (1200x630) nie nadaje się na logo. */
 export const SITE_LOGO = absoluteUrl("/apple-icon.png");
-export const SITE_DESCRIPTION =
-  "Niezależny katalog i ranking biur nieruchomości w Polsce oparty na danych z rejestrów publicznych i stron biur.";
+export const SITE_DESCRIPTION = currentPortal().texts.siteDescription;
 
 /** Serwis jako Organization; administrator serwisu (operator) jako parentOrganization. */
 export function organizationLd(): Record<string, unknown> {

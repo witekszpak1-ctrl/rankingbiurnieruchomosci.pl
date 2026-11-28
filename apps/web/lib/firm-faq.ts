@@ -5,6 +5,7 @@
 import { inCity } from "./cities";
 import { formatPhone, formatPrice } from "./format";
 import { nLatGen, offersLabel } from "./plural";
+import { firmPhrase, currentPortal } from "./portal";
 import { priceBasis } from "./prices";
 import type { FaqItem } from "./city-content";
 
@@ -30,15 +31,15 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
     const list = f.services.slice(0, 6).join(", ");
     faq.push({
       q: `Czym zajmuje się ${f.name}?`,
-      a: `${f.name} to biuro nieruchomości ${where}. Na swojej stronie wymienia m.in.: ${list}${f.services.length > 6 ? " i inne usługi" : ""}.`,
+      a: `${f.name} to ${firmPhrase("one")} ${where}. Na swojej stronie wymienia m.in.: ${list}${f.services.length > 6 ? " i inne usługi" : ""}.`,
     });
   }
   faq.push({
     q: `Gdzie działa ${f.name}?`,
-    a: f.address ? `Biuro ma siedzibę pod adresem ${f.address}. W naszym katalogu jest w zestawieniu biur nieruchomości ${where}.` : `W naszym katalogu ${f.name} jest w zestawieniu biur nieruchomości ${where}. Dokładnego adresu biuro nie podaje na swojej stronie.`,
+    a: f.address ? `Biuro ma siedzibę pod adresem ${f.address}. W naszym katalogu jest w zestawieniu ${firmPhrase("many")} ${where}.` : `W naszym katalogu ${f.name} jest w zestawieniu ${firmPhrase("many")} ${where}. Dokładnego adresu biuro nie podaje na swojej stronie.`,
   });
   faq.push({
-    q: `Ile wynosi prowizja w ${f.name}?`,
+    q: `Ile wynosi ${currentPortal().terms.fee.nom} w ${f.name}?`,
     a:
       f.prices.length > 0
         ? `Według cennika na stronie biura: ${f.prices
@@ -63,7 +64,7 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
     q: `Jak ${f.name} wypada w rankingu?`,
     a:
       f.position && f.cityCount
-        ? `W rankingu biur nieruchomości ${where} ${f.name} zajmuje ${f.position}. miejsce na ${f.cityCount} z wynikiem ${f.score}/100. Wynik liczymy według jawnej metodologii, a nie z opinii klientów.`
+        ? `W rankingu ${firmPhrase("many")} ${where} ${f.name} zajmuje ${f.position}. miejsce na ${f.cityCount} z wynikiem ${f.score}/100. Wynik liczymy według jawnej metodologii, a nie z opinii klientów.`
         : `${f.name} ma wynik ${f.score}/100 według jawnej metodologii katalogu.`,
   });
   faq.push({
