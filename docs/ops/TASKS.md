@@ -32,6 +32,7 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [ ] Faktury zgodne z KSeF (wybór programu do faktur)
 - [x] Panel administratora GeoTrace `/admin` (28.11, apps/geo): przegląd, pomiary z filtrami i szczegółami, źródła, firmy (kandydaci do katalogu), lista oczekujących z CSV, użytkownicy z przełącznikiem administratora; tylko odczyt z bazy, bez płatnych zapytań, bez migracji (`docs/geo/panel-admina.md`)
 - [x] Silnik uprawnień (`apps/geo/lib/entitlements.ts`): limity z `plans.entitlements`, powrót do Free przy zaległości
+- [~] Master Dashboard `/admin` (gałąź claude/master-dashboard, `docs/geo/master-dashboard.md`): przegląd całości z alertami, portale (rejestr + szczegóły), robot i kolejki, koszty API, ruch i boty. Tylko odczyt, bez płatnych zapytań. Przed scaleniem: właściciel bazy nakłada `db/geo/0005_master_dashboard.sql` (`npm run migrate` w apps/geo z GEO_MIGRATE_URL; wymaga 0021)
 - [ ] Regulamin platformy i programu partnerskiego (prawnik)
 
 ## Katalogi
