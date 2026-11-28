@@ -1151,7 +1151,7 @@ def stage_google_reviews(ctx: Context, client, config, limit: int = 400, max_age
             lambda found: name_similarity(row["name"], found) >= 0.6, config.reviews_per_place,
         )
 
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=10) as pool:  # LiteScrape pozwala na 25 zapytań naraz
         futures = {pool.submit(work, row): row for row in rows}
         for future in as_completed(futures):
             row, result = futures[future], future.result()

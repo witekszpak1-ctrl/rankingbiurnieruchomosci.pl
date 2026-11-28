@@ -363,7 +363,7 @@ def cmd_google_reviews(args) -> int:
     with connect() as conn:
         ctx, _ = _context(args, conn)
         with _litescrape(ctx) as (client, config):
-            _print(stage_google_reviews(ctx, client, config, args.limit))
+            _print(stage_google_reviews(ctx, client, config, args.limit, args.max_age_days))
     return 0
 
 
@@ -546,6 +546,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--firms", type=int, default=5)
     p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Map Google (LiteScrape, klucz w panelu)")
     p.add_argument("--limit", type=int, default=400)
+    p.add_argument("--max-age-days", type=int, default=30, help="odśwież firmy pobrane dawniej niż tyle dni (0 = wszystkie)")
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
     p.add_argument("--limit", type=int, default=300)
     p.add_argument("--only-new", action="store_true", help="tylko firmy jeszcze niesprawdzone (po każdym przebiegu)")
