@@ -2,6 +2,35 @@
 
 Jedno źródło prawdy dla agentów. Nowa decyzja na górze, z datą i źródłem.
 
+## 28.11.2026 (właściciel: wszystkie 20 branż po kolei)
+
+Kolejność portali (20 branż z briefu w 18 portalach; fotowoltaika, pompy ciepła i klimatyzacja to jeden portal, decyzja z pkt 2):
+
+| Nr | Portal | Uwagi |
+|---|---|---|
+| 1 | Biura nieruchomości | działa |
+| 2 | Biura rachunkowe | PKD 69.20.Z, jawne cenniki |
+| 3 | Fotowoltaika, pompy ciepła i klimatyzacja | jeden portal z kategoriami |
+| 4 | Firmy remontowe i wykończeniowe | |
+| 5 | Firmy budowlane (domy) | |
+| 6 | Warsztaty samochodowe | |
+| 7 | Firmy przeprowadzkowe | |
+| 8 | Kliniki weterynaryjne | |
+| 9 | Architekci | |
+| 10 | Projektanci wnętrz | |
+| 11 | Firmy instalacyjne (hydraulika, elektryka) | |
+| 12 | Agencje marketingowe | |
+| 13 | Firmy informatyczne | |
+| 14 | Dentyści i kliniki stomatologiczne | po opinii prawnej (reklama lekarzy), bez nagrań sesji |
+| 15 | Medycyna estetyczna | po opinii prawnej |
+| 16 | Kancelarie prawne | po opinii prawnej (zakaz reklamy adwokatów i radców) |
+| 17 | Firmy transportowe | słabe dopasowanie do lokalnego katalogu, na koniec |
+| 18 | Ubezpieczenia | jak wyżej |
+
+Zasada: każdy portal przechodzi bramkę jakości (próbka firm, raport, przegląd) przed publikacją. Silnik wielu branż
+w kodzie strony jest warunkiem portalu nr 2. Zbieranie firm każdej branży to płatne zapytania LiteScrape:
+budżet na branżę wymaga zgody właściciela. Domeny kupuje właściciel.
+
 ## 28.11.2026 (pomiar AI po teście LiteScrape)
 
 - Gemini, Google AI Mode i Google AI Overview mierzymy przez LiteScrape (już opłacany, odpowiedzi po polsku,

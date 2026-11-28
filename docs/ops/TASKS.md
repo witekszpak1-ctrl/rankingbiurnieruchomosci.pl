@@ -39,7 +39,11 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [ ] Motywy i warianty układu per portal (decyzja: portale mają się różnić)
 - [ ] Profil Premium: dodatkowe dane w tym samym rendererze, oznaczone, bez wpływu na wynik
 - [ ] Powiadomienia z art. 14 RODO do firm (informacja bez reklamy)
-- [ ] Druga branża: biura rachunkowe (pakiet branży, próbka 200 firm, raport jakości)
+- [~] Silnik wielu branż w stronie (apps/web): branża, nazwy, teksty, dane strukturalne i wygląd z konfiguracji
+- [~] Pakiet branży biura rachunkowe (packages/verticals/rachunkowe): konfiguracja, prompty, miasta
+- [!] Próbka 200 biur rachunkowych i raport jakości (zgoda na budżet LiteScrape)
+- [!] Domena portalu biur rachunkowych (właściciel)
+- [ ] Kolejne branże według tabeli w DECISIONS.md (nr 3-18), po jednej, każda przez bramkę jakości
 
 ## Koszty
 
