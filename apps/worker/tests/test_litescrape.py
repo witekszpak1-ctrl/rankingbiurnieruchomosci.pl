@@ -201,3 +201,30 @@ def test_exact_place_from_place_results_is_used():
 
     result = fetch_place(client_for(handler), "LDK Nieruchomości", "Gdynia", "https://ldknieruchomosci.pl/", lambda n: False)
     assert (result.status, result.place_id, result.rating) == ("ok", "ldk", 4.9)
+
+
+def test_prefetch_runs_phrases_in_parallel_and_serves_from_memory():
+    import threading
+
+    from katalog_worker.search import PrefetchSearch
+
+    seen, lock = [], threading.Lock()
+
+    def handler(request):
+        params = dict(request.url.params)
+        with lock:
+            seen.append(params.get("q") or params.get("page_token"))
+        if "page_token" in params:
+            return httpx.Response(200, json={"organic_results": [{"link": f"https://{params['page_token']}.pl/"}], "pagination": {}})
+        tok = params["q"].split()[-1].lower()
+        return httpx.Response(200, json={"organic_results": [{"link": f"https://{tok}1.pl/"}],
+                                         "pagination": {"next_page_token": f"{tok}2", "next": "x"}})
+
+    provider = PrefetchSearch(FallbackSearch(LiteScrapeSearch(client_for(handler)), None), workers=4)
+    queries = [f"biuro {c}{s}" for c in ("Gdynia", "Sopot") for s in ("", " (strona 2)", " (strona 3)")]
+    provider.prefetch(queries)
+    assert len(seen) == 4  # dwie frazy po dwie strony, trzecich stron Google nie ma
+    calls = len(seen)
+    assert [r.url for r in provider.search("biuro Sopot (strona 2)")] == ["https://sopot2.pl/"]
+    assert provider.search("biuro Gdynia (strona 3)") == [] and provider.skipped
+    assert len(seen) == calls

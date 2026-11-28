@@ -4,11 +4,11 @@ from ..config import Settings
 from .base import SearchError, SearchProvider, SearchResult
 from .brave import BraveSearch
 from .file import FileSearch
-from .litescrape import FallbackSearch, LiteScrapeSearch
+from .litescrape import FallbackSearch, LiteScrapeSearch, PrefetchSearch
 from .serper import SerperSearch
 
 __all__ = [
-    "BraveSearch", "FallbackSearch", "FileSearch", "LiteScrapeSearch", "SearchError", "SearchProvider", "SearchResult",
+    "BraveSearch", "FallbackSearch", "PrefetchSearch", "FileSearch", "LiteScrapeSearch", "SearchError", "SearchProvider", "SearchResult",
     "SerperSearch", "make_provider",
 ]
 
@@ -33,5 +33,5 @@ def make_provider(name: str, settings: Settings | None = None, litescrape=None) 
             if backup is None:
                 raise SearchError("Brak klucza LiteScrape i SERPER_API_KEY: nie ma czym szukać.")
             return backup
-        return FallbackSearch(LiteScrapeSearch(litescrape), backup)
+        return PrefetchSearch(FallbackSearch(LiteScrapeSearch(litescrape), backup))
     raise SearchError(f"Nieznany dostawca wyszukiwania: {name!r}")

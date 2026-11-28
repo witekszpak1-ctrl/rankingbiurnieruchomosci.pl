@@ -219,7 +219,15 @@ def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, di
     """Szuka biur przez API wyszukiwarki w kolejnych miastach z kolejki (zamiast plików od Claude)."""
     totals: Counter = Counter()
     done = []
-    for city in cities_to_search(ctx, cities):
+    queue = cities_to_search(ctx, cities)
+    if hasattr(provider, "prefetch"):
+        # Wszystkie frazy z tego przebiegu naraz (LiteScrape: ok. minuta na zapytanie), zapis do bazy potem po kolei.
+        search_cfg = ctx.vertical.search
+        provider.prefetch(
+            [q for city in queue for q in city_queries(ctx, city["name"], city["deep"], districts, pages)],
+            country=search_cfg.country, lang=search_cfg.language,
+        )
+    for city in queue:
         queries = city_queries(ctx, city["name"], city["deep"], districts, pages)
         # Opcjonalny miesięczny limit zapytań do wyszukiwarki (ustawiany w panelu, /admin/koszty). Limit LiteScrape
         # pilnuje sam klient (jeden licznik dla wyszukiwania, Map i pobierania stron).

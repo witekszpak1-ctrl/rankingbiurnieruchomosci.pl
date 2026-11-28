@@ -97,12 +97,12 @@ jobs:
           for f in "${files[@]}"; do
             katalog discover --provider file --file "$f"
           done
-      # Szukanie biur (wyniki Google) w kolejnych miastach z kolejki panelu: 15 miast na przebieg, duże miasta
+      # Szukanie biur (wyniki Google) w kolejnych miastach z kolejki panelu: 30 miast na przebieg (frazy równolegle), duże miasta
       # dokładnie (po dzielnicach). LiteScrape z kluczem z panelu (/admin/koszty, tam też liczba wyników na frazę),
       # a gdy go nie ma albo skończy się saldo, Serper (SERPER_API_KEY). Bez obu kluczy krok nic nie robi.
       - name: S1 szukanie biur w kolejnych miastach (LiteScrape, w zapasie Serper)
         if: ${{ (inputs.city || '') == '' }}
-        run: katalog discover-queue --provider auto --cities 15
+        run: katalog discover-queue --provider auto --cities 30
       - name: S1 discover przez API wyszukiwarki
         if: ${{ (inputs.provider || 'file') != 'file' && inputs.city != '' }}
         env:
