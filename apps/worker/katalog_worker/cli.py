@@ -310,6 +310,21 @@ def cmd_prompts(args) -> int:
     return 0
 
 
+def cmd_ai_check(args) -> int:
+    """Próbny pomiar odpowiedzi AI w Google przez LiteScrape (najwyżej --max zapytań, raport do kolejki)."""
+    from .ai_check import run
+
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        with _litescrape(ctx) as (client, config):
+            if client is None:
+                _print({"ok": False, "error": "brak klucza LiteScrape w panelu"})
+                return 2
+            report = run(client, Path(args.out), max_calls=min(args.max, 15))
+    _print({k: report.get(k) for k in ("endpoint_used", "calls", "saved", "openapi_error")})
+    return 0
+
+
 def cmd_litescrape_check(args) -> int:
     """Test LiteScrape na żywo tą samą ścieżką co automat: saldo, dwie strony wyników Google, Mapy z opiniami dla
     kilku firm bez oceny i pobranie jednej strony. Wypisuje kształt odpowiedzi i przykładowe pola (bez klucza)."""
@@ -570,6 +585,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
     p = add("prompts", cmd_prompts, "zapisz prompt opisów z panelu do pliku dla sesji Claude", vertical=False)
     p.add_argument("--export", default="queue/prompts/describe.md")
+    p = add("ai-check", cmd_ai_check, "próbny pomiar odpowiedzi AI w Google przez LiteScrape (najwyżej 15 zapytań)")
+    p.add_argument("--max", type=int, default=15)
+    p.add_argument("--out", default="queue/results/reports")
     p = add("litescrape-check", cmd_litescrape_check, "test LiteScrape na żywo (najwyżej 4 zapytania)")
     p.add_argument("--city", default="Gdynia")
     p.add_argument("--firms", type=int, default=5)
