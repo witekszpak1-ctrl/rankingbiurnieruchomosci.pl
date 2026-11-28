@@ -110,16 +110,54 @@ export async function loadCityMeasurements(cityName: string): Promise<AuditMeasu
   }));
 }
 
+export const HISTORY_WEEKS = 12;
+const MAX_HISTORY = 3000;
+
+/**
+ * Wszystkie gotowe pomiary miasta z ostatnich tygodni (bez deduplikacji po kluczu pamięci podręcznej), tylko ze wzmiankami.
+ * Służą do wykresu historii: odsetek odpowiedzi z firmą w każdym tygodniu.
+ */
+export async function loadCityHistory(cityName: string): Promise<AuditMeasurement[]> {
+  const ms = await query<{ id: string; platform: string; measured_at: Date }>(
+    `select m.id, m.platform, m.measured_at
+       from geo.measurements m
+       join geo.prompts p on p.id = m.prompt_id
+      where m.status = 'done' and m.measured_at is not null
+        and p.industry = $2 and lower(p.city) = lower($1)
+        and m.measured_at > now() - make_interval(days => $3)
+      order by m.measured_at desc
+      limit ${MAX_HISTORY}`,
+    [cityName, AUDIT_INDUSTRY, HISTORY_WEEKS * 7],
+  );
+  if (!ms.length) return [];
+  const mentions = await query<MentionRow>(
+    `select x.measurement_id, x.position, x.name, x.domain, x.brand_id, null::text as brand_name, x.recommended
+       from geo.mentions x where x.measurement_id = any($1::uuid[])`,
+    [ms.map((m) => m.id)],
+  );
+  const by = new Map<string, MentionRow[]>();
+  for (const r of mentions) (by.get(r.measurement_id) ?? by.set(r.measurement_id, []).get(r.measurement_id)!).push(r);
+  return ms.map((m) => ({
+    id: m.id,
+    platform: m.platform,
+    measuredAt: m.measured_at,
+    promptText: "",
+    mentions: (by.get(m.id) ?? []).map((x) => ({ name: x.name, domain: x.domain, brandId: x.brand_id, brandName: null, position: x.position, recommended: x.recommended })),
+    citations: [],
+  }));
+}
+
 /** Całość danych wejściowych audytu dla domeny (już znormalizowanej). */
 export async function loadAuditInput(domain: string): Promise<AuditInput> {
   const firm = await findFirmByDomain(domain);
   if (!firm) return { domain, firm: null, city: null, profileUrl: null, measurements: [] };
-  const measurements = await loadCityMeasurements(firm.city.name);
+  const [measurements, history] = await Promise.all([loadCityMeasurements(firm.city.name), loadCityHistory(firm.city.name)]);
   return {
     domain,
     firm: { brandId: firm.brandId, name: firm.brandName },
     city: { name: firm.city.name, slug: firm.city.slug },
     profileUrl: firm.profileUrl,
     measurements,
+    history,
   };
 }

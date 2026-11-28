@@ -87,6 +87,17 @@ export async function loadOverview(): Promise<Overview> {
   };
 }
 
+/** Liczba pomiarów (wszystkie statusy) na dzień z ostatnich `days` dni, według czasu pomiaru (a gdy go brak, zlecenia), UTC. */
+export async function loadMeasurementsPerDay(days = 30): Promise<{ day: string; count: number }[]> {
+  return query<{ day: string; count: number }>(
+    `select to_char((coalesce(measured_at, requested_at) at time zone 'UTC')::date, 'YYYY-MM-DD') as day, count(*)::int as count
+       from geo.measurements
+      where coalesce(measured_at, requested_at) >= (now() at time zone 'UTC')::date - $1::int + 1
+      group by 1 order by 1`,
+    [days],
+  );
+}
+
 // ===== Pomiary =====
 
 export type MeasurementRow = {

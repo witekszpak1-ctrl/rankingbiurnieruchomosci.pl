@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AdminNav } from "@/components/AdminNav";
+import { AppShell } from "@/components/shell/AppShell";
+import { Card, PageHeader } from "@/components/ui/ui";
 import { loadMeasurement } from "@/lib/admin-repo";
 import { PLATFORM_LABEL, STATUS_LABEL, UUID_RE, formatDateTime } from "@/lib/admin-stats";
 import { requireAdmin } from "@/lib/auth";
@@ -11,14 +12,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminMeasurement({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireAdmin(`/admin/pomiary/${UUID_RE.test(id) ? id : ""}`);
+  const me = await requireAdmin(`/admin/pomiary/${UUID_RE.test(id) ? id : ""}`);
   if (!UUID_RE.test(id)) notFound();
   const m = await loadMeasurement(id);
   if (!m) notFound();
   return (
-    <>
-      <h1>Pomiar</h1>
-      <AdminNav current="/admin/pomiary" />
+    <AppShell user={me} current="/admin/pomiary">
+      <PageHeader eyebrow="Administracja" title="Pomiar" />
       <p><Link href="/admin/pomiary">Wróć do listy pomiarów</Link></p>
       <div className="card">
         <p><b>Pytanie:</b> {m.prompt}</p>
@@ -32,7 +32,7 @@ export default async function AdminMeasurement({ params }: { params: Promise<{ i
         {m.excerpt ? <blockquote className="answer">{m.excerpt}</blockquote> : <p className="muted">Brak zapisanego fragmentu.</p>}
       </div>
 
-      <h2 className="sec">Wzmianki o firmach ({m.mentions.length})</h2>
+      <Card flush className="mt-16" title={<>Wzmianki o firmach ({m.mentions.length})</>}>
       <div className="tw"><table>
         <thead><tr><th>Pozycja</th><th>Nazwa w odpowiedzi</th><th>Domena</th><th>Firma w katalogu</th><th>Polecana</th></tr></thead>
         <tbody>
@@ -47,8 +47,9 @@ export default async function AdminMeasurement({ params }: { params: Promise<{ i
           )) : <tr><td colSpan={5} className="muted">Brak wzmianek.</td></tr>}
         </tbody>
       </table></div>
+      </Card>
 
-      <h2 className="sec">Cytowane źródła ({m.citations.length})</h2>
+      <Card flush className="mt-16" title={<>Cytowane źródła ({m.citations.length})</>}>
       <div className="tw"><table>
         <thead><tr><th>Pozycja</th><th>Adres</th><th>Domena</th><th>Nasz portal</th></tr></thead>
         <tbody>
@@ -62,6 +63,7 @@ export default async function AdminMeasurement({ params }: { params: Promise<{ i
           )) : <tr><td colSpan={4} className="muted">Brak cytowanych źródeł.</td></tr>}
         </tbody>
       </table></div>
-    </>
+      </Card>
+    </AppShell>
   );
 }

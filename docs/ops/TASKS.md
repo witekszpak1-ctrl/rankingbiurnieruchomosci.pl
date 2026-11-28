@@ -26,6 +26,8 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
       zaplanowana sesja w poniedziałek wypycha gałąź run/geo-measure z parametrami 20 miast, 3 pytania
 - [x] Koszt zapytań AI w LiteScrape: pole `billed` to tylko true (zapytanie policzone), jedna odpowiedź = jedno zapytanie z salda (ok. 0,15 USD za 1000); różnicę sprawdzać w saldzie /admin/koszty
 - [~] Darmowy audyt: wersja 1 z pomiarów biblioteki i katalogu (bez nowych zapytań) gotowa na gałęzi claude/audyt-mvp (`/audyt`, `/audyt/<domena>`, `docs/geo/audyt.md`, testy i sprawdzenie na lokalnej bazie). Przed scaleniem: właściciel nakłada `db/geo/0004_catalog_read.sql`. Dalej: pomiar na żywo za budżetem, skan strony, rozpoznawanie branży
+- [x] Nowy wygląd GeoTrace (28.11): system projektowy, strona główna z prawdziwymi liczbami, raport audytu z celem i historią tygodniową, powłoka z paskiem bocznym dla panelu, partnera i administracji, wykresy w SVG (`docs/geo/wyglad.md`)
+- [ ] Wygląd: po starcie pomiarów ChatGPT dodać go do podpisów i pasków liczb; edycja danych firmy w `/panel/ustawienia`
 - [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
 - [ ] Faktury zgodne z KSeF (wybór programu do faktur)
 - [x] Panel administratora GeoTrace `/admin` (28.11, apps/geo): przegląd, pomiary z filtrami i szczegółami, źródła, firmy (kandydaci do katalogu), lista oczekujących z CSV, użytkownicy z przełącznikiem administratora; tylko odczyt z bazy, bez płatnych zapytań, bez migracji (`docs/geo/panel-admina.md`)

@@ -1,48 +1,111 @@
 import Link from "next/link";
 
 import { one, type SP } from "@/components/Notice";
-import { affiliateByUser } from "@/lib/affiliate-repo";
+import { AppShell } from "@/components/shell/AppShell";
+import { Icon } from "@/components/ui/Icon";
+import { Card, Checklist, DataTable, EmptyState, Gauge, PageHeader, Pill, StatTile } from "@/components/ui/ui";
 import { requireUser } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { formatPct } from "@/lib/chart";
+import { loadPanelContext } from "@/lib/panel-repo";
+import type { PanelAccount } from "@/lib/panel";
 
-import { logoutAction } from "../actions";
-
-export const metadata = { title: "Moje konto" };
+export const metadata = { title: "Pulpit" };
 export const dynamic = "force-dynamic";
 
 export default async function PanelPage({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const user = await requireUser("/panel");
-  const [accounts, aff] = await Promise.all([
-    query<{ id: string; name: string; domain: string | null; plan: string; status: string }>(
-      `select a.id, a.name, a.primary_domain as domain, p.name as plan, s.status
-       from geo.accounts a
-       left join lateral (select plan_id, status from geo.subscriptions where account_id = a.id order by created_at desc limit 1) s on true
-       left join geo.plans p on p.id = s.plan_id
-       where a.owner_user_id = $1 order by a.created_at`,
-      [user.id],
-    ),
-    affiliateByUser(user.id),
-  ]);
+  const ctx = await loadPanelContext(user.id);
+  const { audit, steps, attention, domain, facts } = ctx;
+  const done = steps.filter((s) => s.done).length;
+  const ok = audit?.status === "ok" ? audit : null;
+  const auditHref = domain ? `/audyt/${encodeURIComponent(domain)}` : "/audyt";
+
   return (
-    <>
-      <h1>Moje konto</h1>
-      {one(sp.nowe) ? <p className="ok">Konto założone. Audyt widoczności uruchomimy dla Twojej strony, gdy będzie gotowy.</p> : null}
-      <p className="muted">{user.email}</p>
-      <h2>Firmy</h2>
-      {accounts.length === 0 ? (
-        <p>Nie masz jeszcze konta firmy. <Link href="/rejestracja">Dodaj firmę</Link>.</p>
-      ) : (
-        <div className="tw"><table>
-          <thead><tr><th>Firma</th><th>Strona</th><th>Pakiet</th></tr></thead>
-          <tbody>{accounts.map((a) => (
-            <tr key={a.id}><td>{a.name}</td><td>{a.domain ?? "-"}</td><td>{a.plan ?? "-"} {a.status === "active" ? null : <span className="pill">{a.status}</span>}</td></tr>
-          ))}</tbody>
-        </table></div>
-      )}
-      <h2>Program partnerski</h2>
-      {aff ? <p><Link href="/partner/panel">Przejdź do panelu partnera</Link></p> : <p><Link href="/partner/dolacz">Dołącz i polecaj za 20% dożywotnio</Link></p>}
-      <form action={logoutAction}><button type="submit" className="btn ghost">Wyloguj</button></form>
-    </>
+    <AppShell user={user} current="/panel">
+      <PageHeader
+        eyebrow="Widoczność"
+        title="Pulpit"
+        sub={ctx.primary ? `${ctx.primary.name}${domain ? `, ${domain}` : ""}` : "Dodaj firmę, żeby zobaczyć wynik widoczności w AI."}
+        actions={
+          <Link href={auditHref} className="btn">
+            Zobacz audyt <Icon name="arrow" size={14} />
+          </Link>
+        }
+      />
+      {one(sp.nowe) ? <p className="ok" style={{ marginBottom: 16 }}>Konto założone. Audyt widoczności pokażemy, gdy dla Twojej strony będą pomiary.</p> : null}
+
+      <div className="g-score">
+        <Card title="Wynik widoczności" sub={ok ? `${ok.firmName}, ${ok.city?.name ?? ""}` : "Twoja domena"}>
+          {ok ? (
+            <>
+              <Gauge value={ok.score} />
+              <p className="note" style={{ textAlign: "center" }}>
+                {ok.score === null ? `Za mało danych: ${ok.usage.count} odpowiedzi, potrzeba ${ok.minSample}.` : `Z ${ok.usage.count} odpowiedzi AI. `}
+                {ok.score !== null ? <Link href={auditHref}>Zobacz rozbicie</Link> : null}
+              </p>
+            </>
+          ) : (
+            <EmptyState
+              icon="chart"
+              title={domain ? "Brak wyniku dla tej domeny" : "Dodaj domenę"}
+              action={<Link href={domain ? "/audyt" : "/rejestracja"} className="btn sm soft">{domain ? "Sprawdź inny adres" : "Dodaj firmę"}</Link>}
+            >
+              {domain
+                ? "Domeny nie ma w naszym katalogu albo jej miasto nie ma jeszcze świeżych pomiarów, więc nie pokazujemy wyniku."
+                : "Podaj adres strony firmy, a pokażemy wynik, jeśli mamy dla niej pomiary."}
+            </EmptyState>
+          )}
+        </Card>
+        <Card
+          title="Zacznij tutaj"
+          sub={`${done} z ${steps.length} kroków zrobionych`}
+          actions={<Pill tone={done === steps.length ? "good" : "brand"}>{done}/{steps.length}</Pill>}
+        >
+          <Checklist items={steps.map((s) => ({ key: s.key, title: s.title, hint: s.hint, done: s.done, href: s.href, action: s.action }))} />
+        </Card>
+      </div>
+
+      <div className="g4 mt-16">
+        <StatTile icon="database" label="Odpowiedzi AI w próbie" value={ok ? ok.usage.count : "-"} note={ok ? `miasto ${ok.city?.name}` : "brak pomiarów dla domeny"} />
+        <StatTile icon="eye" tone="accent" label="Wzmianki o firmie" value={ok ? `${ok.mentionedAnswers}` : "-"} note={ok?.rates ? `${formatPct(ok.rates.mention.value)} odpowiedzi` : ok ? "za mało danych" : undefined} />
+        <StatTile icon="link" tone="warn" label="Cytowania strony" value={ok ? `${ok.citedAnswers}` : "-"} note={ok?.rates ? `${formatPct(ok.rates.citation.value)} odpowiedzi` : ok ? "za mało danych" : undefined} />
+        <StatTile icon="gift" tone="good" label="Pakiet" value={ctx.primary?.planName ?? "Free"} note="pakiety płatne uruchomimy wkrótce" href="/#cennik" />
+      </div>
+
+      <div className="g2 mt-16">
+        <Card title={`Wymaga uwagi${attention.length ? ` · ${attention.length}` : ""}`} sub="Wynika wyłącznie z danych Twojego konta i audytu">
+          {attention.length ? (
+            <Checklist
+              mode="attention"
+              items={attention.map((a, i) => ({ key: `a${i}`, title: a.text, tone: a.tone, href: a.href, action: a.action }))}
+            />
+          ) : (
+            <EmptyState icon="check" title="Nic nie wymaga uwagi">
+              {ctx.primary ? "Nie widzimy teraz niczego, co wymagałoby Twojej reakcji." : "Dodaj firmę, a pokażemy tu rzeczy do zrobienia."}
+            </EmptyState>
+          )}
+        </Card>
+        <Card flush title="Firmy" sub={user.email}>
+          {facts.accounts.length ? (
+            <DataTable<PanelAccount>
+              columns={[
+                { header: "Firma", cell: (a) => a.name },
+                { header: "Strona", cell: (a) => a.domain ?? "-" },
+                { header: "Pakiet", cell: (a) => <>{a.planName ?? "Free"} {a.status && a.status !== "active" ? <Pill tone="warn">{a.status}</Pill> : null}</> },
+              ]}
+              rows={facts.accounts}
+              rowKey={(a) => a.id}
+            />
+          ) : (
+            <div style={{ padding: "0 20px 20px" }}>
+              <EmptyState icon="building" title="Nie masz jeszcze konta firmy" action={<Link href="/rejestracja" className="btn sm soft">Dodaj firmę</Link>}>
+                Konto firmy łączy Twoją domenę z pomiarami i pakietem.
+              </EmptyState>
+            </div>
+          )}
+        </Card>
+      </div>
+    </AppShell>
   );
 }

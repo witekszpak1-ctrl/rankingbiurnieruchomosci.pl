@@ -1,3 +1,5 @@
+import { weekStartUtc } from "./chart";
+import { metricTone, type Tone } from "./score";
 import { MIN_SAMPLE, visibility, visibilityScore, type Interval, type MeasurementResult, type Platform } from "./measure";
 
 /**
@@ -106,6 +108,8 @@ export type AuditInput = {
   profileUrl: string | null;
   /** Najnowsze pomiary dla miasta (po jednym na klucz pamięci podręcznej). */
   measurements: AuditMeasurement[];
+  /** Wszystkie gotowe pomiary miasta z ostatnich tygodni (tylko wzmianki), do wykresu historii. */
+  history?: AuditMeasurement[];
 };
 
 export type AuditStatus = "ok" | "not_in_catalog" | "no_measurements";
@@ -123,7 +127,40 @@ export type CompetitorView = {
 
 export type CitedDomainView = { domain: string; answers: number; share: number; isOwnPortal: boolean };
 
-export type Recommendation = { text: string; href?: string };
+/**
+ * Wniosek z pomiarów. done: stan pozytywny (np. firma jest polecana), do odhaczenia na liście; anchor: sekcja raportu
+ * z danymi, na których wniosek się opiera; href: zewnętrzny adres (profil w katalogu).
+ */
+export type Recommendation = { text: string; href?: string; done?: boolean; anchor?: "analiza" | "konkurencja" | "zrodla" };
+
+/** Punkt historii: jeden tydzień (poniedziałek UTC), odsetek odpowiedzi z wzmianką o firmie. */
+export type HistoryPoint = { weekStart: string; sample: number; mentioned: number; rate: number; lowSample: boolean };
+
+/** Średnia 3 najczęściej polecanych (wymienianych) firm w mieście: cel dla metryk. */
+export type BenchmarkView = {
+  /** Ile firm weszło do średniej (do 3). */
+  firms: number;
+  label: string;
+  mention: number;
+  recommendation: number;
+  citation: number | null;
+  shareOfVoice: number;
+  averagePosition: number | null;
+};
+
+export type MetricKey = "mention" | "recommendation" | "citation" | "shareOfVoice" | "position";
+
+export type MetricRow = {
+  key: MetricKey;
+  label: string;
+  hint: string;
+  kind: "rate" | "position";
+  /** Wartość firmy (ułamek 0-1 albo pozycja); null = brak (np. firma nigdy się nie pojawiła). */
+  value: number | null;
+  /** Cel z benchmarku; null = brak benchmarku. */
+  target: number | null;
+  tone: Tone;
+};
 
 export type PlatformUse = { platform: string; label: string; count: number };
 
@@ -155,7 +192,124 @@ export type AuditResult = {
   citedDomains: CitedDomainView[];
   ownPortal: { cited: boolean; answers: number; hasProfile: boolean };
   recommendations: Recommendation[];
+  shareOfVoice: number | null;
+  averagePosition: number | null;
+  /** Benchmark z konkurentów w mieście; null przy zbyt małej próbie albo bez konkurentów. */
+  benchmark: BenchmarkView | null;
+  /** Tabela "Rozbicie": metryki firmy z celem z benchmarku (puste przy zbyt małej próbie). */
+  metrics: MetricRow[];
+  /** Historia tygodniowa wzmianek; enough: są co najmniej 2 tygodnie z pomiarami. */
+  history: { points: HistoryPoint[]; enough: boolean };
 };
+
+export const BENCHMARK_LABEL = "średnia 3 najczęściej polecanych firm w mieście";
+
+export type CompStat = {
+  answers: number;
+  recommended: number;
+  mentionCount: number;
+  citedAnswers: number;
+  /** Najlepsza (najmniejsza) pozycja firmy w każdej odpowiedzi, w której się pojawia. */
+  positions: number[];
+  hasDomain: boolean;
+};
+
+function avg(xs: number[]): number | null {
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+
+/**
+ * Cel dla metryk: średnia wskaźników 3 firm najczęściej wymienianych w mieście (konkurentów, bez firmy badanej).
+ * `sorted` ma być posortowane malejąco po liczbie odpowiedzi. Cytowania liczymy tylko z firm ze znaną domeną.
+ */
+export function computeBenchmark(sorted: CompStat[], total: number, allMentions: number): BenchmarkView | null {
+  const top = sorted.slice(0, 3);
+  if (!top.length || total <= 0) return null;
+  const cit = top.filter((c) => c.hasDomain).map((c) => c.citedAnswers / total);
+  const pos = top.map((c) => avg(c.positions)).filter((x): x is number => x !== null);
+  return {
+    firms: top.length,
+    label: top.length === 3 ? BENCHMARK_LABEL : `średnia ${top.length} najczęściej polecanych firm w mieście`,
+    mention: avg(top.map((c) => c.answers / total)) ?? 0,
+    recommendation: avg(top.map((c) => c.recommended / total)) ?? 0,
+    citation: avg(cit),
+    shareOfVoice: allMentions > 0 ? (avg(top.map((c) => c.mentionCount)) ?? 0) / allMentions : 0,
+    averagePosition: avg(pos),
+  };
+}
+
+export type OwnMetrics = {
+  mention: number;
+  recommendation: number;
+  citation: number;
+  shareOfVoice: number;
+  averagePosition: number | null;
+};
+
+/** Wiersze tabeli "Rozbicie": wartość firmy, cel z benchmarku i ocena (kolor). */
+export function buildMetrics(own: OwnMetrics, bench: BenchmarkView | null): MetricRow[] {
+  const rows: Omit<MetricRow, "tone">[] = [
+    { key: "mention", label: "Wzmianki", hint: "odpowiedzi AI, w których pojawia się firma", kind: "rate", value: own.mention, target: bench?.mention ?? null },
+    { key: "recommendation", label: "Polecenia", hint: "odpowiedzi, w których firma jest wprost polecana", kind: "rate", value: own.recommendation, target: bench?.recommendation ?? null },
+    { key: "citation", label: "Cytowania strony", hint: "odpowiedzi cytujące stronę firmy jako źródło", kind: "rate", value: own.citation, target: bench?.citation ?? null },
+    { key: "shareOfVoice", label: "Udział w odpowiedziach", hint: "wzmianki firmy do wszystkich wzmianek o firmach", kind: "rate", value: own.shareOfVoice, target: bench?.shareOfVoice ?? null },
+    { key: "position", label: "Średnia pozycja", hint: "miejsce na liście firm, gdy firma się pojawia (1 = pierwsza)", kind: "position", value: own.averagePosition, target: bench?.averagePosition ?? null },
+  ];
+  return rows.map((r) => ({ ...r, tone: metricTone(r.value, r.target, r.kind === "rate") }));
+}
+
+/** Historia tygodniowa: odsetek odpowiedzi z wzmianką o firmie w każdym tygodniu (poniedziałek UTC), rosnąco po dacie. */
+export function weeklyHistory(measurements: AuditMeasurement[], isOwn: (m: AuditMention) => boolean): HistoryPoint[] {
+  const weeks = new Map<string, { sample: number; mentioned: number }>();
+  for (const m of measurements) {
+    const key = weekStartUtc(toDate(m.measuredAt));
+    const w = weeks.get(key) ?? { sample: 0, mentioned: 0 };
+    w.sample++;
+    if (m.mentions.some(isOwn)) w.mentioned++;
+    weeks.set(key, w);
+  }
+  return [...weeks.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([weekStart, w]) => ({
+      weekStart,
+      sample: w.sample,
+      mentioned: w.mentioned,
+      rate: w.sample ? w.mentioned / w.sample : 0,
+      lowSample: w.sample < MIN_SAMPLE,
+    }));
+}
+
+export type TopMentioned = { name: string; answers: number; share: number; brandId: string | null; domain: string | null };
+
+/** Najczęściej wymieniane firmy w zbiorze pomiarów (jedna wzmianka na odpowiedź), do podglądów i pulpitu. */
+export function topMentioned(measurements: AuditMeasurement[], limit = 3): TopMentioned[] {
+  const total = measurements.length;
+  const map = new Map<string, { names: Map<string, number>; brandId: string | null; domain: string | null; catalogName: string | null; answers: number }>();
+  for (const m of measurements) {
+    const seen = new Set<string>();
+    for (const x of m.mentions) {
+      const k = keyOf(x);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const e = map.get(k) ?? { names: new Map(), brandId: x.brandId, domain: x.domain, catalogName: x.brandName, answers: 0 };
+      e.names.set(x.name, (e.names.get(x.name) ?? 0) + 1);
+      e.domain = e.domain ?? x.domain;
+      e.catalogName = e.catalogName ?? x.brandName;
+      e.answers++;
+      map.set(k, e);
+    }
+  }
+  return [...map.values()]
+    .map((e) => ({
+      name: e.catalogName ?? [...e.names.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pl"))[0][0],
+      answers: e.answers,
+      share: total ? e.answers / total : 0,
+      brandId: e.brandId,
+      domain: e.domain,
+    }))
+    .sort((a, b) => b.answers - a.answers || a.name.localeCompare(b.name, "pl"))
+    .slice(0, limit);
+}
 
 const OWN = "own";
 
@@ -209,6 +363,11 @@ export function buildAudit(input: AuditInput): AuditResult {
     citedDomains: [],
     ownPortal: { cited: false, answers: 0, hasProfile: Boolean(profileUrl) },
     recommendations: [],
+    shareOfVoice: null,
+    averagePosition: null,
+    benchmark: null,
+    metrics: [],
+    history: { points: [], enough: false },
   });
 
   if (!firm) return empty("not_in_catalog");
@@ -233,7 +392,11 @@ export function buildAudit(input: AuditInput): AuditResult {
   let citedAnswers = 0;
   let portalAnswers = 0;
   const platformCount = new Map<string, number>();
-  const compMap = new Map<string, { names: Map<string, number>; domain: string | null; catalogName: string | null; answers: number; recommended: number }>();
+  const compMap = new Map<
+    string,
+    { names: Map<string, number>; domain: string | null; catalogName: string | null; answers: number; recommended: number; mentionCount: number; citedAnswers: number; positions: number[] }
+  >();
+  let allMentions = 0;
   const citeMap = new Map<string, { answers: number; own: boolean }>();
 
   for (const m of measurements) {
@@ -244,22 +407,28 @@ export function buildAudit(input: AuditInput): AuditResult {
     if (m.citations.some((c) => domainMatches(c.domain, domain))) citedAnswers++;
     if (m.citations.some(isOwnPortalCitation)) portalAnswers++;
 
+    allMentions += m.mentions.length;
     const seen = new Set<string>();
     for (const x of m.mentions) {
       if (isOwnMention(x)) continue;
       const k = keyOf(x);
       let e = compMap.get(k);
       if (!e) {
-        e = { names: new Map(), domain: null, catalogName: null, answers: 0, recommended: 0 };
+        e = { names: new Map(), domain: null, catalogName: null, answers: 0, recommended: 0, mentionCount: 0, citedAnswers: 0, positions: [] };
         compMap.set(k, e);
       }
       e.names.set(x.name, (e.names.get(x.name) ?? 0) + 1);
       e.domain = e.domain ?? x.domain;
       e.catalogName = e.catalogName ?? x.brandName;
+      e.mentionCount++;
       if (!seen.has(k)) {
         seen.add(k);
         e.answers++;
-        if (m.mentions.some((y) => !isOwnMention(y) && keyOf(y) === k && y.recommended)) e.recommended++;
+        const same = m.mentions.filter((y) => !isOwnMention(y) && keyOf(y) === k);
+        if (same.some((y) => y.recommended)) e.recommended++;
+        e.positions.push(Math.min(...same.map((y) => y.position)));
+        const dom = e.domain;
+        if (dom && m.citations.some((c) => domainMatches(c.domain, dom))) e.citedAnswers++;
       }
     }
 
@@ -275,6 +444,10 @@ export function buildAudit(input: AuditInput): AuditResult {
     }
   }
 
+  const compStats: CompStat[] = [...compMap.values()]
+    .sort((a, b) => b.answers - a.answers)
+    .map((e) => ({ answers: e.answers, recommended: e.recommended, mentionCount: e.mentionCount, citedAnswers: e.citedAnswers, positions: e.positions, hasDomain: Boolean(e.domain) }));
+  const benchmark = v.enoughData ? computeBenchmark(compStats, total, allMentions) : null;
   const competitors: CompetitorView[] = [...compMap.entries()]
     .map(([, e]) => {
       const bestName = [...e.names.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pl"))[0][0];
@@ -324,30 +497,35 @@ export function buildAudit(input: AuditInput): AuditResult {
   if (mentionedAnswers === 0) {
     recs.push({
       text: `Twoja firma nie pojawia się w żadnej z ${total} ${ANSWERS} AI na pytania o biura nieruchomości ${inCity}${enoughData ? "" : " (to mała próba, więc nie traktuj tego jako pewnego wyniku)"}.`,
+      anchor: "analiza",
     });
   } else {
     recs.push({
       text: `Twoja firma pojawia się w ${mentionedAnswers} z ${total} ${ANSWERS}${recommendedAnswers ? `, a w ${recommendedAnswers} jest wprost polecana` : ", ale w żadnej nie jest wprost polecana"}.`,
+      done: recommendedAnswers > 0,
+      anchor: "analiza",
     });
   }
   if (competitors.length) {
     const top = competitors.slice(0, 3).map((c) => `${c.name} (${c.answers} z ${total})`);
-    recs.push({ text: `AI najczęściej wymienia ${inCity}: ${top.join(", ")}. To firmy, które odbierają Ci zapytania klientów.` });
+    recs.push({ text: `AI najczęściej wymienia ${inCity}: ${top.join(", ")}. To firmy, które odbierają Ci zapytania klientów.`, anchor: "konkurencja" });
   }
   const others = citedDomains.filter((c) => !c.isOwnPortal).slice(0, 3);
   if (others.length) {
     recs.push({
       text: `AI ${inCity} najczęściej cytuje serwisy: ${others.map((c) => `${c.domain} (${c.answers} z ${total})`).join(", ")}. Sprawdź, czy Twoja firma jest w nich widoczna, zwłaszcza jeśli to rankingi lub katalogi firm.`,
+      anchor: "zrodla",
     });
   }
   if (citedAnswers === 0) {
-    recs.push({ text: `Twoja strona (${domain}) nie jest cytowana jako źródło w żadnej z ${total} ${ANSWERS}.` });
+    recs.push({ text: `Twoja strona (${domain}) nie jest cytowana jako źródło w żadnej z ${total} ${ANSWERS}.`, anchor: "zrodla" });
   } else {
-    recs.push({ text: `Twoja strona (${domain}) jest cytowana jako źródło w ${citedAnswers} z ${total} ${ANSWERS}.` });
+    recs.push({ text: `Twoja strona (${domain}) jest cytowana jako źródło w ${citedAnswers} z ${total} ${ANSWERS}.`, done: true, anchor: "zrodla" });
   }
   if (portalAnswers > 0) {
     recs.push({
       text: `Nasz portal ${OWN_PORTAL_DOMAIN} jest cytowany w ${portalAnswers} z ${total} ${ANSWERS}, więc profil w katalogu może wpływać na to, co AI pisze o firmach ${inCity}.`,
+      anchor: "zrodla",
     });
   }
   if (hasProfile) {
@@ -387,5 +565,20 @@ export function buildAudit(input: AuditInput): AuditResult {
     citedDomains,
     ownPortal: { cited: portalAnswers > 0, answers: portalAnswers, hasProfile },
     recommendations: recs,
+    shareOfVoice: enoughData ? v.shareOfVoice : null,
+    averagePosition: enoughData ? v.averagePosition : null,
+    benchmark,
+    metrics: enoughData
+      ? buildMetrics(
+          { mention: v.mentionRate.value, recommendation: v.recommendationRate.value, citation: v.citationRate.value, shareOfVoice: v.shareOfVoice, averagePosition: v.averagePosition },
+          benchmark,
+        )
+      : [],
+    history: historyOf(input.history?.length ? input.history : measurements, isOwnMention),
   };
+}
+
+function historyOf(ms: AuditMeasurement[], isOwn: (m: AuditMention) => boolean): { points: HistoryPoint[]; enough: boolean } {
+  const points = weeklyHistory(ms, isOwn);
+  return { points, enough: points.length >= 2 };
 }

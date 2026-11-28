@@ -1,4 +1,5 @@
-import { AdminNav } from "@/components/AdminNav";
+import { AppShell } from "@/components/shell/AppShell";
+import { Card, PageHeader } from "@/components/ui/ui";
 import { listWaitlist } from "@/lib/admin-repo";
 import { formatDateTime } from "@/lib/admin-stats";
 import { requireAdmin } from "@/lib/auth";
@@ -7,17 +8,16 @@ export const metadata = { title: "Lista oczekujących" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminWaitlist() {
-  await requireAdmin("/admin/lista");
+  const me = await requireAdmin("/admin/lista");
   const { rows, total } = await listWaitlist();
   return (
-    <>
-      <h1>Lista oczekujących</h1>
-      <AdminNav current="/admin/lista" />
+    <AppShell user={me} current="/admin/lista">
+      <PageHeader eyebrow="Administracja" title="Lista oczekujących" />
       <p>
         Zapisanych: <b>{total}</b>{" "}
         <a className="btn ghost" href="/admin/lista/export" download>Pobierz CSV</a>
       </p>
-      <div className="tw"><table>
+      <Card flush className="mt-16"><div className="tw"><table>
         <thead><tr><th>E-mail</th><th>Domena</th><th>Kod partnera</th><th>Data zapisu</th></tr></thead>
         <tbody>
           {rows.length ? rows.map((r) => (
@@ -29,8 +29,8 @@ export default async function AdminWaitlist() {
             </tr>
           )) : <tr><td colSpan={4} className="muted">Nikt jeszcze się nie zapisał.</td></tr>}
         </tbody>
-      </table></div>
+      </table></div></Card>
       {total > rows.length ? <p className="muted small">Pokazano {rows.length} najnowszych, pełna lista w pliku CSV.</p> : null}
-    </>
+    </AppShell>
   );
 }

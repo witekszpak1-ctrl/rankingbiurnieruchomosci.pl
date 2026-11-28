@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { AdminNav } from "@/components/AdminNav";
+import { AppShell } from "@/components/shell/AppShell";
+import { Card, PageHeader } from "@/components/ui/ui";
 import type { SP } from "@/components/Notice";
 import { listCities, listMeasurements } from "@/lib/admin-repo";
 import {
@@ -19,16 +20,15 @@ export const metadata = { title: "Pomiary" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminMeasurements({ searchParams }: { searchParams: SP }) {
-  await requireAdmin("/admin/pomiary");
+  const me = await requireAdmin("/admin/pomiary");
   const f = parseMeasurementFilters(await searchParams);
   const [{ rows, total }, cities] = await Promise.all([listMeasurements(f), listCities()]);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const link = (page: number) =>
     buildQuery("/admin/pomiary", { miasto: f.city, platforma: f.platform, status: f.status, od: f.from, do: f.to, strona: page > 1 ? page : undefined });
   return (
-    <>
-      <h1>Pomiary</h1>
-      <AdminNav current="/admin/pomiary" />
+    <AppShell user={me} current="/admin/pomiary">
+      <PageHeader eyebrow="Administracja" title="Pomiary" />
       <form method="get" action="/admin/pomiary" className="filters">
         <label>Miasto
           <select name="miasto" defaultValue={f.city}>
@@ -54,7 +54,7 @@ export default async function AdminMeasurements({ searchParams }: { searchParams
         <Link href="/admin/pomiary" className="btn ghost">Wyczyść</Link>
       </form>
       <p className="muted small">Pomiary: {total}. Strona {Math.min(f.page, pages)} z {pages}.</p>
-      <div className="tw"><table>
+      <Card flush className="mt-16"><div className="tw"><table>
         <thead><tr><th>Data</th><th>Miasto</th><th>Platforma</th><th>Status</th><th>Pytanie</th><th>Wzmianki</th><th>Źródła</th><th></th></tr></thead>
         <tbody>
           {rows.length ? rows.map((r) => (
@@ -70,11 +70,11 @@ export default async function AdminMeasurements({ searchParams }: { searchParams
             </tr>
           )) : <tr><td colSpan={8} className="muted">Brak pomiarów dla tych filtrów.</td></tr>}
         </tbody>
-      </table></div>
+      </table></div></Card>
       <div className="pager">
         {f.page > 1 ? <Link href={link(f.page - 1)}>Poprzednia</Link> : null}
         {f.page < pages ? <Link href={link(f.page + 1)}>Następna</Link> : null}
       </div>
-    </>
+    </AppShell>
   );
 }

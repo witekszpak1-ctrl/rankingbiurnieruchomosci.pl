@@ -10,7 +10,7 @@ export function LinkBuilder({ origin, code }: { origin: string; code: string }) 
   const [copied, setCopied] = useState(false);
   const link = affiliateLink(origin, code, { campaign, to });
   return (
-    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <code className="link" id="aff-link">{link}</code>
       <div className="grid">
         <label>

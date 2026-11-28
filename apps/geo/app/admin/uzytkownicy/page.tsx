@@ -1,4 +1,5 @@
-import { AdminNav } from "@/components/AdminNav";
+import { AppShell } from "@/components/shell/AppShell";
+import { Card, PageHeader } from "@/components/ui/ui";
 import { Notice, one, type SP } from "@/components/Notice";
 import { listUsers } from "@/lib/admin-repo";
 import { formatDate, formatDateTime } from "@/lib/admin-stats";
@@ -15,14 +16,13 @@ export default async function AdminUsers({ searchParams }: { searchParams: SP })
   const { users, accounts } = await listUsers();
   const done = one(sp.ok);
   return (
-    <>
-      <h1>Użytkownicy i konta</h1>
-      <AdminNav current="/admin/uzytkownicy" />
+    <AppShell user={me} current="/admin/uzytkownicy">
+      <PageHeader eyebrow="Administracja" title="Użytkownicy i konta" />
       <Notice
         error={one(sp.error)}
         ok={done === "nadano" ? "Nadano uprawnienia administratora." : done === "odebrano" ? "Odebrano uprawnienia administratora." : null}
       />
-      <h2 className="sec">Użytkownicy ({users.length})</h2>
+      <Card flush className="mt-16" title={<>Użytkownicy ({users.length})</>}>
       <div className="tw"><table>
         <thead><tr><th>E-mail</th><th>Imię</th><th>Utworzony</th><th>Ostatnie logowanie</th><th>Konta</th><th>Partner</th><th>Administrator</th></tr></thead>
         <tbody>
@@ -50,8 +50,9 @@ export default async function AdminUsers({ searchParams }: { searchParams: SP })
           ))}
         </tbody>
       </table></div>
+      </Card>
 
-      <h2 className="sec">Konta firm ({accounts.length})</h2>
+      <Card flush className="mt-16" title={<>Konta firm ({accounts.length})</>}>
       <div className="tw"><table>
         <thead><tr><th>Firma</th><th>Domena</th><th>Właściciel</th><th>Pakiet</th><th>Status abonamentu</th><th>Utworzone</th></tr></thead>
         <tbody>
@@ -67,6 +68,7 @@ export default async function AdminUsers({ searchParams }: { searchParams: SP })
           )) : <tr><td colSpan={6} className="muted">Brak kont firm.</td></tr>}
         </tbody>
       </table></div>
-    </>
+      </Card>
+    </AppShell>
   );
 }

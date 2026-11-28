@@ -178,6 +178,21 @@ export function formatDateTime(d: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat("pl-PL", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Warsaw" }).format(date);
 }
 
+// ===== Szeregi czasowe do wykresów =====
+
+export type DayPoint = { day: string; count: number };
+
+/** Uzupełnia brakujące dni zerami: `days` kolejnych dni (UTC) kończących się na `end` (RRRR-MM-DD), rosnąco. */
+export function fillDays(rows: DayPoint[], end: string, days: number): DayPoint[] {
+  const by = new Map(rows.map((r) => [r.day, r.count]));
+  const endMs = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(endMs) || days < 1) return [];
+  return Array.from({ length: days }, (_, i) => {
+    const day = new Date(endMs - (days - 1 - i) * 86400000).toISOString().slice(0, 10);
+    return { day, count: by.get(day) ?? 0 };
+  });
+}
+
 export function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "-";
   const date = d instanceof Date ? d : new Date(d);

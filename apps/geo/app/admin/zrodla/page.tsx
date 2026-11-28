@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { AdminNav } from "@/components/AdminNav";
+import { AppShell } from "@/components/shell/AppShell";
+import { Card, PageHeader } from "@/components/ui/ui";
 import { one, type SP } from "@/components/Notice";
 import { listCities, loadSources } from "@/lib/admin-repo";
 import { formatShare } from "@/lib/admin-stats";
@@ -10,13 +11,12 @@ export const metadata = { title: "Źródła cytowane przez AI" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminSources({ searchParams }: { searchParams: SP }) {
-  await requireAdmin("/admin/zrodla");
+  const me = await requireAdmin("/admin/zrodla");
   const city = (one((await searchParams).miasto) ?? "").trim().slice(0, 80);
   const [s, cities] = await Promise.all([loadSources(city), listCities()]);
   return (
-    <>
-      <h1>Źródła cytowane przez AI</h1>
-      <AdminNav current="/admin/zrodla" />
+    <AppShell user={me} current="/admin/zrodla">
+      <PageHeader eyebrow="Administracja" title="Źródła cytowane przez AI" />
       <form method="get" action="/admin/zrodla" className="filters">
         <label>Miasto
           <select name="miasto" defaultValue={city}>
@@ -33,7 +33,7 @@ export default async function AdminSources({ searchParams }: { searchParams: SP 
         Odpowiedzi cytujące nasz portal: {formatShare(s.answersCitingOwn, s.answersWithCitations)}.
       </p>
 
-      <h2 className="sec">Najczęściej cytowane domeny</h2>
+      <Card flush className="mt-16" title={<>Najczęściej cytowane domeny</>}>
       <div className="tw"><table>
         <thead><tr><th>Domena</th><th>Odpowiedzi</th><th>Udział w odpowiedziach ze źródłami</th><th>Cytowania</th><th>Miasta</th></tr></thead>
         <tbody>
@@ -48,8 +48,9 @@ export default async function AdminSources({ searchParams }: { searchParams: SP 
           )) : <tr><td colSpan={5} className="muted">Brak cytowań.</td></tr>}
         </tbody>
       </table></div>
+      </Card>
 
-      <h2 className="sec">Źródła w podziale na miasta</h2>
+      <Card flush className="mt-16" title={<>Źródła w podziale na miasta</>}>
       <div className="tw"><table>
         <thead><tr><th>Miasto</th><th>Odpowiedzi</th><th>Ze źródłami</th><th>Cytują nasz portal</th><th>Najczęstsza domena</th></tr></thead>
         <tbody>
@@ -64,6 +65,7 @@ export default async function AdminSources({ searchParams }: { searchParams: SP 
           )) : <tr><td colSpan={5} className="muted">Brak pomiarów.</td></tr>}
         </tbody>
       </table></div>
-    </>
+      </Card>
+    </AppShell>
   );
 }
