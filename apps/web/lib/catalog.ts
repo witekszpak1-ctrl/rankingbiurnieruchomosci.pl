@@ -108,10 +108,10 @@ const CARD_SQL = `
     where brand_id = b.id order by verification_score desc nulls last limit 1
   ) d on true`;
 
-/** Ile trzymamy w pamięci listy miast i wszystkich biur (zmieniają się najwyżej przy przebiegu workera). */
-const CATALOG_TTL_MS = 5 * 60_000;
+/** Ile trzymamy w pamięci listy miast i wszystkich biur. Worker publikuje raz na godzinę, a godzina opóźnienia na stronie publicznej jest w porządku (decyzja właściciela, 28.11.2026). */
+const CATALOG_TTL_MS = 60 * 60_000;
 
-/** Lista miast jest w nagłówku i stopce każdej strony, więc jest zapamiętana na kilka minut. */
+/** Lista miast jest w nagłówku i stopce każdej strony, więc jest zapamiętana na godzinę. */
 export const listCities = memoize(
   (): Promise<CityRow[]> =>
     query<CityRow>(
