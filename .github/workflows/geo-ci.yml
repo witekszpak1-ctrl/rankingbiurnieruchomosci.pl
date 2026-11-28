@@ -1,0 +1,26 @@
+# Typecheck, testy jednostkowe i build platformy GEO (apps/geo). Build nie wymaga bazy: strony z danymi renderują się na żądanie.
+name: geo-ci
+
+on:
+  push:
+    paths: ["apps/geo/**", ".github/workflows/geo-ci.yml"]
+  pull_request:
+    paths: ["apps/geo/**", ".github/workflows/geo-ci.yml"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/geo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/geo/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
