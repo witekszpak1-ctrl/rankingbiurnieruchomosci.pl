@@ -52,11 +52,19 @@ def connect(url: str | None = None) -> psycopg.Connection:
     if not dsn:
         raise RuntimeError("Brak DATABASE_URL (ustaw zmienną środowiskową lub podaj url).")
     try:
-        return psycopg.connect(clean_dsn(dsn), row_factory=dict_row)
+        conn = psycopg.connect(clean_dsn(dsn), row_factory=dict_row)
     except psycopg.ProgrammingError as exc:
         if "connection info string" in str(exc):
             raise RuntimeError(describe_dsn_problem(dsn)) from None
         raise
+    # Neon zrywa połączenie bezczynne w otwartej transakcji po kilku minutach, a pobieranie przez LiteScrape
+    # (wyszukiwanie, Mapy, strony) trwa nawet minutę na zapytanie. Dla automatu limit 30 minut.
+    try:
+        conn.execute("set idle_in_transaction_session_timeout = '30min'")
+        conn.commit()
+    except psycopg.Error:
+        conn.rollback()
+    return conn
 
 
 def default_migrations_dir() -> Path:

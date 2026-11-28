@@ -343,11 +343,13 @@ def cmd_litescrape_check(args) -> int:
                     organic = data.get("organic_results") or []
                     out["search_variants"][name] = {
                         "sekund": round(_time.monotonic() - t0, 1), "wynikow": len(organic),
+                        "goto": sum(1 for o in organic if "google.com/goto" in (o.get("link") or "")),
                         "przyklady": [{"link": (o.get("link") or "")[:60], "displayed_link": o.get("displayed_link"),
                                        "source": o.get("source")} for o in organic[:5]],
                     }
                 except LiteScrapeError as exc:
                     out["search_variants"][name] = {"sekund": round(_time.monotonic() - t0, 1), "error": str(exc)}
+            print(json.dumps({"search_variants": out["search_variants"]}, ensure_ascii=False, indent=1), file=sys.stderr)
             search = LiteScrapeSearch(client)
             out["search"] = {}
             for query in (f"biuro nieruchomości {args.city}", f"biuro nieruchomości {args.city} (strona 2)"):
