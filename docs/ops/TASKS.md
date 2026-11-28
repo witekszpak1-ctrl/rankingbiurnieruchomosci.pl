@@ -34,6 +34,12 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 
 ## Katalogi
 
+- [x] Portal biur rachunkowych wdrożony prywatnie: projekt Vercel `portal-rachunkowe` (katalog apps/web, PORTAL=rachunkowe,
+      rola bazy portal_app z prawami katalog_app), adres https://portal-rachunkowe-witek1.vercel.app (widoczny tylko po
+      zalogowaniu do Vercel do czasu domeny i danych)
+- [ ] Kolejne portale (oze, remonty, budowlane, warsztaty, przeprowadzki, weterynarze): taki sam projekt Vercel z PORTAL=<slug>
+      po przejściu pakietu branży przez testy
+
 - [x] Opinie Google na profilach: tylko ocena, liczba i link (wdrożone 28.11)
 - [~] Przycisk "sprawdź widoczność w AI" na profilach: gotowy na gałęzi claude/premium, pokazuje się po ustawieniu `NEXT_PUBLIC_GEO_AUDIT_URL` (dziś nieustawione, produkcja bez zmian)
 - [!] DNS rankingbiurnieruchomosci.pl do Cloudflare (właściciel: dodanie strony w Cloudflare i zmiana serwerów DNS w aftermarket.pl)
