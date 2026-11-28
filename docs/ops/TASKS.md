@@ -17,7 +17,11 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [!] Adapter DataForSEO LLM Scraper (konto i 50 USD)
 - [x] Test LiteScrape (28.11, 14 zapytań): Gemini, Google AI Mode i AI Overview działają po polsku (raport
       `queue/results/reports/ai-check-2026-11-28T0453.json` w repozytorium kolejki). ChatGPT w LiteScrape nie ma.
-- [ ] Adapter pomiarów LiteScrape (Gemini, AI Mode, AI Overview) zapisujący do geo.measurements, mentions, citations
+- [x] Adapter pomiarów LiteScrape (Gemini, AI Mode, AI Overview) zapisujący do geo.measurements, mentions, citations:
+      `katalog geo-measure --cities N --platforms gemini,google_ai_mode,google_ai_overview --per-city-prompts K --max-calls M
+      --max-age-days 7 --save-raw KATALOG --dry-run` (`apps/worker/katalog_worker/geo_measure.py`). Płatne: twardy limit 50 zapytań,
+      domyślnie 20; świeży pomiar (ten sam klucz pamięci co w `apps/geo/lib/measure.ts`) jest używany ponownie. Nie uruchamiany
+      automatycznie w CI. Parsery tolerancyjne - kształt `text_blocks`, `references`, `ai_overview` do potwierdzenia na żywo (`--save-raw`).
 - [ ] Dokładny koszt zapytań AI w LiteScrape (pole `billed` w odpowiedzi, saldo w /admin/koszty)
 - [ ] Darmowy audyt: normalizacja domeny, odczyt z rejestru firm katalogu, skan strony, prompty, pomiary, raport
 - [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
