@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { operator, SERVICE_HOST } from "@/lib/legal";
+import { currentPortal } from "@/lib/portal";
 
 /** Dane operatora serwisu w dokumentach prawnych. Pokazuje tylko pola uzupełnione w konfiguracji. */
 export function OperatorDetails() {
@@ -25,7 +26,7 @@ export function OperatorContact() {
           e-mail <a href={`mailto:${op.email}`}>{op.email}</a> albo{" "}
         </>
       )}
-      formularz na stronie <Link href="/dla-firm">Dla biur</Link> (rodzaj zgłoszenia „Inna sprawa”)
+      formularz na stronie <Link href="/dla-firm">{currentPortal().texts.navForFirms}</Link> (rodzaj zgłoszenia „Inna sprawa”)
       {op.address && <>, albo listownie na adres {op.address}</>}
     </>
   );

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 
 import { FirmImage } from "@/components/FirmImage";
@@ -18,9 +19,11 @@ import { BlogLinks } from "@/components/BlogLinks";
 import { latestBlogLinks } from "@/lib/blog-links";
 import { getBlogOverrides, withOverride } from "@/lib/blog-overrides";
 import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 
 const portal = currentPortal();
 const { features, texts } = portal;
+const u = unitForms(portal);
 // Nazwa jednostki i reszta frazy osobno ("biur" + " nieruchomości w katalogu"): zachowuje podział węzłów tekstu w HTML.
 const phraseHead = (n: number, suffix: string) => {
   const [head, ...rest] = plural(n, portal.terms.phrase.one, portal.terms.phrase.few, portal.terms.phrase.many).split(" ");
@@ -50,24 +53,7 @@ const toInput = (l: TopListing): RankingInput => ({
   googleCount: l.googleCount,
 });
 
-const FAQ = [
-  {
-    q: "Skąd pochodzą dane o biurach?",
-    a: "Z rejestrów publicznych (KRS, wykaz podatników VAT) i z oficjalnych stron internetowych biur. Biura potwierdzone w rejestrze mają to oznaczone na profilu; biura bez potwierdzenia też są w katalogu, ale niżej w rankingu.",
-  },
-  {
-    q: "Czy biura płacą za miejsce w rankingu?",
-    a: "Nie. Pozycja wynika wyłącznie z jawnej metodologii. Płatność nie ma wpływu na wynik ani na kolejność.",
-  },
-  {
-    q: "Jak często dane są aktualizowane?",
-    a: `${features.offers ? "Oferty, kontakt" : "Kontakt"} i obrazki sprawdzamy codziennie. Dane z rejestrów i opisy odświeżamy regularnie, a każda strona biura ma datę aktualizacji.`,
-  },
-  {
-    q: "Moje biuro ma błędne dane. Co zrobić?",
-    a: "Wypełnij formularz na stronie Dla biur. Poprawimy dane albo usuniemy wpis.",
-  },
-];
+const FAQ = texts.homeFaq;
 
 export default async function HomePage({ searchParams }: Props) {
   const sp = (await searchParams) ?? {};
@@ -88,131 +74,14 @@ export default async function HomePage({ searchParams }: Props) {
       )
     : [];
 
-  return (
-    <PublicShell wide>
-      <div className="hero-wrap">
-      <section className="hero-dark">
-        <div className="wrap hero-grid">
-          <div className="hero-copy">
-            <span className="kicker">Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu</span>
-            <h1>
-              {`Ranking ${firmPhrase("many")}`}{" "}
-              <span className="swash">
-                w Polsce {new Date().getFullYear()}
-                <svg viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true">
-                  <path d="M4 20 C 70 6, 150 4, 296 14" />
-                </svg>
-              </span>
-            </h1>
-            <p className="hero-sub">
-              {`Wybierz ${firmPhrase("one")} `}
-              <em>sprawdzone w rejestrach</em>
-            </p>
-            <p className="hero-lead">{texts.homeHeroLead}</p>
-            <ul className="checks-row">
-              <li>Bezpłatnie</li>
-              <li>Bez zobowiązań</li>
-              <li>Bez płatnych pozycji</li>
-            </ul>
-          </div>
-          <ProfileShowcase
-            firms={top.slice(0, 3).map((f) => ({
-              key: f.listingId,
-              href: `/${f.citySlug}/${f.slug}`,
-              name: f.name,
-              host: f.host,
-              cityName: f.cityName,
-              score: f.score,
-              googleRating: f.googleRating,
-              googleCount: f.googleCount,
-              offersCount: f.offersCount,
-              sinceYear: f.registryConfirmed && f.startDate ? new Date(f.startDate).getFullYear() : null,
-              registryConfirmed: f.registryConfirmed,
-              hasPublicPrices: f.hasPublicPrices,
-              servicesCount: f.servicesCount,
-              logoUrl: f.logoUrl,
-              coverUrl: f.coverUrl ?? (f.imageKind === "og" ? f.imageUrl : null),
-            }))}
-          />
-        </div>
-      </section>
-
-      <section className="search-band" id="szukaj">
-        <div className="wrap">
-          <form className="search-bar" action="/szukaj" method="get" data-track="Search">
-            <div className="search-field">
-              <label htmlFor="miasto">Miasto</label>
-              <input id="miasto" name="miasto" list="lista-miast" placeholder="Wpisz miasto, np. Wrocław" autoComplete="off" required />
-              <datalist id="lista-miast">
-                {cities.map((c) => (
-                  <option key={c.slug} value={c.name} />
-                ))}
-              </datalist>
-            </div>
-            {features.goals && (
-              <div className="search-field">
-                <label htmlFor="cel">Czego potrzebujesz</label>
-                <select id="cel" name="cel" defaultValue="">
-                  <option value="">Wszystkie biura</option>
-                  {(Object.keys(GOALS) as Goal[]).map((g) => (
-                    <option key={g} value={g}>
-                      {GOALS[g].label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <button type="submit">
-              Pokaż biura <span aria-hidden="true">→</span>
-            </button>
-          </form>
-          {missing && (
-            <p className="search-miss">
-              Nie mamy jeszcze biur w mieście „{missing}”. Wybierz jedno z miast poniżej, katalog stale się powiększa.
-            </p>
-          )}
-          <nav className="search-links" aria-label="Na skróty">
-            {features.offers && <Link href="/oferty">Aktualne oferty biur</Link>}
-            <Link href="/ranking">Ranking ogólnopolski</Link>
-            <Link href="/miasta">Wszystkie miasta</Link>
-            <Link href="/metodologia">Jak oceniamy</Link>
-          </nav>
-        </div>
-      </section>
-
-      </div>
-
-      <section className="stats-row" aria-label="Katalog w liczbach">
-        <div className="wrap">
-          <div>
-            <b>{stats.firms.toLocaleString("pl-PL")}</b>
-            <span>
-              {phraseHead(stats.firms, " w katalogu")[0]}
-              {phraseHead(stats.firms, " w katalogu")[1]}
-            </span>
-          </div>
-          <div>
-            <b>{stats.cities.toLocaleString("pl-PL")}</b>
-            <span>{plural(stats.cities, "miasto", "miasta", "miast")}, a co dzień kolejne</span>
-          </div>
-          {features.offers && (
-            <div>
-              <b>{stats.offers.toLocaleString("pl-PL")}</b>
-              <span>{plural(stats.offers, "aktualna oferta", "aktualne oferty", "aktualnych ofert")} ze stron biur</span>
-            </div>
-          )}
-          <div>
-            <b>0 zł</b>
-            <span>za wyszukiwanie. Płatność nie wpływa na pozycję w rankingu</span>
-          </div>
-        </div>
-      </section>
-
+  // Kolejność sekcji strony głównej zależy od portalu (texts.homeOrder): każdy portal zaczyna od tego, czego szuka jego klient.
+  const sections = {
+    steps: (
       <section className="band">
         <div className="wrap">
           <div className="section-head center">
             <span className="eyebrow">Jak to działa</span>
-            <h2>Dobre biuro w trzech krokach</h2>
+            <h2>{texts.homeStepsHeading}</h2>
           </div>
           <ol className="steps">
             {texts.homeSteps.map((s, i) => (
@@ -225,14 +94,16 @@ export default async function HomePage({ searchParams }: Props) {
           </ol>
         </div>
       </section>
-
+    ),
+    ranking: (
+      <>
       {top.length > 0 && (
         <section id="ranking" className="section">
           <div className="wrap">
             <div className="section-head">
               <div>
                 <span className="eyebrow">Ranking</span>
-                <h2>Najwyżej ocenione biura</h2>
+                <h2>{`Najwyżej ocenione ${u.pl.nom}`}</h2>
               </div>
               <Link className="link-arrow" href="/metodologia">
                 Jak liczymy wynik
@@ -286,7 +157,9 @@ export default async function HomePage({ searchParams }: Props) {
           </div>
         </section>
       )}
-
+      </>
+    ),
+    cities: (
       <section id="miasta" className="section">
         <div className="wrap">
           <div className="section-head">
@@ -318,6 +191,133 @@ export default async function HomePage({ searchParams }: Props) {
           )}
         </div>
       </section>
+    ),
+  };
+
+  return (
+    <PublicShell wide>
+      <div className="hero-wrap">
+      <section className="hero-dark">
+        <div className="wrap hero-grid">
+          <div className="hero-copy">
+            <span className="kicker">Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu</span>
+            <h1>
+              {`Ranking ${firmPhrase("many")}`}{" "}
+              <span className="swash">
+                w Polsce {new Date().getFullYear()}
+                <svg viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M4 20 C 70 6, 150 4, 296 14" />
+                </svg>
+              </span>
+            </h1>
+            <p className="hero-sub">
+              {`Wybierz ${portal.terms.phrase.accOne} `}
+              <em>{`${u.checkedAcc} w rejestrach`}</em>
+            </p>
+            <p className="hero-lead">{texts.homeHeroLead}</p>
+            <ul className="checks-row">
+              <li>Bezpłatnie</li>
+              <li>Bez zobowiązań</li>
+              <li>Bez płatnych pozycji</li>
+            </ul>
+          </div>
+          <ProfileShowcase
+            ctaLabel={`Zobacz profil ${u.sg.gen}`}
+            firms={top.slice(0, 3).map((f) => ({
+              key: f.listingId,
+              href: `/${f.citySlug}/${f.slug}`,
+              name: f.name,
+              host: f.host,
+              cityName: f.cityName,
+              score: f.score,
+              googleRating: f.googleRating,
+              googleCount: f.googleCount,
+              offersCount: f.offersCount,
+              sinceYear: f.registryConfirmed && f.startDate ? new Date(f.startDate).getFullYear() : null,
+              registryConfirmed: f.registryConfirmed,
+              hasPublicPrices: f.hasPublicPrices,
+              servicesCount: f.servicesCount,
+              logoUrl: f.logoUrl,
+              coverUrl: f.coverUrl ?? (f.imageKind === "og" ? f.imageUrl : null),
+            }))}
+          />
+        </div>
+      </section>
+
+      <section className="search-band" id="szukaj">
+        <div className="wrap">
+          <form className="search-bar" action="/szukaj" method="get" data-track="Search">
+            <div className="search-field">
+              <label htmlFor="miasto">Miasto</label>
+              <input id="miasto" name="miasto" list="lista-miast" placeholder="Wpisz miasto, np. Wrocław" autoComplete="off" required />
+              <datalist id="lista-miast">
+                {cities.map((c) => (
+                  <option key={c.slug} value={c.name} />
+                ))}
+              </datalist>
+            </div>
+            {features.goals && (
+              <div className="search-field">
+                <label htmlFor="cel">Czego potrzebujesz</label>
+                <select id="cel" name="cel" defaultValue="">
+                  <option value="">{`Wszystkie ${u.pl.nom}`}</option>
+                  {(Object.keys(GOALS) as Goal[]).map((g) => (
+                    <option key={g} value={g}>
+                      {GOALS[g].label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button type="submit">
+              {`Pokaż ${u.pl.acc} `}<span aria-hidden="true">→</span>
+            </button>
+          </form>
+          {missing && (
+            <p className="search-miss">
+              {`Nie mamy jeszcze ${u.pl.gen} w mieście „`}{missing}”. Wybierz jedno z miast poniżej, katalog stale się powiększa.
+            </p>
+          )}
+          <nav className="search-links" aria-label="Na skróty">
+            {features.offers && <Link href="/oferty">Aktualne oferty biur</Link>}
+            <Link href="/ranking">Ranking ogólnopolski</Link>
+            <Link href="/miasta">Wszystkie miasta</Link>
+            <Link href="/metodologia">Jak oceniamy</Link>
+          </nav>
+        </div>
+      </section>
+
+      </div>
+
+      <section className="stats-row" aria-label="Katalog w liczbach">
+        <div className="wrap">
+          <div>
+            <b>{stats.firms.toLocaleString("pl-PL")}</b>
+            <span>
+              {phraseHead(stats.firms, " w katalogu")[0]}
+              {phraseHead(stats.firms, " w katalogu")[1]}
+            </span>
+          </div>
+          <div>
+            <b>{stats.cities.toLocaleString("pl-PL")}</b>
+            <span>{plural(stats.cities, "miasto", "miasta", "miast")}, a co dzień kolejne</span>
+          </div>
+          {features.offers && (
+            <div>
+              <b>{stats.offers.toLocaleString("pl-PL")}</b>
+              <span>{plural(stats.offers, "aktualna oferta", "aktualne oferty", "aktualnych ofert")} ze stron biur</span>
+            </div>
+          )}
+          <div>
+            <b>0 zł</b>
+            <span>za wyszukiwanie. Płatność nie wpływa na pozycję w rankingu</span>
+          </div>
+        </div>
+      </section>
+
+      {texts.homeOrder.map((key) => (
+        <Fragment key={key}>{sections[key]}</Fragment>
+      ))}
 
       {features.blog && (
         <section className="section">
@@ -333,7 +333,7 @@ export default async function HomePage({ searchParams }: Props) {
             <span className="eyebrow">Dlaczego nam zaufać</span>
             <h2>Sprawdzamy, zanim pokażemy</h2>
             <p className="why-lead">
-              Do katalogu trafiają tylko biura, których stronę i dane potwierdziliśmy w rejestrach publicznych.
+              {`Do katalogu trafiają tylko ${u.pl.nom}, których stronę i dane potwierdziliśmy w rejestrach publicznych.`}
             </p>
           </div>
           <ul className="why-list">
@@ -379,11 +379,11 @@ export default async function HomePage({ searchParams }: Props) {
       <section className="section">
         <div className="wrap cta-dark">
           <div>
-            <h2>{`Prowadzisz ${firmPhrase("one")}?`}</h2>
-            <p>Sprawdź swój wpis, popraw dane albo zgłoś biuro, którego jeszcze nie ma w katalogu.</p>
+            <h2>{`Prowadzisz ${portal.terms.phrase.accOne}?`}</h2>
+            <p>{`Sprawdź swój wpis, popraw dane albo zgłoś ${u.sg.acc}, ${u.by("którego", "której", "którego")} jeszcze nie ma w katalogu.`}</p>
           </div>
           <Link className="btn-green" href="/dla-firm">
-            Przejdź do strony dla biur
+            {`Przejdź do strony ${texts.navForFirms.toLocaleLowerCase("pl")}`}
           </Link>
           <p className="cta-meta">
             {nBiur(stats.firms)} w katalogu · {nMiast(stats.cities)}

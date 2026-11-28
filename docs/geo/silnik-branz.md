@@ -72,18 +72,13 @@ Treści tylko dla branży nieruchomości (zostają w kodzie, dopóki nie powstan
 - kalkulatory i oferty nieruchomości: `app/oferty`, `components/OfferTile.tsx`, `OfferCitySelect.tsx`,
   `lib/format.ts` (`formatOfferPrice`).
 
-Strony i moduły wspólne, w których nadal są sztywne rzeczowniki lub proza branżowa:
+Strony i moduły wspólne: rzeczowniki branży są już składane z konfiguracji (sekcja "Teksty portali" niżej). Na sztywno
+zostają:
 
-- strony: `app/page.tsx`, `app/ranking/page.tsx`, `app/miasta/page.tsx`, `app/metodologia/page.tsx`,
-  `app/o-nas/page.tsx`, `app/dla-firm/page.tsx`, `app/reklama/page.tsx`, `app/kontakt/page.tsx`, `app/bot/page.tsx`,
-  `app/porownaj/page.tsx`, `app/regulamin/page.tsx`, `app/polityka-prywatnosci/page.tsx`, `app/wlasciciel/[id]`,
-  widoczne teksty w `app/[city]/page.tsx` i `app/[city]/[firm]/page.tsx` (nagłówki i akapity, poza danymi
-  strukturalnymi),
-- komponenty: `components/MobileNav.tsx` (komponent przeglądarkowy: odczyt konfiguracji po stronie serwera i
-  przekazanie jako właściwości), `LeadForm.tsx`, `ProfileShowcase.tsx`, `TopThree.tsx`, `Compare.tsx`,
-- moduły: `lib/city-content.ts` (grupy usług `SERVICE_GROUPS` oraz porady o umowie pośrednictwa i prowizji),
-  `lib/ranking.ts` (opisy parametrów), `lib/sitemap.ts` (adresy poradników i raportu), `lib/lead-message.ts`,
-  `lib/cities.ts`, `lib/redirects.ts`, `lib/automat-report.ts`, `lib/run-stats.ts`,
+- komponenty bez treści branżowej do przeniesienia: `components/TopThree.tsx`,
+- moduły: `lib/sitemap.ts` (adresy poradników i raportu, tylko portal z flagą `reports`), `lib/lead-message.ts`,
+  `lib/cities.ts`, `lib/redirects.ts`, `lib/automat-report.ts`, `lib/run-stats.ts`, `lib/gate.ts` (komunikaty
+  wewnętrzne automatu i panelu),
 - panel `/admin` (wewnętrzny, po polsku, nazwy branży w opisach),
 - logo: ścieżki SVG "RBN" (`lib/logo-paths.ts`) i grafiki w `public/` oraz `app/icon.svg`, `app/apple-icon.png`
   (każdy portal potrzebuje własnego logo i ikon),
@@ -175,4 +170,86 @@ tekstach brak słów branży nieruchomości (poza ogólnym "oferty" w sensie pra
 2. Wagi rankingu per branża (`ranking.weights` z `vertical.yaml`) zamiast wspólnej listy parametrów.
 3. Warianty układu stron (nagłówek, karty firm, układ profilu), żeby portale różniły się nie tylko kolorami.
 4. Pozostałe teksty branżowe (blog, raporty, poradniki) przypisać do portalu (pole `portal` w rejestrze artykułów).
-5. Test pilnujący brak tekstów drugiej branży w stronach wspólnych (część jest w `tests/portal.test.ts`).
+5. Test pilnujący brak tekstów drugiej branży: zrobiony (`tests/portal-copy.test.ts`, `scripts/check-portal-html.mjs`).
+
+## Teksty portali (poprawka z 28.11.2026)
+
+Powód: na portalach innych niż nieruchomości widać było teksty o biurach i pośrednikach ("Dobre biuro w trzech krokach"
+na stronie kliniki weterynaryjnej, "Prowadzisz klinika weterynaryjna?" w złej odmianie). Teraz każdy tekst wspólnych stron
+jest składany z konfiguracji portalu albo wprost z niej czytany.
+
+### Pola dodane do `PortalConfig`
+
+| Pole | Co zawiera |
+| --- | --- |
+| `terms.unit` | pełna odmiana jednostki katalogu przez 6 przypadków w liczbie pojedynczej i mnogiej (`sg.nom/gen/dat/acc/ins/loc`, `pl.*`) oraz rodzaj (`gender`: m / f / n): biuro, firma, warsztat, klinika |
+| `terms.phrase.accOne` | biernik frazy: "biuro nieruchomości", "firmę remontową", "klinikę weterynaryjną" ("Wybierz ...", "Prowadzisz ...?") |
+| `texts.homeStepsHeading` | nagłówek sekcji "Jak to działa", np. "Dobra klinika weterynaryjna w trzech krokach" |
+| `texts.homeSteps` | trzy kroki prawdziwej drogi klienta w branży (każdy portal ma własne) |
+| `texts.homeFaq` | pytania i odpowiedzi strony głównej (te same trafiają do danych strukturalnych FAQPage) |
+| `texts.homeOrder` | kolejność sekcji strony głównej (`steps`, `ranking`, `cities`), różna w portalach |
+| `texts.methodologyNote` | opcjonalny akapit na końcu metodologii (weterynarze: ranking nie ocenia jakości leczenia) |
+
+W fabryce `portals/service-portal.ts` doszły pola specyfikacji `homeStepsHeading`, `homeSteps`, `homeOrder`,
+`extraFaq` i `methodologyNote`; `homeFaq` jest składane z odmiany jednostki (`homeFaq()`), więc pytania są takie
+same w każdej branży, a odmiana poprawna. Wartości portalu nieruchomości to dotychczasowe napisy (HTML bez zmian).
+
+### Jak składać zdania: `lib/unit.ts`
+
+`unitForms(portal?)` zwraca formy jednostki katalogu bieżącego portalu: `sg` / `pl` (przypadki), `Sg` / `Pl` (te same
+wielką literą, do pojęć zdefiniowanych w regulaminie: "Biuro", "Biurem"), `by(n, f, m)` (wybór formy według rodzaju),
+zaimki `this` ("to / ta / ten", przypadki), `chosenAcc` ("wybrane / wybraną / wybrany"), `which` ("Które / Która /
+Który"), `checkedAcc`, `none`, `his`, `forFirms` i `forFirmsLc` ("Dla biur" / "dla biur"). Zasady:
+
+- zdanie ze słowem "biuro" piszemy jako szablon `${u.sg.gen}`, `${u.pl.nom}` itd. i zawsze jako jeden napis na cały
+  węzeł tekstu JSX (żeby HTML portalu nieruchomości nie zyskał dodatkowych węzłów tekstu),
+- przymiotnik lub zaimek przy jednostce bierzemy z `u.by(...)` albo `u.this` (nie wolno pisać "potwierdzone" na sztywno),
+- komponent przeglądarkowy (`"use client"`) nie zna portalu (`process.env.PORTAL` nie jest w paczce), więc teksty
+  dostaje we właściwościach z serwera (`Compare`: `maxTitle`, `param`, `label`, `needMore`; `ProfileShowcase`:
+  `ctaLabel`; `LeadFormStatus`: `sentText`),
+- adres porównania ma parametr o nazwie jednostki w liczbie mnogiej (`?biura=`, `?firmy=`, `?warsztaty=`, `?kliniki=`).
+
+### Gdzie które teksty
+
+- strony: `app/page.tsx`, `ranking`, `miasta`, `metodologia`, `o-nas`, `dla-firm`, `kontakt`, `reklama`, `regulamin`,
+  `polityka-prywatnosci`, `porownaj`, `wlasciciel/[id]`, `llms.txt` używają `unitForms()` i pól `texts.*`,
+- komponenty: `CityView`, `FirmProfile`, `LeadForm`, `LeadFormStatus`, `ProfileShowcase`, `Compare`, `LegalOperator`,
+- moduły: `lib/city-content.ts`, `lib/firm-faq.ts`, `lib/meta-texts.ts`, `lib/ranking.ts` (opisy parametrów i
+  historia metodologii), `lib/path-status.ts` (strona 410),
+- teksty tylko dla portalu z ofertami, prowizjami, blogiem (flagi `features`) zostają w kodzie wspólnym, bo ukryta funkcja
+  znika ze stron (np. "Oferty nieruchomości" w regulaminie, metodologii i na profilu).
+
+### Treść per portal
+
+- rachunkowe (biuro rachunkowe: "biuro" jest tu poprawne): kroki o rodzaju księgowości (księga przychodów i rozchodów,
+  ryczałt, pełna księgowość, kadry i płace), abonament, umowa o obsługę,
+- oze (firma instalacyjna): fotowoltaika, pompy ciepła, klimatyzacja, magazyny energii, wycena po opisie budynku,
+- remonty (firma remontowa i wykończeniowa): zakres prac, stawki za robociznę lub metr kwadratowy, wycena na piśmie,
+- budowlane (firma budowlana, generalny wykonawca): stan surowy, deweloperski, dom pod klucz, harmonogram,
+- warsztaty (warsztat samochodowy): usterka, stawka robocizny, kosztorys przed naprawą,
+- przeprowadzki (firma przeprowadzkowa): trasa, termin i zakres, cennik i wycena; przeprowadzki "domowe" i "firmowe"
+  (bez słów o mieszkaniach i biurach),
+- weterynarze (klinika weterynaryjna): znajdź klinikę, sprawdź zakres usług, cenę wizyty i opinie, zadzwoń lub umów
+  wizytę; pytanie w FAQ i akapit w metodologii, że ranking nie ocenia jakości leczenia (uwaga prawna z
+  `docs/geo/branze-3-8.md`), a w nagłym przypadku trzeba dzwonić do placówki.
+
+### Testy i kontrola
+
+- `tests/portal-copy.test.ts`: dla każdego portalu poza nieruchomościami napisy konfiguracji, funkcje tekstowe
+  (wiadomości formularza, poradnik miasta, FAQ, ceny) i funkcje składające teksty stron (`city-content`, `firm-faq`,
+  `meta-texts`, `ranking`, `path-status`) z przykładowymi danymi nie mogą zawierać "nieruchomoś", "mieszka", "pośredni"
+  (jako początek wyrazu, "bezpośrednio" nie jest trafieniem), "agencj" ani "biur" (poza portalem rachunkowe); test
+  pilnuje też zgodności odmiany z formami po liczebniku i że portal nieruchomości ma swoje dotychczasowe napisy,
+- `scripts/check-portal-html.mjs <adres serwera> <slug>`: pobiera ze zbudowanego i uruchomionego portalu stronę główną,
+  miasta, listę miast, profil firmy, dla firm, metodologię, o nas, kontakt, regulamin, politykę prywatności, ranking,
+  llms.txt i manifest i szuka tych samych słów w widocznym tekście (adresy pomija); kod wyjścia 1 przy trafieniu.
+
+### Weryfikacja (28.11.2026)
+
+Portal nieruchomości: HTML 32 adresów (strona główna, miasta, profile, ranking, metodologia, strony prawne, blog, oferty,
+wyróżnienia, mapa strony, robots, llms, manifest, obrazek OG, 404) przed zmianą i po niej, po normalizacji (identyfikator
+budowy, hashe, daty, komentarze podziału węzłów, adres hosta): bez różnic w 31 adresach; w `/wyroznienia-2026` różni się
+tylko kolejność strumienia (podpowiedź preload obrazka zamiast bloku Suspense), strona nie była zmieniana. Pozostałe
+siedem portali: zbudowane z `PORTAL=<slug>` na lokalnej bazie z danymi dev przemianowanymi na neutralne nazwy firm i
+usług, 22 adresy każdy, brak trafień zakazanych słów w widocznym tekście. Zrzuty strony głównej 1440 i 390 px każdego
+portalu sprawdzone, bez przewijania poziomego.

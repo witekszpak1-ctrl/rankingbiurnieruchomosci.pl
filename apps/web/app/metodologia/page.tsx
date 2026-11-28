@@ -5,6 +5,7 @@ import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listCityListings, type ListingCard } from "@/lib/catalog";
 import { formatDate } from "@/lib/format";
 import { currentPortal, firmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { articleLd, pageMetadata } from "@/lib/seo";
 import { CITY_RANKING_MIN, METHODOLOGY, PARAMETERS, PRICE_STAT_MIN, rankListings, type RankingInput, weightShare } from "@/lib/ranking";
 
@@ -12,10 +13,11 @@ import { CITY_RANKING_MIN, METHODOLOGY, PARAMETERS, PRICE_STAT_MIN, rankListings
 export const revalidate = 86400;
 
 const { features, texts } = currentPortal();
+const u = unitForms();
 
 export const metadata: Metadata = pageMetadata({
   title: `Metodologia rankingu ${firmPhrase("many")} | Jak oceniamy`,
-  description: `Jak powstaje ranking ${firmPhrase("many")}: źródła danych (KRS, wykaz VAT, strony biur), parametry i wagi, potwierdzenie w rejestrze i ${features.saleCommission ? "zasady liczenia prowizji" : "zasady publikowania cen"}.`,
+  description: `Jak powstaje ranking ${firmPhrase("many")}: źródła danych (KRS, wykaz VAT, strony ${u.pl.gen}), parametry i wagi, potwierdzenie w rejestrze i ${features.saleCommission ? "zasady liczenia prowizji" : "zasady publikowania cen"}.`,
   path: "/metodologia",
 });
 
@@ -68,10 +70,7 @@ export default async function MethodologyPage() {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          Do katalogu trafiają {firmPhrase("few")} z własną stroną internetową. Biura, których NIP ze strony zgadza się
-          z rejestrem publicznym, oznaczamy jako potwierdzone. Biura bez takiego potwierdzenia (najczęściej brak NIP na
-          stronie) też publikujemy, ale z wyraźnym oznaczeniem i niżej w rankingu. Wynik liczymy z mierzalnych parametrów
-          ze strony firmy, rejestrów i Map Google. Płatność nie wpływa na pozycję.
+          Do katalogu trafiają {firmPhrase("few")}{` z własną stroną internetową. ${u.cap(u.pl.nom)}, których NIP ze strony zgadza się z rejestrem publicznym, oznaczamy jako potwierdzone. ${u.cap(u.pl.nom)} bez takiego potwierdzenia (najczęściej brak NIP na stronie) też publikujemy, ale z wyraźnym oznaczeniem i niżej w rankingu. Wynik liczymy z mierzalnych parametrów ze strony firmy, rejestrów i Map Google. Płatność nie wpływa na pozycję.`}
         </p>
       </div>
 
@@ -79,12 +78,10 @@ export default async function MethodologyPage() {
       <ul className="plain">
         <li>Rejestry publiczne: KRS (Ministerstwo Sprawiedliwości) i wykaz podatników VAT (Ministerstwo Finansów).</li>
         <li>Oficjalna strona internetowa firmy: {texts.siteDataList}.</li>
-        <li>Mapy Google: średnia ocena i liczba opinii, jeśli biuro ma tam profil.</li>
+        <li>{`Mapy Google: średnia ocena i liczba opinii, jeśli ${u.sg.nom} ma tam profil.`}</li>
       </ul>
       <p>
-        Z opinii klientów pokazujemy tylko średnią ocenę i liczbę opinii z Map Google, z podpisem źródła i linkiem do profilu
-        biura, gdzie można przeczytać same opinie. Sami nie piszemy opinii i nie oceniamy obsługi biur. Opisy firm powstają z faktów zapisanych
-        ze źródeł, a każdy fakt ma adres źródła i datę pobrania.
+        {`Z opinii klientów pokazujemy tylko średnią ocenę i liczbę opinii z Map Google, z podpisem źródła i linkiem do profilu ${u.sg.gen}, gdzie można przeczytać same opinie. Sami nie piszemy opinii i nie oceniamy obsługi ${u.pl.gen}. Opisy firm powstają z faktów zapisanych ze źródeł, a każdy fakt ma adres źródła i datę pobrania.`}
       </p>
 
       <h2>Weryfikacja wpisu</h2>
@@ -92,15 +89,12 @@ export default async function MethodologyPage() {
         <li>Znajdujemy kandydata na oficjalną stronę i odrzucamy katalogi, portale ogłoszeniowe, artykuły i strony niezwiązane z branżą.</li>
         <li>Odczytujemy z niej NIP i sprawdzamy go w rejestrach (suma kontrolna, status podmiotu, nazwa, adres).</li>
         <li>
-          Gdy NIP ze strony zgadza się z rejestrem, biuro jest oznaczone jako potwierdzone w rejestrze. Firmy wykreślone
-          lub nieaktywne w rejestrze odrzucamy.
+          {`Gdy NIP ze strony zgadza się z rejestrem, ${u.sg.nom} jest oznaczon${u.by("e", "a", "y")} jako potwierdzon${u.by("e", "a", "y")} w rejestrze. Firmy wykreślone lub nieaktywne w rejestrze odrzucamy.`}
         </li>
         <li>
-          Gdy strona nie podaje NIP albo dane nie zgadzają się z rejestrem, biuro publikujemy z oznaczeniem „bez
-          potwierdzenia w rejestrze”. Nie dostaje wtedy punktów za potwierdzenie w rejestrze ani za staż, a jego opis
-          opiera się wyłącznie na stronie biura.
+          {`Gdy strona nie podaje NIP albo dane nie zgadzają się z rejestrem, ${u.sg.acc} publikujemy z oznaczeniem „bez potwierdzenia w rejestrze”. Nie dostaje wtedy punktów za potwierdzenie w rejestrze ani za staż, a ${u.his} opis opiera się wyłącznie na stronie ${u.sg.gen}.`}
         </li>
-        <li>Każdy wpis ma opis napisany od nowa z faktów ze strony biura, sprawdzony automatycznie (cytaty, źródła, brak kopiowania).</li>
+        <li>{`Każdy wpis ma opis napisany od nowa z faktów ze strony ${u.sg.gen}, sprawdzony automatycznie (cytaty, źródła, brak kopiowania).`}</li>
       </ol>
 
       <h2>Parametry rankingu</h2>
@@ -127,8 +121,7 @@ export default async function MethodologyPage() {
         </table>
       </div>
       <p>
-        Każdy parametr ma wartość od 0 do 100% i daje część z podanych punktów. Rozróżniamy dwie sytuacje. Gdy coś
-        sprawdziliśmy i biuro tego nie spełnia (np. strona nie podaje cen), parametr daje 0 punktów. Gdy nie mamy z czego
+        {`Każdy parametr ma wartość od 0 do 100% i daje część z podanych punktów. Rozróżniamy dwie sytuacje. Gdy coś sprawdziliśmy i ${u.sg.nom} tego nie spełnia (np. strona nie podaje cen), parametr daje 0 punktów.`} Gdy nie mamy z czego
         go policzyć (np. brak daty wpisu do rejestru albo profilu w Google), pomijamy go, a punkty pozostałych parametrów
         przeliczamy proporcjonalnie do 100. Planujemy dodać kolejne parametry (m.in. skalę działalności, potwierdzone
         ubezpieczenie OC). Każda zmiana wag lub parametrów jest opisana niżej z datą.
@@ -138,7 +131,7 @@ export default async function MethodologyPage() {
         <>
           <h2 id="przyklad">Przykład wyliczenia</h2>
           <p>
-            Pierwsze biuro rankingu w {ex.cityName}:{" "}
+            {`${u.by("Pierwsze", "Pierwsza", "Pierwszy")} ${u.sg.nom} rankingu w `}{ex.cityName}:{" "}
             <Link href={`/${ex.slug}/${ex.top.slug}`}>{ex.top.name}</Link>, wynik {ex.top.score}/100 (dane z{" "}
             {formatDate(new Date())}).
           </p>
@@ -168,7 +161,7 @@ export default async function MethodologyPage() {
             </table>
           </div>
           <p>
-            Uwzględnione parametry dają razem {pts(exIncluded)} z 100 możliwych punktów, a biuro zdobyło {pts(exPoints)}.
+            Uwzględnione parametry dają razem {pts(exIncluded)}{` z 100 możliwych punktów, a ${u.sg.nom} ${u.by("zdobyło", "zdobyła", "zdobył")} `}{pts(exPoints)}.
             Wynik: {pts(exPoints)} / {pts(exIncluded)} x 100 = {ex.top.score} (po zaokrągleniu).
           </p>
         </>
@@ -187,8 +180,7 @@ export default async function MethodologyPage() {
 
       <h2>Kiedy publikujemy ranking</h2>
       <p>
-        Ranking z pozycjami pokazujemy, gdy w mieście jest co najmniej {CITY_RANKING_MIN} biur w katalogu. Dla
-        mniejszej liczby publikujemy listę w kolejności alfabetycznej, bo pozycje przy trzech firmach niewiele mówią.
+        Ranking z pozycjami pokazujemy, gdy w mieście jest co najmniej {CITY_RANKING_MIN}{` ${u.pl.gen} w katalogu. Dla mniejszej liczby publikujemy listę w kolejności alfabetycznej, bo pozycje przy trzech firmach niewiele mówią.`}
       </p>
 
       <h2>Ceny i statystyki</h2>
@@ -198,7 +190,7 @@ export default async function MethodologyPage() {
         {features.saleCommission
           ? `Medianę prowizji od sprzedaży liczymy tylko ze stawek procentowych za sprzedaż lub kupno (bez opłat za najem i zarządzanie najmem), po jednej stawce na biuro, i pomijamy wartości spoza przedziału 0,5-10%, które zwykle są błędnym odczytem. Statystyki miasta publikujemy, gdy mamy co najmniej ${PRICE_STAT_MIN} takie stawki, i zawsze podajemy liczbę biur, na których się opierają. `
           : ""}
-        Tryb VAT (netto, brutto, + VAT) pokazujemy tak, jak podaje go biuro.
+        {`Tryb VAT (netto, brutto, + VAT) pokazujemy tak, jak podaje go ${u.sg.nom}.`}
       </p>
 
       <h2>Niezależność i reklama</h2>
@@ -206,6 +198,7 @@ export default async function MethodologyPage() {
         Pozycja w rankingu nie zależy od płatności. Treści sponsorowane będą wyraźnie oznaczone i oddzielone od rankingu.
         Szczegóły: <Link href="/reklama">Reklama i niezależność</Link>.
       </p>
+      {texts.methodologyNote && <p>{texts.methodologyNote}</p>}
 
       <h2 id="historia">Historia zmian</h2>
       <ul className="plain">

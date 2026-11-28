@@ -7,6 +7,7 @@ import { LeadFormStatus } from "@/components/LeadFormStatus";
 import { leadMessage } from "@/lib/lead-message";
 import { operator } from "@/lib/legal";
 import { currentPortal } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { LEAD_TOPICS, TOPIC_LABEL } from "@/lib/leads";
 import { RETENTION_MONTHS } from "@/lib/legal";
 
@@ -33,7 +34,7 @@ export function LeadForm({ listingId, firmName, where, path, imageSlot }: Props)
       </div>
       {/* Bez JavaScriptu i przed odczytem adresu widać zwykły formularz. */}
       <Suspense fallback={form(listingId, firmName, path, messages)}>
-        <LeadFormStatus firmName={firmName}>{form(listingId, firmName, path, messages)}</LeadFormStatus>
+        <LeadFormStatus firmName={firmName} sentText={`Dziękujemy, zapytanie zostało wysłane. ${unitForms().Sg.nom} skontaktuje się z Tobą.`}>{form(listingId, firmName, path, messages)}</LeadFormStatus>
       </Suspense>
     </section>
   );
@@ -64,14 +65,13 @@ function form(listingId: string, firmName: string, path: string, messages: Recor
             </div>
           </LeadTopicMessage>
           <label className="lead-consent full">
-            <input type="checkbox" name="consent" required /> Zgadzam się na przekazanie moich danych z tego formularza do
-            biura {firmName} w celu odpowiedzi na zapytanie.
+            <input type="checkbox" name="consent" required />{` Zgadzam się na przekazanie moich danych z tego formularza do ${unitForms().sg.gen} `}{firmName} w celu odpowiedzi na zapytanie.
           </label>
           <button className="lead-submit" type="submit">
             {currentPortal().texts.leadCta}
           </button>
           <p className="lead-note full">
-            Dane przekażemy tylko temu biuru, w celu odpowiedzi na zapytanie, a z naszej bazy usuniemy je automatycznie po{" "}
+            {`Dane przekażemy tylko ${unitForms().this.dat} ${unitForms().sg.dat}, w celu odpowiedzi na zapytanie, a z naszej bazy usuniemy je automatycznie po`}{" "}
             {RETENTION_MONTHS.leads} miesiącach. Administratorem danych jest {operator().name ?? "operator serwisu"}. Szczegóły i Twoje prawa:{" "}
             <Link href="/polityka-prywatnosci#dane">Polityka prywatności</Link>. Wysyłając zapytanie, akceptujesz{" "}
             <Link href="/regulamin">Regulamin</Link>.

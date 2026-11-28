@@ -8,14 +8,16 @@ import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/format";
 import { currentPortal, firmPhrase } from "@/lib/portal";
 import { RETENTION_MONTHS } from "@/lib/legal";
+import { unitForms } from "@/lib/unit";
 import { KIND_LABEL, REQUEST_KINDS } from "@/lib/requests";
 
 import { submitRequestAction } from "./actions";
 
+const u = unitForms();
+
 export const metadata: Metadata = pageMetadata({
   title: `Dla ${firmPhrase("many")}: korekta danych i pozycja w rankingu`,
-  description:
-    "Jakie dane o biurze publikujemy, od czego zależy pozycja w rankingu i jak zgłosić korektę albo usunięcie wpisu. Płatność nie wpływa na wynik.",
+  description: `Jakie dane o ${u.sg.loc} publikujemy, od czego zależy pozycja w rankingu i jak zgłosić korektę albo usunięcie wpisu. Płatność nie wpływa na wynik.`,
   path: "/dla-firm",
 });
 
@@ -42,8 +44,7 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          Jeśli dane Twojego biura są błędne albo nie chcesz być w katalogu, wyślij zgłoszenie z formularza poniżej.
-          Poprawimy dane lub usuniemy wpis. Wpis możesz też wykluczyć z robota przez plik robots.txt na swojej stronie.
+          {`Jeśli dane ${u.by("Twojego", "Twojej", "Twojego")} ${u.sg.gen} są błędne albo nie chcesz być w katalogu, wyślij zgłoszenie z formularza poniżej. Poprawimy dane lub usuniemy wpis. Wpis możesz też wykluczyć z robota przez plik robots.txt na swojej stronie.`}
         </p>
       </div>
 
@@ -113,22 +114,17 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
 
       <h2>Skąd mamy dane o firmie</h2>
       <p>
-        Dane o firmie pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT) oraz z jej oficjalnej strony
-        internetowej. Publikujemy wyłącznie dane firmowe: nazwę, miasto i adres biura, formę prawną i rok wpisu do
-        rejestru, stronę internetową, firmowy telefon i e-mail, profile w mediach społecznościowych, logo, zakres usług,{" "}
-        {currentPortal().texts.forFirmsDataList}, które firma sama pokazuje na swojej stronie, oraz ocenę z Map Google, jeśli biuro ma tam profil.
-        Opis biura piszemy od nowa na podstawie tych faktów, bez kopiowania tekstów ze strony.
+        {`Dane o firmie pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT) oraz z jej oficjalnej strony internetowej. Publikujemy wyłącznie dane firmowe: nazwę, miasto i adres ${u.sg.gen}, formę prawną i rok wpisu do rejestru, stronę internetową, firmowy telefon i e-mail, profile w mediach społecznościowych, logo, zakres usług,`}{" "}
+        {currentPortal().texts.forFirmsDataList}{`, które firma sama pokazuje na swojej stronie, oraz ocenę z Map Google, jeśli ${u.sg.nom} ma tam profil. Opis ${u.sg.gen} piszemy od nowa na podstawie tych faktów, bez kopiowania tekstów ze strony.`}
       </p>
 
       <h2>Od czego zależy pozycja w rankingu</h2>
       <p>
-        Pozycję liczymy według <Link href="/metodologia">publicznej metodologii</Link>, z danych, które biuro samo publikuje.
-        Płatność nie wpływa na wynik. Najczęściej pomagają:
+        Pozycję liczymy według <Link href="/metodologia">publicznej metodologii</Link>{`, z danych, które ${u.sg.nom} ${u.by("samo", "sama", "sam")} publikuje. Płatność nie wpływa na wynik. Najczęściej pomagają:`}
       </p>
       <ul className="plain">
         <li>
-          <b>NIP na stronie biura</b> (np. w stopce lub na stronie kontaktowej). Pozwala potwierdzić firmę w rejestrze;
-          biura bez potwierdzenia są w katalogu, ale niżej w rankingu.
+          <b>{`NIP na stronie ${u.sg.gen}`}</b>{` (np. w stopce lub na stronie kontaktowej). Pozwala potwierdzić firmę w rejestrze; ${u.pl.nom} bez potwierdzenia są w katalogu, ale niżej w rankingu.`}
         </li>
         <li>
           <b>Jawny cennik</b>, czyli stawki {currentPortal().terms.fee.genPl} podane na stronie, z informacją o VAT.
@@ -138,13 +134,12 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
         </li>
         {currentPortal().features.offers && (
           <li>
-            <b>Aktualne oferty</b> widoczne na stronie biura.
+            <b>Aktualne oferty</b>{` widoczne na stronie ${u.sg.gen}.`}
           </li>
         )}
       </ul>
       <p>
-        Dane odświeżamy automatycznie, więc zmiany na stronie biura trafiają do katalogu zwykle w ciągu kilku dni. Jeśli
-        prowadzisz biuro z naszego katalogu, na dole jego profilu jest przycisk „Jestem właścicielem tej firmy”.
+        {`Dane odświeżamy automatycznie, więc zmiany na stronie ${u.sg.gen} trafiają do katalogu zwykle w ciągu kilku dni. Jeśli prowadzisz ${u.sg.acc} z naszego katalogu, na dole ${u.his} profilu jest przycisk „Jestem właścicielem tej firmy”.`}
       </p>
 
       <h2>Twoje prawa</h2>

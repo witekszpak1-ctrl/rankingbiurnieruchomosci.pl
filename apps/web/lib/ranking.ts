@@ -4,6 +4,7 @@
  * Metodologia jest publicznie opisana na /metodologia i musi być zgodna z tym plikiem.
  */
 import { currentPortal } from "./portal";
+import { unitForms } from "./unit";
 
 export const CITY_RANKING_MIN = 5; // poniżej tej liczby firm pokazujemy listę, nie ranking
 export const PRICE_STAT_MIN = 3; // minimalna próba do publikacji mediany prowizji
@@ -14,7 +15,7 @@ const PARAMETER_DEFS = [
   { key: "jawnosc_cennika", label: "Jawność cennika", whenMissing: "0 punktów: strona nie podaje cen", description: "Firma publikuje ceny usług na swojej stronie." },
   { key: "spojnosc_danych", label: "Spójność danych", whenMissing: "pomijany (brak wyniku weryfikacji)", description: "Zgodność strony firmy z danymi rejestrów (NIP, nazwa, adres)." },
   { key: "zakres_uslug", label: "Zakres usług", whenMissing: "0 punktów: strona nie wymienia usług", description: "Liczba usług, które firma wprost wymienia (pełna punktacja od 6)." },
-  { key: "opinie_google", label: "Opinie w Google", whenMissing: "pomijany (biuro bez profilu w Google nie traci punktów)", description: "Średnia ocena w Google, z wagą rosnącą do 30 opinii." },
+  { key: "opinie_google", label: "Opinie w Google", whenMissing: `pomijany (${unitForms().sg.nom} bez profilu w Google nie traci punktów)`, description: "Średnia ocena w Google, z wagą rosnącą do 30 opinii." },
   { key: "aktualne_oferty", label: "Aktualne oferty", whenMissing: "0 punktów: brak ofert na stronie", description: "Oferty nieruchomości widoczne na stronie firmy, sprawdzane zwykle co 1-2 dni. Robot pobiera najwyżej 20 najnowszych ogłoszeń, więc parametr mierzy, czy biuro publikuje aktualne oferty (pełna punktacja od 20), a nie całkowitą liczbę jego ofert." },
 ] as const;
 
@@ -40,7 +41,7 @@ export const METHODOLOGY = {
   published: "2026-11-10",
   modified: "2026-11-14",
   changes: [
-    { version: "1.1", date: "2026-11-14", text: "Wagi pokazane jako udział w 100 punktach (bez zmiany wyników), opis parametrów pomijanych i ocenianych na 0, przykład wyliczenia dla prawdziwego biura, opinie z Google na profilach." },
+    { version: "1.1", date: "2026-11-14", text: `Wagi pokazane jako udział w 100 punktach (bez zmiany wyników), opis parametrów pomijanych i ocenianych na 0, przykład wyliczenia dla prawdziwego ${unitForms().sg.gen}, opinie z Google na profilach.` },
     { version: "1.0", date: "2026-11-10", text: `Pierwsza wersja: potwierdzenie w rejestrze, staż, jawność cennika, spójność danych, zakres usług, opinie w Google${currentPortal().features.offers ? ", aktualne oferty" : ""}.` },
   ],
 } as const;

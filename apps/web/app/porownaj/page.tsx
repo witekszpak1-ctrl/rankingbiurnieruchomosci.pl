@@ -8,9 +8,12 @@ import { formatYear } from "@/lib/format";
 import { nOfert, nOpinii } from "@/lib/plural";
 import { currentPortal, firmPhrase } from "@/lib/portal";
 import { scoreListing } from "@/lib/ranking";
+import { unitForms } from "@/lib/unit";
 import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+const u = unitForms();
 
 export const metadata: Metadata = pageMetadata({
   title: `Porównanie ${firmPhrase("many")}`,
@@ -21,7 +24,8 @@ export const metadata: Metadata = pageMetadata({
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type Props = { searchParams: Promise<{ biura?: string }> };
+/** Parametr adresu ma nazwę jednostki w liczbie mnogiej ("biura", "firmy", "warsztaty"), tak jak buduje go pasek porównania. */
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 function score(c: CompareCard): number {
   return scoreListing({
@@ -37,8 +41,9 @@ function score(c: CompareCard): number {
 }
 
 export default async function ComparePage({ searchParams }: Props) {
-  const { biura } = await searchParams;
-  const ids = [...new Set((biura ?? "").split(",").map((x) => x.trim()).filter((x) => UUID.test(x)))].slice(0, 3);
+  const sp = await searchParams;
+  const raw = sp[u.pl.nom];
+  const ids = [...new Set((typeof raw === "string" ? raw : "").split(",").map((x) => x.trim()).filter((x) => UUID.test(x)))].slice(0, 3);
   const found = await compareCards(ids).catch(() => []);
   const cards = ids.map((id) => found.find((c) => c.listingId === id)).filter((c): c is CompareCard => Boolean(c));
 
@@ -68,8 +73,7 @@ export default async function ComparePage({ searchParams }: Props) {
       <h1>{`Porównanie ${firmPhrase("many")}`}</h1>
       {cards.length < 2 ? (
         <p>
-          Wybierz co najmniej dwa biura do porównania. Na stronie miasta zaznacz pole „Porównaj” przy biurach (najwyżej
-          trzy), a potem kliknij „Porównaj wybrane”. <Link href="/miasta">Lista miast</Link>.
+          {`Wybierz co najmniej ${u.by("dwa", "dwie", "dwa")} ${u.pl.acc} do porównania. Na stronie miasta zaznacz pole „Porównaj” przy ${u.pl.loc} (najwyżej trzy), a potem kliknij „Porównaj wybrane”. `}<Link href="/miasta">Lista miast</Link>.
         </p>
       ) : (
         <div className="tablewrap">
@@ -117,7 +121,7 @@ export default async function ComparePage({ searchParams }: Props) {
       <p className="note">
         Wynik liczymy według <Link href="/metodologia">metodologii</Link>.
         {currentPortal().features.saleCommission &&
-          " Prowizja to najniższa stawka procentowa za sprzedaż, którą biuro podaje na swojej stronie."}
+          ` Prowizja to najniższa stawka procentowa za sprzedaż, którą ${u.sg.nom} podaje na swojej stronie.`}
       </p>
     </PublicShell>
   );

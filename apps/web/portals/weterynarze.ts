@@ -45,6 +45,7 @@ export const weterynarze = servicePortal({
       many: "klinik weterynaryjnych",
       genOne: "kliniki weterynaryjnej",
       datOne: "klinice weterynaryjnej",
+      accOne: "klinikę weterynaryjną",
       locPl: "klinikach weterynaryjnych",
     },
     domainGen: "weterynarii",
@@ -53,12 +54,25 @@ export const weterynarze = servicePortal({
     synonym: { few: "kliniki", gen: "klinik" },
     fee: { nom: "cena wizyty", nomPl: "ceny wizyt", genPl: "wizyt" },
     company: { one: "placówka", few: "placówki", many: "placówek" },
+    unit: { gender: "f", sg: { nom: "klinika", gen: "kliniki", dat: "klinice", acc: "klinikę", ins: "kliniką", loc: "klinice" }, pl: { nom: "kliniki", gen: "klinik", dat: "klinikom", acc: "kliniki", ins: "klinikami", loc: "klinikach" } },
   },
   headerCta: "Znajdź klinikę",
   forFirms: "Dla klinik",
   none: "Żadna z",
   homeHeroLead:
     "Porównaj kliniki weterynaryjne w swoim mieście według stażu, jawnych cenników i zakresu usług: konsultacje, szczepienia, chirurgia, diagnostyka. Potem zapytaj wybraną klinikę o wizytę jednym formularzem. W nagłym przypadku zadzwoń bezpośrednio do placówki.",
+  homeOrder: ["cities", "steps", "ranking"],
+  homeStepsHeading: "Dobra klinika weterynaryjna w trzech krokach",
+  homeSteps: [
+    { title: "Znajdź klinikę w pobliżu", text: "Wpisz miejscowość i zobacz kliniki weterynaryjne, które sprawdziliśmy w tej okolicy, razem z adresem i danymi kontaktowymi." },
+    { title: "Sprawdź zakres usług i opinie", text: "Profil pokazuje deklarowany zakres usług, ceny wizyt (jeśli placówka je podaje) oraz ocenę i opinie z Map Google. Godziny przyjęć i dyżury potwierdź w placówce." },
+    { title: "Zadzwoń lub umów wizytę", text: "Zadzwoń do kliniki albo wyślij zapytanie o wizytę przez formularz na jej profilu. W nagłym przypadku dzwoń bezpośrednio do placówki." },
+  ],
+  methodologyNote:
+    "Ranking nie ocenia jakości leczenia ani kwalifikacji lekarzy weterynarii i nie zastępuje porady lekarskiej. Opisuje wyłącznie dane ze stron placówek, z rejestrów publicznych i z Map Google: staż, jawność cennika, zakres usług i opinie.",
+  extraFaq: [
+    { q: "Czy ranking ocenia jakość leczenia?", a: "Nie. Ranking opisuje dane ze stron i rejestrów: staż w rejestrze, jawność cennika, zakres usług i opinie z Map Google. Nie ocenia jakości leczenia i nie zastępuje porady lekarza weterynarii." },
+  ],
   priceThing: "wizyta u weterynarza",
   noRatesTail: "cenę wizyty i zabiegów trzeba ustalić bezpośrednio z placówką.",
   contractName: "wycena zabiegu",
@@ -66,7 +80,7 @@ export const weterynarze = servicePortal({
   notPartyShort:
     "Nie jesteśmy placówką weterynaryjną, nie udzielamy porad weterynaryjnych i nie jesteśmy stroną umów, które zawierasz z placówkami.",
   notPartyLong:
-    "Operator nie świadczy usług weterynaryjnych ani nie udziela porad lekarskich i nie jest stroną umów zawieranych między Użytkownikami a Placówkami.",
+    "Operator nie świadczy usług weterynaryjnych ani nie udziela porad lekarskich i nie jest stroną umów zawieranych między Użytkownikami a Klinikami.",
   serviceExamples: "konsultacje i szczepienia, chirurgia, stomatologia, diagnostyka i inne",
   priceSectionHeading: "Ceny wizyt i zabiegów",
   leadTopics: {

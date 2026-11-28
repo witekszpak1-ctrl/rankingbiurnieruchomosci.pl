@@ -22,9 +22,18 @@ import { BlogLinks } from "@/components/BlogLinks";
 import { blogPairLinks, cityBlogLinks } from "@/lib/blog-links";
 import { getBlogOverrides } from "@/lib/blog-overrides";
 import { capitalize, currentPortal, firmPhrase, nFirmPhrase } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 
 const portal = currentPortal();
 const { features } = portal;
+const u = unitForms(portal);
+// Etykiety porównywarki liczymy na serwerze: komponent kliencki nie zna portalu.
+const compareLabels = {
+  param: u.pl.nom,
+  maxTitle: `Możesz porównać najwyżej 3 ${u.pl.nom}`,
+  barLabel: `Porównanie ${u.pl.gen}`,
+  needMore: `Wybierz jeszcze co najmniej ${u.by("jedno", "jedną", "jeden")} ${u.sg.acc}`,
+};
 
 
 /** Dane krajowe do porównania w sekcji prowizji: jedno zapytanie na godzinę, nie przy każdej stronie miasta. */
@@ -147,7 +156,7 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
       : "";
   const confirmed = listings.filter((l) => l.registryConfirmed).length;
   const confirmedText =
-    confirmed === listings.length ? "Wszystkie są potwierdzone w rejestrach publicznych." : `${confirmed} z nich ${plural(confirmed, "jest potwierdzone", "są potwierdzone", "jest potwierdzonych")} w rejestrach publicznych.`;
+    confirmed === listings.length ? "Wszystkie są potwierdzone w rejestrach publicznych." : `${confirmed} z nich ${plural(confirmed, `jest ${u.by("potwierdzone", "potwierdzona", "potwierdzony")}`, "są potwierdzone", "jest potwierdzonych")} w rejestrach publicznych.`;
   const summary = `Katalog zawiera ${nFirmPhrase(listings.length)} ${where}. ${confirmedText} ${withPrices} z nich ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług.${medianText}`;
   const top = topThree(content);
   const commission = commissionSection(content);
@@ -176,11 +185,11 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
       <ul className="city-stats" aria-label={`${capitalize(firmPhrase("few"))} ${where} w liczbach`}>
         <li>
           <b>{listings.length}</b>
-          <span>{plural(listings.length, "biuro", "biura", "biur")} w katalogu</span>
+          <span>{plural(listings.length, u.sg.nom, u.pl.nom, u.pl.gen)} w katalogu</span>
         </li>
         <li>
           <b>{confirmed}</b>
-          <span>{plural(confirmed, "potwierdzone", "potwierdzone", "potwierdzonych")} w rejestrze</span>
+          <span>{plural(confirmed, u.by("potwierdzone", "potwierdzona", "potwierdzony"), "potwierdzone", "potwierdzonych")} w rejestrze</span>
         </li>
         <li>
           <b>{withPrices}</b>
@@ -228,7 +237,7 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
           <ul className="chips">
             <li>
               <a href={viewHref(city.slug, { page: 1, goal: null, filters: view.filters }) + "#lista"} aria-current={view.goal === null}>
-                Wszystkie biura
+                {`Wszystkie ${u.pl.nom}`}
               </a>
             </li>
             {(Object.keys(GOALS) as Goal[]).map((g) => (
@@ -259,19 +268,18 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
       </nav>
       {filtered && (
         <p className="note">
-          Pasujące biura: {matching.length} z {nBiurGen(listings.length)}. Filtry działają na usługach i cenach, które
-          biura podają na swoich stronach.
+          {`Pasujące ${u.pl.nom}: `}{matching.length} z {nBiurGen(listings.length)}{`. Filtry działają na usługach i cenach, które ${u.pl.nom} podają na swoich stronach.`}
         </p>
       )}
       {!ranked && (
         <p className="note">
-          Ranking publikujemy od {CITY_RANKING_MIN} biur w mieście, żeby pozycje miały sens. Do tego czasu pokazujemy listę.
+          Ranking publikujemy od {CITY_RANKING_MIN}{` ${u.pl.gen} w mieście, żeby pozycje miały sens. Do tego czasu pokazujemy listę.`}
         </p>
       )}
       {pageRows.length === 0 ? (
         <p>
-          Żadne biuro {where} nie spełnia tych warunków.{" "}
-          <a href={viewHref(city.slug, { page: 1, goal: null, filters: [] }) + "#lista"}>Pokaż wszystkie biura</a>.
+          {`${u.none} ${u.sg.nom} ${where} nie spełnia tych warunków.`}{" "}
+          <a href={viewHref(city.slug, { page: 1, goal: null, filters: [] }) + "#lista"}>{`Pokaż wszystkie ${u.pl.acc}`}</a>.
         </p>
       ) : (
         <ol className="firm-list" aria-label={`${capitalize(firmPhrase("few"))} ${where}`}>
@@ -333,9 +341,9 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
                     </div>
                   ) : null}
                   <span className="fc-see" aria-hidden="true">
-                    Zobacz biuro <span className="arr">→</span>
+                    {`Zobacz ${u.sg.acc} `}<span className="arr">→</span>
                   </span>
-                  <CompareToggle id={row.listingId} name={row.name} />
+                  <CompareToggle id={row.listingId} name={row.name} maxTitle={compareLabels.maxTitle} />
                 </div>
               </li>
             );
@@ -343,7 +351,7 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
         </ol>
       )}
       {pages > 1 && (
-        <nav className="pager" aria-label="Strony listy biur">
+        <nav className="pager" aria-label={`Strony listy ${u.pl.gen}`}>
           {view.page > 1 && (
             <Link href={viewHref(city.slug, { ...view, page: view.page - 1 })} rel="prev">
               Poprzednia
@@ -367,7 +375,7 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
           )}
         </nav>
       )}
-      <CompareBar />
+      <CompareBar param={compareLabels.param} label={compareLabels.barLabel} needMore={compareLabels.needMore} />
       <p className="note">
         Wynik liczymy według <Link href="/metodologia">publicznej metodologii</Link>. Płatność nie wpływa na pozycję.
         Dane aktualne na dzień {formatDate(updatedAt)}.
@@ -395,7 +403,7 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
         </p>
       )}
 
-      <h2>{`Jak wybrać ${firmPhrase("one")} ${where}?`}</h2>
+      <h2>{`Jak wybrać ${portal.terms.phrase.accOne} ${where}?`}</h2>
       {guide.map((para, i) => (
         <p key={i}>{para}</p>
       ))}
@@ -416,7 +424,7 @@ export async function CityView({ slug, view }: { slug: string; view: View }) {
         ))}
       </div>
 
-      {features.blog && <BlogLinks title={`Porównania i dane o biurach ${where}`} items={blogLinks} />}
+      {features.blog && <BlogLinks title={`Porównania i dane o ${u.pl.loc} ${where}`} items={blogLinks} />}
 
         </>
       )}

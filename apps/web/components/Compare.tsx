@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 /**
- * Porównywarka biur: pole wyboru przy biurze (najwyżej 3) i pasek "Porównaj wybrane" na dole ekranu.
+ * Porównywarka firm: pole wyboru przy firmie (najwyżej 3) i pasek "Porównaj wybrane" na dole ekranu.
  * Wybór trzymamy w przeglądarce (localStorage), więc działa między stronami miast.
  */
 type Item = { id: string; name: string };
@@ -46,12 +46,12 @@ function useSelection(): Item[] {
   return items;
 }
 
-export function CompareToggle({ id, name }: Item) {
+export function CompareToggle({ id, name, maxTitle }: Item & { maxTitle: string }) {
   const items = useSelection();
   const checked = items.some((x) => x.id === id);
   const full = !checked && items.length >= COMPARE_MAX;
   return (
-    <label className="compare-toggle" title={full ? `Możesz porównać najwyżej ${COMPARE_MAX} biura` : undefined}>
+    <label className="compare-toggle" title={full ? maxTitle : undefined}>
       <input
         type="checkbox"
         checked={checked}
@@ -64,21 +64,22 @@ export function CompareToggle({ id, name }: Item) {
   );
 }
 
-export function CompareBar() {
+/** Etykiety przychodzą z serwera (komponent kliencki nie zna portalu): param to nazwa parametru adresu (liczba mnoga jednostki). */
+export function CompareBar({ param, label, needMore }: { param: string; label: string; needMore: string }) {
   const items = useSelection();
   if (items.length === 0) return null;
   return (
-    <div className="compare-bar" role="region" aria-label="Porównanie biur">
+    <div className="compare-bar" role="region" aria-label={label}>
       <span>
         Wybrane do porównania ({items.length}/{COMPARE_MAX}): {items.map((x) => x.name).join(", ")}
       </span>
       <span className="compare-actions">
         {items.length >= 2 ? (
-          <Link className="compare-go" href={`/porownaj?biura=${items.map((x) => x.id).join(",")}`}>
+          <Link className="compare-go" href={`/porownaj?${param}=${items.map((x) => x.id).join(",")}`}>
             Porównaj wybrane
           </Link>
         ) : (
-          <span className="note">Wybierz jeszcze co najmniej jedno biuro</span>
+          <span className="note">{needMore}</span>
         )}
         <button type="button" onClick={() => write([])}>
           Wyczyść

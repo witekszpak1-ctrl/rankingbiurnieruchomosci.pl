@@ -2,7 +2,7 @@
  * Przekierowania i adresy usunięte (kod 410) dla middleware, z pamięcią podręczną na 5 minut.
  * Dane z /api/path-status; przy błędzie strona działa jak dotąd (bez przekierowań i bez 410).
  */
-import { firmPhrase } from "./portal";
+import { currentPortal, firmPhrase } from "./portal";
 
 type PathStatus = { redirects: Record<string, string>; gone: Set<string> };
 
@@ -52,5 +52,5 @@ export async function pathStatus(
 export const GONE_HTML = `<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Strona usunięta</title></head>
 <body style="font-family:system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem;line-height:1.5">
-<h1>Ta strona została usunięta</h1><p>Wpisu nie ma już w katalogu. Zobacz <a href="/">listę miast i biur nieruchomości</a>.</p>
+<h1>Ta strona została usunięta</h1><p>Wpisu nie ma już w katalogu. Zobacz <a href="/">listę miast i ${currentPortal().terms.phrase.many}</a>.</p>
 </body></html>`;

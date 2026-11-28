@@ -6,6 +6,7 @@ import { inCity } from "./cities";
 import { formatPhone, formatPrice } from "./format";
 import { nLatGen, offersLabel } from "./plural";
 import { firmPhrase, currentPortal } from "./portal";
+import { unitForms } from "./unit";
 import { priceBasis } from "./prices";
 import type { FaqItem } from "./city-content";
 
@@ -36,13 +37,13 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
   }
   faq.push({
     q: `Gdzie działa ${f.name}?`,
-    a: f.address ? `Biuro ma siedzibę pod adresem ${f.address}. W naszym katalogu jest w zestawieniu ${firmPhrase("many")} ${where}.` : `W naszym katalogu ${f.name} jest w zestawieniu ${firmPhrase("many")} ${where}. Dokładnego adresu biuro nie podaje na swojej stronie.`,
+    a: f.address ? `${unitForms().Sg.nom} ma siedzibę pod adresem ${f.address}. W naszym katalogu jest w zestawieniu ${firmPhrase("many")} ${where}.` : `W naszym katalogu ${f.name} jest w zestawieniu ${firmPhrase("many")} ${where}. Dokładnego adresu ${unitForms().sg.nom} nie podaje na swojej stronie.`,
   });
   faq.push({
     q: `Ile wynosi ${currentPortal().terms.fee.nom} w ${f.name}?`,
     a:
       f.prices.length > 0
-        ? `Według cennika na stronie biura: ${f.prices
+        ? `Według cennika na stronie ${unitForms().sg.gen}: ${f.prices
             .slice(0, 3)
             .map((p) => `${p.service}: ${formatPrice(p)}${priceBasis(p) ? ` ${priceBasis(p)}` : ""}`)
             .join("; ")}. Ostateczne wynagrodzenie określa ${currentPortal().texts.contractName}.`
@@ -51,13 +52,13 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
   faq.push({
     q: `Czy ${f.name} jest firmą wpisaną do rejestru?`,
     a: f.registryConfirmed
-      ? `Tak. NIP ze strony biura zgadza się z rejestrem publicznym (KRS lub wykaz podatników VAT)${f.registryYears ? `, a firma jest w rejestrze od ${nLatGen(f.registryYears)}` : ""}.`
-      : `Nie udało się tego potwierdzić: strona biura nie podaje NIP albo dane nie zgadzają się z rejestrem. Przed podpisaniem umowy poproś o NIP i sprawdź go w wykazie podatników VAT.`,
+      ? `Tak. NIP ze strony ${unitForms().sg.gen} zgadza się z rejestrem publicznym (KRS lub wykaz podatników VAT)${f.registryYears ? `, a firma jest w rejestrze od ${nLatGen(f.registryYears)}` : ""}.`
+      : `Nie udało się tego potwierdzić: strona ${unitForms().sg.gen} nie podaje NIP albo dane nie zgadzają się z rejestrem. Przed podpisaniem umowy poproś o NIP i sprawdź go w wykazie podatników VAT.`,
   });
   if (f.offersCount > 0 && currentPortal().features.offers) {
     faq.push({
       q: `Czy ${f.name} ma aktualne oferty?`,
-      a: `Tak, przy ostatnim sprawdzeniu na stronie biura było ${offersLabel(f.offersCount).replace(" na stronie", "")}. Najnowsze z nich pokazujemy na tym profilu z linkami do strony biura.`,
+      a: `Tak, przy ostatnim sprawdzeniu na stronie ${unitForms().sg.gen} było ${offersLabel(f.offersCount).replace(" na stronie", "")}. Najnowsze z nich pokazujemy na tym profilu z linkami do strony ${unitForms().sg.gen}.`,
     });
   }
   faq.push({
@@ -70,8 +71,8 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
   faq.push({
     q: `Jak skontaktować się z ${f.name}?`,
     a: f.phone
-      ? `Telefon biura: ${formatPhone(f.phone)}. Możesz też wysłać zapytanie przez formularz na tej stronie.`
-      : "Wyślij zapytanie przez formularz na tej stronie, a przekażemy je do biura.",
+      ? `Telefon ${unitForms().sg.gen}: ${formatPhone(f.phone)}. Możesz też wysłać zapytanie przez formularz na tej stronie.`
+      : `Wyślij zapytanie przez formularz na tej stronie, a przekażemy je do ${unitForms().sg.gen}.`,
   });
   return faq.slice(0, 7);
 }

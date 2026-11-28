@@ -49,7 +49,8 @@ function opinie(n: number): string {
  * Animowany profil biura: karta z wynikiem w rankingu (licznik), oceną Google i kursorem, który "klika" przycisk.
  * Co kilka sekund kolejne biuro z czołówki. Zatrzymuje się po najechaniu, a przy ograniczeniu ruchu stoi w miejscu.
  */
-export function ProfileShowcase({ firms }: { firms: ShowcaseFirm[] }) {
+/** `ctaLabel` ("Zobacz profil biura") przychodzi z serwera: komponent kliencki nie zna portalu. */
+export function ProfileShowcase({ firms, ctaLabel }: { firms: ShowcaseFirm[]; ctaLabel: string }) {
   const [idx, setIdx] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -178,7 +179,7 @@ export function ProfileShowcase({ firms }: { firms: ShowcaseFirm[] }) {
             {f.servicesCount > 0 && <li>{f.servicesCount} {plural(f.servicesCount, "usługa", "usługi", "usług")}</li>}
           </ul>
           <Link className="sc-cta sc-in" style={{ ["--i" as string]: 3 }} href={f.href}>
-            Zobacz profil biura <span aria-hidden="true">→</span>
+            {`${ctaLabel} `}<span aria-hidden="true">→</span>
           </Link>
         </div>
         <svg className="sc-cursor" viewBox="0 0 24 24" aria-hidden="true">

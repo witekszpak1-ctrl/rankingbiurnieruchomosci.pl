@@ -5,6 +5,7 @@
 import { inCity } from "./cities";
 import { nBiur } from "./plural";
 import { capitalize, currentPortal, firmPhrase, nFirmPhrase } from "./portal";
+import { unitForms } from "./unit";
 
 export function homeMeta(year: number, firms: number, cities: number) {
   const { terms } = currentPortal();
@@ -52,7 +53,7 @@ export function firmMeta(input: {
     input.hasPrices ? terms.fee.nomPl : null,
     "zakres usług",
     input.offers > 0 && features.offers ? "aktualne oferty" : null,
-    "dane kontaktowe biura",
+    `dane kontaktowe ${unitForms().sg.gen}`,
   ].filter(Boolean);
   return {
     title: `${head} | ${tail.charAt(0).toUpperCase()}${tail.slice(1)}`,

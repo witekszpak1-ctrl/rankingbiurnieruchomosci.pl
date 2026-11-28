@@ -20,14 +20,14 @@ export const przeprowadzki = servicePortal({
   catalogView: {
     goals: {},
     filters: {
-      biura: { label: "Przeprowadzki biur", group: "office" },
+      firmowe: { label: "Przeprowadzki firmowe", group: "office" },
       pianina: { label: "Pianina i ciężkie rzeczy", group: "piano" },
       cennik: { label: "Jawny cennik", group: null },
     },
   },
   serviceGroups: [
-    { key: "flat", label: "przeprowadzki mieszkań i domów", re: /mieszka|\bdom(u|ów|y)\b|prywatn/i },
-    { key: "office", label: "przeprowadzki biur", re: /\bbiur|przedsiębiorstw|firmow/i },
+    { key: "flat", label: "przeprowadzki domowe", re: /mieszka|\bdom(u|ów|y)\b|prywatn/i },
+    { key: "office", label: "przeprowadzki firmowe", re: /\bbiur|przedsiębiorstw|firmow/i },
     { key: "piano", label: "transport pianin i ciężkich rzeczy", re: /pianin|fortepian|sejf|ciężk/i },
     { key: "packing", label: "pakowanie i materiały", re: /pakow|karton|materiał/i },
     { key: "storage", label: "magazynowanie", re: /magazyn|składowan/i },
@@ -43,6 +43,7 @@ export const przeprowadzki = servicePortal({
       many: "firm przeprowadzkowych",
       genOne: "firmy przeprowadzkowej",
       datOne: "firmie przeprowadzkowej",
+      accOne: "firmę przeprowadzkową",
       locPl: "firmach przeprowadzkowych",
     },
     domainGen: "przeprowadzek",
@@ -51,13 +52,21 @@ export const przeprowadzki = servicePortal({
     synonym: { few: "firmy", gen: "firm" },
     fee: { nom: "cena przeprowadzki", nomPl: "ceny przeprowadzek", genPl: "przeprowadzek" },
     company: { one: "firma", few: "firmy", many: "firm" },
+    unit: { gender: "f", sg: { nom: "firma", gen: "firmy", dat: "firmie", acc: "firmę", ins: "firmą", loc: "firmie" }, pl: { nom: "firmy", gen: "firm", dat: "firmom", acc: "firmy", ins: "firmami", loc: "firmach" } },
   },
   headerCta: "Znajdź firmę",
   forFirms: "Dla firm",
   none: "Żadna z",
   homeHeroLead:
-    "Porównaj firmy przeprowadzkowe w swoim mieście według stażu, jawnych cenników i zakresu usług: przeprowadzki mieszkań i biur, transport mebli, pakowanie. Potem poproś wybraną firmę o wycenę jednym formularzem.",
-  priceThing: "przeprowadzka mieszkania",
+    "Porównaj firmy przeprowadzkowe w swoim mieście według stażu, jawnych cenników i zakresu usług: przeprowadzki domowe i firmowe, transport mebli, pakowanie. Potem poproś wybraną firmę o wycenę jednym formularzem.",
+  homeOrder: ["steps", "cities", "ranking"],
+  homeStepsHeading: "Dobra firma przeprowadzkowa w trzech krokach",
+  homeSteps: [
+    { title: "Wybierz miasto", text: "Wpisz miejscowość i zobacz firmy przeprowadzkowe, które sprawdziliśmy w tej okolicy: przeprowadzki domowe i firmowe, transport mebli, pakowanie." },
+    { title: "Porównaj firmy", text: "Ranking pokazuje staż w rejestrze, jawność cennika, zakres usług i opinie z Map Google. Sprawdź, czy firma podaje cennik i co obejmuje wycena." },
+    { title: "Poproś o wycenę", text: "Podaj trasę, termin i zakres przeprowadzki w formularzu na stronie firmy. Przekażemy wiadomość bezpłatnie i bez zobowiązań, a wycenę na piśmie ustalisz bezpośrednio z firmą." },
+  ],
+  priceThing: "przeprowadzka domowa",
   noRatesTail: "cenę przeprowadzki trzeba ustalić bezpośrednio z firmą.",
   contractName: "umowa przeprowadzki",
   leadCta: "Poproś o wycenę",
@@ -65,11 +74,11 @@ export const przeprowadzki = servicePortal({
     "Nie jesteśmy firmą przeprowadzkową ani przewoźnikiem i nie jesteśmy stroną umów, które zawierasz z firmami.",
   notPartyLong:
     "Operator nie świadczy usług przeprowadzkowych ani przewozu i nie jest stroną umów zawieranych między Użytkownikami a Firmami.",
-  serviceExamples: "przeprowadzki mieszkań i biur, transport mebli i pianin, pakowanie, magazynowanie i inne",
+  serviceExamples: "przeprowadzki domowe i firmowe, transport mebli i pianin, pakowanie, magazynowanie i inne",
   priceSectionHeading: "Ceny przeprowadzek i usług",
   leadTopics: {
-    kupno: "Przeprowadzka mieszkania",
-    sprzedaz: "Przeprowadzka biura",
+    kupno: "Przeprowadzka domowa",
+    sprzedaz: "Przeprowadzka firmowa",
     wynajem: "Transport pianina lub ciężkich rzeczy",
     najem: "Pakowanie i magazynowanie",
     wycena: "Wycena przeprowadzki",
@@ -78,9 +87,9 @@ export const przeprowadzki = servicePortal({
   leadMessage: (topic, where) => {
     switch (topic) {
       case "kupno":
-        return `Dzień dobry, planuję przeprowadzkę mieszkania ${where}. Proszę o kontakt i wycenę.`;
+        return `Dzień dobry, planuję przeprowadzkę domową ${where}. Proszę o kontakt i wycenę.`;
       case "sprzedaz":
-        return `Dzień dobry, planuję przeprowadzkę biura ${where}. Proszę o kontakt i wycenę.`;
+        return `Dzień dobry, planuję przeprowadzkę firmową ${where}. Proszę o kontakt i wycenę.`;
       case "wynajem":
         return `Dzień dobry, potrzebuję transportu pianina lub ciężkich rzeczy ${where}. Proszę o kontakt i wycenę.`;
       case "najem":
@@ -94,7 +103,7 @@ export const przeprowadzki = servicePortal({
     }
   },
   guide: (c, h) => [
-    `Zacznij od zakresu. Przeprowadzka mieszkania, biura, transport pianina i przewóz samych mebli to różne usługi. Ustal, czy potrzebujesz też pakowania, demontażu i montażu mebli, wniesienia albo magazynowania.${h.groups}`,
+    `Zacznij od zakresu. Przeprowadzka domowa lub firmowa, transport pianina i przewóz samych mebli to różne usługi. Ustal, czy potrzebujesz też pakowania, demontażu i montażu mebli, wniesienia albo magazynowania.${h.groups}`,
     `Poproś o wycenę na piśmie i ustal, jak liczona jest cena: stawka za godzinę, ryczałt za całość czy cena za pomieszczenie. Zapytaj o dopłaty (piętra bez windy, dojazd, materiały do pakowania, czas oczekiwania). ${h.prices} Sprawdź, czy kwota jest netto czy brutto.`,
     `Zapytaj o ubezpieczenie: czy przewożone rzeczy są ubezpieczone, do jakiej kwoty, co obejmuje polisa i jak zgłosić szkodę. Spisz z ekipą stan rzeczy przed i po przewozie.`,
     `Przeczytaj umowę lub potwierdzenie zlecenia: termin, adresy załadunku i rozładunku, zakres, cenę, zaliczkę i odpowiedzialność za szkody. Zapytaj, czy ekipa jest stała, a nie dobierana w dniu przeprowadzki, i jakim samochodem przyjedzie.`,

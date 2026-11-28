@@ -9,11 +9,14 @@ import { inCity } from "@/lib/cities";
 import { absoluteUrl, formatDate } from "@/lib/format";
 import { nFirmUnits, plural } from "@/lib/plural";
 import { capitalize, firmPhrase, nFirmPhrase, currentPortal } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
 
 // Dane z bazy przy każdym wejściu (bez prerenderu w czasie budowania, kiedy baza jest niedostępna).
 export const dynamic = "force-dynamic";
+
+const u = unitForms();
 
 /** Minimalna liczba biur, przy której ogólnopolskie zestawienie ma sens i może być indeksowane. */
 const MIN_FOR_INDEX = 10;
@@ -65,8 +68,7 @@ export default async function NationalRankingPage() {
         <Link href="/metodologia">jawnej metodologii</Link>: potwierdzenie w rejestrze, staż, jawność cennika, zakres usług
         {currentPortal().features.offers ? " i aktualne oferty" : ""}. {confirmed} z nich {plural(confirmed, "ma", "mają", "ma")} potwierdzenie w rejestrach publicznych, a {withPrices}{" "}
         {plural(withPrices, "publikuje", "publikują", "publikuje")} cennik.
-        Pokazujemy {Math.min(TOP, ranked.length)} najwyżej ocenionych. Biuro wybiera się zwykle lokalnie, dlatego pełne
-        porównanie znajdziesz na stronach miast. Dane zaktualizowaliśmy {formatDate(updated)}.
+        Pokazujemy {Math.min(TOP, ranked.length)}{` najwyżej ocenionych. ${u.cap(u.sg.nom)} wybiera się zwykle lokalnie, dlatego pełne porównanie znajdziesz na stronach miast. Dane zaktualizowaliśmy `}{formatDate(updated)}.
       </p>
 
       {top.length > 0 && (
@@ -104,7 +106,7 @@ export default async function NationalRankingPage() {
           <thead>
             <tr>
               <th className="num">#</th>
-              <th>Biuro</th>
+              <th>{u.cap(u.sg.nom)}</th>
               <th>Miasto</th>
               <th>Wynik</th>
             </tr>

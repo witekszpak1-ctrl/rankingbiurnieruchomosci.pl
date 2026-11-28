@@ -52,6 +52,16 @@ export type ServicePortalSpec = {
   /** Zaimek przeczący z formą rodzajową: "Żadna z", "Żaden z", "Żadne z". */
   none: string;
   homeHeroLead: string;
+  /** Nagłówek sekcji "Jak to działa": "Dobra klinika weterynaryjna w trzech krokach". */
+  homeStepsHeading: string;
+  /** Kolejność sekcji strony głównej: różna w portalach, żeby nie wyglądały jak ten sam szablon. */
+  homeOrder: ("steps" | "ranking" | "cities")[];
+  /** Trzy kroki prawdziwej drogi klienta w tej branży (szukanie, porównanie, kontakt), każdy z własnym tekstem. */
+  homeSteps: { title: string; text: string }[];
+  /** Dodatkowe pytania FAQ strony głównej, specyficzne dla branży (dopisywane przed pytaniem o błędne dane). */
+  extraFaq?: { q: string; a: string }[];
+  /** Dodatkowy akapit metodologii (np. czego ranking nie ocenia). */
+  methodologyNote?: string;
   /** Pytanie ceny w nagłówkach i FAQ: "Ile kosztuje ${priceThing} we Wrocławiu?" */
   priceThing: string;
   /** Zakończenie zdania "nie publikuje cen ..., więc ...". */
@@ -70,6 +80,38 @@ export type ServicePortalSpec = {
   factors: { question: string; answer: string };
   feeNoPrices: (where: string) => string;
 };
+
+/**
+ * Pytania i odpowiedzi strony głównej złożone z odmiany jednostki katalogu (ta sama treść pytań w każdej branży,
+ * poprawna odmiana i rodzaj gramatyczny). `forFirms` to etykieta "Dla klinik" itd., `extra` to pytania branżowe.
+ */
+export function homeFaq(
+  t: PortalTerms,
+  forFirms: string,
+  extra: { q: string; a: string }[] = [],
+): { q: string; a: string }[] {
+  const u = t.unit;
+  const mine = u.gender === "n" ? "Moje" : u.gender === "f" ? "Moja" : "Mój";
+  return [
+    {
+      q: `Skąd pochodzą dane o ${u.pl.loc}?`,
+      a: `Z rejestrów publicznych (KRS, wykaz podatników VAT) i z oficjalnych stron internetowych ${u.pl.gen}. ${u.pl.nom.charAt(0).toLocaleUpperCase("pl")}${u.pl.nom.slice(1)} potwierdzone w rejestrze mają to oznaczone na profilu; ${u.pl.nom} bez potwierdzenia też są w katalogu, ale niżej w rankingu.`,
+    },
+    {
+      q: `Czy ${u.pl.nom} płacą za miejsce w rankingu?`,
+      a: "Nie. Pozycja wynika wyłącznie z jawnej metodologii. Płatność nie ma wpływu na wynik ani na kolejność.",
+    },
+    {
+      q: "Jak często dane są aktualizowane?",
+      a: `Kontakt i obrazki sprawdzamy codziennie. Dane z rejestrów i opisy odświeżamy regularnie, a każda strona ${u.sg.gen} ma datę aktualizacji.`,
+    },
+    ...extra,
+    {
+      q: `${mine} ${u.sg.nom} ma błędne dane. Co zrobić?`,
+      a: `Wypełnij formularz na stronie ${forFirms}. Poprawimy dane albo usuniemy wpis.`,
+    },
+  ];
+}
 
 export function servicePortal(spec: ServicePortalSpec): PortalConfig {
   const t = spec.terms;
@@ -145,20 +187,11 @@ export function servicePortal(spec: ServicePortalSpec): PortalConfig {
         { href: "/kontakt", label: "Kontakt" },
       ],
       homeHeroLead: spec.homeHeroLead,
-      homeSteps: [
-        {
-          title: "Wybierz miasto",
-          text: `Wpisz miejscowość i zobacz ${few}, które sprawdziliśmy w tej okolicy.`,
-        },
-        {
-          title: `Porównaj ${t.synonym.few}`,
-          text: "Ranking pokazuje staż w rejestrze, jawność cennika, zakres usług i opinie z Map Google.",
-        },
-        {
-          title: spec.leadCta,
-          text: `Napisz przez formularz na stronie ${t.firm.genOne}. Przekażemy wiadomość bezpłatnie i bez zobowiązań.`,
-        },
-      ],
+      methodologyNote: spec.methodologyNote,
+      homeOrder: spec.homeOrder,
+      homeStepsHeading: spec.homeStepsHeading,
+      homeSteps: spec.homeSteps,
+      homeFaq: homeFaq(t, spec.forFirms, spec.extraFaq),
       homeWhyDaily: `Dane kontaktowe i strony ${t.firm.many} sprawdzamy regularnie.`,
       contractName: spec.contractName,
       leadCta: spec.leadCta,

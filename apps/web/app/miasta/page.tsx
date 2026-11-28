@@ -7,16 +7,19 @@ import { inCity } from "@/lib/cities";
 import { absoluteUrl } from "@/lib/format";
 import { nFirmUnits, nMiast } from "@/lib/plural";
 import { capitalize, firmPhrase, currentPortal } from "@/lib/portal";
+import { unitForms } from "@/lib/unit";
 import { pageMetadata, websiteRef } from "@/lib/seo";
 import { groupByVoivodeship } from "@/lib/voivodeships";
 
 export const revalidate = 3600;
 
+const u = unitForms();
+
 export async function generateMetadata(): Promise<Metadata> {
   const cities = await listCities().catch(() => []);
   return pageMetadata({
     title: `${capitalize(firmPhrase("few"))} w miastach Polski: lista miast według województw`,
-    description: `Wszystkie miasta w katalogu ${firmPhrase("many")} (${nMiast(cities.length)}), pogrupowane według województw, z liczbą biur w każdym mieście.`,
+    description: `Wszystkie miasta w katalogu ${firmPhrase("many")} (${nMiast(cities.length)}), pogrupowane według województw, z liczbą ${u.pl.gen} w każdym mieście.`,
     path: "/miasta",
   });
 }
@@ -51,7 +54,7 @@ export default async function CitiesPage() {
       </p>
       <h1>{`${capitalize(firmPhrase("few"))} w miastach Polski`}</h1>
       <p className="lead-text">
-        Katalog obejmuje {nMiast(cities.length)}. Wybierz miasto, żeby zobaczyć ranking biur, ceny usług{currentPortal().features.offers ? " i aktualne oferty" : ""}.
+        Katalog obejmuje {nMiast(cities.length)}{`. Wybierz miasto, żeby zobaczyć ranking ${u.pl.gen}, ceny usług`}{currentPortal().features.offers ? " i aktualne oferty" : ""}.
       </p>
       {groups.map((g) => (
         <section key={g.voivodeship}>
