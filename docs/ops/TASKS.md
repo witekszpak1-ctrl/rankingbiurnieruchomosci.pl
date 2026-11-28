@@ -10,17 +10,21 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [x] Webhook Stripe (płatność, zwrot, obciążenie zwrotne), idempotentny
 - [x] Logowanie i rejestracja firm i partnerów
 - [ ] Wdrożenie: nowy projekt Vercel z katalogiem `apps/geo`, zmienne, migracja na bazie produkcyjnej, rola `geo_app`
-- [!] Domena i nazwa platformy (BLOCKERS)
-- [ ] Rejestr promptów i pomiarów AI (schemat `geo`: prompts, measurements, mentions, citations)
+- [x] Nazwa robocza GeoTrace (geotrace.pl wolna 28.11, niekupiona)
+- [x] Rejestr pytań i pomiarów AI (`db/geo/0002_measurements.sql`), klucz pamięci podręcznej i wskaźniki z przedziałem niepewności (`apps/geo/lib/measure.ts`)
 - [!] Adapter DataForSEO LLM Scraper (konto i 50 USD)
 - [ ] Sprawdzenie modułu Google AI Mode w LiteScrape (mamy klucz)
 - [ ] Darmowy audyt: normalizacja domeny, odczyt z rejestru firm katalogu, skan strony, prompty, pomiary, raport
-- [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (konto Stripe)
+- [!] Płatności: produkty i ceny w Stripe, Checkout, portal klienta (właściciel na razie nie ma konta Stripe)
 - [ ] Faktury zgodne z KSeF (wybór programu do faktur)
 - [ ] Silnik uprawnień w kodzie (odczyt `plans.entitlements`, limity)
 - [ ] Regulamin platformy i programu partnerskiego (prawnik)
 
 ## Katalogi
+
+- [x] Opinie Google na profilach: tylko ocena, liczba i link (wdrożone 28.11)
+- [ ] Przycisk "sprawdź widoczność w AI" na profilach (gdy audyt GeoTrace będzie działał publicznie)
+- [!] DNS rankingbiurnieruchomosci.pl do Cloudflare (właściciel: dodanie strony w Cloudflare i zmiana serwerów DNS w aftermarket.pl)
 
 - [ ] Wielobranżowość strony: konfiguracja portalu z bazy, teksty branży z pakietu, nie z kodu
 - [ ] Motywy i warianty układu per portal (decyzja: portale mają się różnić)
@@ -30,5 +34,5 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 
 ## Koszty
 
-- [ ] Neon: profile firm renderują się przy każdym wejściu bota (formularz czyta parametry adresu), przez co baza
-      pracuje stale; plus minimum mocy 1. Poprawka po raporcie zaplanowanym na 29.11.
+- [x] Neon: profile firm w pamięci podręcznej (ISR, wdrożone 28.11); minimum mocy 0,25 (inna sesja, 27.11)
+- [ ] Neon: strony miast nadal renderują się przy każdym wejściu (filtry w parametrach adresu); ocenić po raporcie zużycia z 29.11
