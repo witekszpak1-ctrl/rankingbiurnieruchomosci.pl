@@ -18,6 +18,7 @@ const KEYS: Record<string, [string, Kind]> = {
   new_domains: ["nowych stron www", "done"],
   blocked_results: ["portali i katalogów pominiętych", "missed"],
   search_errors: ["błędów wyszukiwarki", "errors"],
+  query_errors: ["wyszukiwań nieudanych (pominięte)", "errors"],
   stopped_limit: ["zatrzymań na limicie", "errors"],
   // otwieranie stron (probe)
   agency: ["stron biur nieruchomości", "done"],

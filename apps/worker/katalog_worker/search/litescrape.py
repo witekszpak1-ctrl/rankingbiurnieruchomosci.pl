@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 
-from ..litescrape import COST_PER_CALL_USD, LiteScrapeClient, LiteScrapeError
+from ..litescrape import COST_PER_CALL_USD, LiteScrapeClient, LiteScrapeError, LiteScrapeUnavailable
 from .base import SearchError, SearchResult
 
 PAGE_SUFFIX = re.compile(r"\s*\(strona (\d+)\)\s*$")
@@ -39,6 +39,7 @@ class LiteScrapeSearch:
         self._tokens: dict[tuple[str, int], str] = {}  # (fraza, numer strony) -> token tej strony
         self._last_page: dict[str, int] = {}  # fraza -> ostatnia strona, jaką Google ma
         self.skipped = False
+        self.query_errors = 0  # pojedyncze nieudane zapytania (np. przekroczony czas), pominięte bez zatrzymania
 
     def search(self, query: str, *, country: str = "pl", lang: str = "pl", count: int = 10) -> list[SearchResult]:
         results, self.skipped = self.search_ex(query, country=country, lang=lang)
@@ -57,8 +58,13 @@ class LiteScrapeSearch:
         try:
             data = self._client.search(query, gl=country.lower(), hl=lang.lower(), start=(page - 1) * 10,
                                        page_token=token)
-        except LiteScrapeError as exc:
-            raise SearchError(str(exc)) from None
+        except LiteScrapeUnavailable as exc:
+            raise SearchError(str(exc)) from None  # zły klucz, brak salda, limit: koniec LiteScrape w tym przebiegu
+        except LiteScrapeError:
+            # Pojedynczy błąd (przekroczony czas, 503): pomijamy to zapytanie i dalsze strony tej frazy.
+            self.query_errors += 1
+            self._last_page[query] = page - 1
+            return [], False
         organic = data.get("organic_results") if isinstance(data.get("organic_results"), list) else []
         results = []
         for index, item in enumerate(organic, start=1):
@@ -96,6 +102,10 @@ class FallbackSearch:
     @property
     def skipped(self) -> bool:
         return bool(getattr(self._current, "skipped", False))
+
+    @property
+    def query_errors(self) -> int:
+        return int(getattr(self._primary, "query_errors", 0))
 
     def search(self, query: str, **kwargs) -> list[SearchResult]:
         results, _ = self.search_ex(query, **kwargs)
@@ -137,6 +147,10 @@ class PrefetchSearch:
     @property
     def switched(self):
         return getattr(self._provider, "switched", None)
+
+    @property
+    def query_errors(self) -> int:
+        return int(getattr(self._provider, "query_errors", 0))
 
     def prefetch(self, queries: list[str], *, country: str = "pl", lang: str = "pl") -> None:
         from concurrent.futures import ThreadPoolExecutor

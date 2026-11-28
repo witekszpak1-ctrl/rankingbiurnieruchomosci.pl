@@ -255,6 +255,8 @@ def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, di
         done.append(f"{city['name']}{' (dokładnie)' if city['deep'] else ''}: {counts.get('new_domains', 0)}")
         print(json.dumps({"city": city["name"], "deep": city["deep"], **counts}, ensure_ascii=False), file=sys.stderr)
     totals["cities"] = len(done)
+    if getattr(provider, "query_errors", 0):
+        totals["query_errors"] = provider.query_errors
     return {**dict(totals), "detail": done}
 
 

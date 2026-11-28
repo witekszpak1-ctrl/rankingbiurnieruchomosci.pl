@@ -230,3 +230,16 @@ def test_prefetch_runs_phrases_in_parallel_and_serves_from_memory():
     assert [r.url for r in provider.search("biuro Sopot (strona 2)")] == ["https://sopot2.pl/"]
     assert provider.search("biuro Gdynia (strona 3)") == [] and provider.skipped
     assert len(seen) == calls
+
+
+def test_single_failed_query_is_skipped_not_fatal():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        return httpx.Response(503, json={"error_code": "service_unavailable"})
+
+    provider = LiteScrapeSearch(client_for(handler, max_retries=0))
+    assert provider.search("biuro nieruchomości Gdynia") == []
+    assert provider.search("biuro nieruchomości Gdynia (strona 2)") == [] and provider.skipped
+    assert provider.query_errors == 1 and len(calls) == 1
