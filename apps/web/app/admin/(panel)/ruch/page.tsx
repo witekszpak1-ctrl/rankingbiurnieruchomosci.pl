@@ -189,8 +189,8 @@ export default async function TrafficPage({ searchParams }: Props) {
       </div>
       <p className="note">
         Serwer widzi każde wczytanie strony, ale nie przejścia między podstronami bez przeładowania (serwis wczytuje je w
-        tle). Te przejścia, czas na stronie i ścieżki wizyt pokazują narzędzia z zakładki „Analityka i piksele” (np.
-        Google Analytics, WitekCRM) u osób, które zgodziły się na statystyki. Odwiedzających liczymy po skrócie z adresu IP
+        tle). Te przejścia, czas na stronie i ścieżki wizyt pokazuje WitekCRM (u wszystkich odwiedzających) oraz narzędzia z
+        zakładki „Analityka i piksele” (np. Google Analytics) u osób, które zgodziły się na statystyki. Odwiedzających liczymy po skrócie z adresu IP
         i przeglądarki z solą zmienianą codziennie, więc ta sama osoba w dwa różne dni liczy się dwa razy.
       </p>
     </>

@@ -121,7 +121,7 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
-/** Wbudowane statystyki WitekCRM (zawsze dostępne, kategoria statystyczna). */
+/** Wbudowane statystyki WitekCRM: bez plików cookie, wczytywane na każdej stronie bez zgody (polityka, punkt 2.1). */
 export const WITEKCRM = {
   site: "ws_65be8380404a2bd8",
   src: "https://witekcrm.com/api/public/pulse/s.js",
@@ -146,7 +146,6 @@ export function toolsIn(config: PublicTracking, category: Category): string[] {
   const names = TOOLS.filter((t) => config.ids[t.key] && (t.category === category || t.category === "any")).map((t) =>
     t.provider.replace(/ \(.*$/, ""),
   );
-  if (category === "statistics") names.unshift("WitekCRM");
   const custom = category === "statistics" ? config.customStatistics : config.customMarketing;
   if (custom) names.push(custom.description || "własny kod");
   return names;

@@ -99,8 +99,6 @@ function consentModeValues(c: Consent) {
 
 function loadTools(config: PublicTracking, c: Consent): void {
   const { ids } = config;
-  const production = process.env.NODE_ENV === "production";
-  if (c.statistics && production) addScript("witekcrm", { src: WITEKCRM.src, data: { site: WITEKCRM.site } });
 
   const googleIds = [c.statistics && ids.ga4, c.marketing && ids.googleAds].filter(Boolean) as string[];
   const gtm = ids.gtm && (c.statistics || c.marketing) ? ids.gtm : null;
@@ -298,6 +296,12 @@ export function CookieConsent() {
       active = false;
       window.removeEventListener(OPEN_EVENT, onOpen);
     };
+  }, []);
+
+  // Statystyki WitekCRM (bez plików cookie) liczą każde wejście, niezależnie od wyboru w banerze
+  // (decyzja właściciela, 28.11.2026; opis w polityce prywatności, punkt 2.1).
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") addScript("witekcrm", { src: WITEKCRM.src, data: { site: WITEKCRM.site } });
   }, []);
 
   useEffect(() => {

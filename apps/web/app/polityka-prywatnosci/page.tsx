@@ -98,25 +98,42 @@ export default async function PrivacyPolicyPage() {
           informacje o przeglądarce. Podstawą jest art. 6 ust. 1 lit. f RODO (sprawne działanie Serwisu).
         </p>
 
-        <h3>2.2. Narzędzia statystyczne w przeglądarce (tylko za zgodą)</h3>
+        <p id="statystyki-witekcrm">
+          <b>Statystyki WitekCRM w przeglądarce.</b> Na każdej stronie wczytujemy skrypt statystyk z systemu WitekCRM
+          (witekcrm.com). Zapisuje on odwiedzone adresy, stronę, z której przyszedłeś, tytuł strony, czas spędzony na stronie
+          (co 30 sekund wysyła krótki sygnał, że strona jest otwarta) i kliknięcia w linki WhatsApp oraz podstawowe informacje
+          o przeglądarce i urządzeniu. Skrypt nie używa plików cookie i niczego nie zapisuje w Twojej przeglądarce. Wyjątek:
+          gdy sam wyłączysz liczenie, wchodząc na dowolną stronę Serwisu z dopiskiem <span className="mono">?nie_licz_mnie=1</span>{" "}
+          w adresie, przeglądarka zapamięta tę decyzję (dopisek <span className="mono">?nie_licz_mnie=0</span> ją cofa).
+          Unikalnych odwiedzających WitekCRM liczy tak samo jak statystyki serwera: po skrócie z adresu IP i danych
+          przeglądarki z wartością zmienianą codziennie, bez zapisywania adresu IP.
+        </p>
+        <ul className="plain">
+          <li>Cel: liczenie odwiedzin, sprawdzanie, które strony są przydatne, i ulepszanie Serwisu.</li>
+          <li>
+            Podstawa: art. 6 ust. 1 lit. f RODO, czyli nasz prawnie uzasadniony interes w prowadzeniu statystyk Serwisu. Możesz
+            się temu sprzeciwić (punkt 6) albo wyłączyć liczenie dopiskiem opisanym wyżej.
+          </li>
+          <li>Okres: dane o pojedynczych odsłonach nie dłużej niż 2 lata.</li>
+        </ul>
+
+        <h3>2.2. Inne narzędzia statystyczne w przeglądarce (tylko za zgodą)</h3>
         <p>
-          Jeśli wyrazisz zgodę w banerze plików cookie (kategoria „Statystyczne”), strona wczyta skrypt statystyk z systemu
-          WitekCRM (witekcrm.com), który zbiera informacje o odsłonach: odwiedzone adresy, źródło wejścia, czas spędzony na
-          stronie oraz podstawowe informacje o przeglądarce i urządzeniu, bez plików cookie.
-          {statsTools.length > 0 && (
+          {statsTools.length > 0 ? (
             <>
-              {" "}
-              Za tą samą zgodą wczytujemy też:{" "}
+              Jeśli wyrazisz zgodę w banerze plików cookie (kategoria „Statystyczne”), wczytamy:{" "}
               {statsTools.map((t) => `${t.provider} (${t.purpose})`).join("; ")}.
             </>
+          ) : (
+            <>Obecnie nie używamy innych narzędzi statystycznych w przeglądarce.</>
           )}
-          {tracking.customStatistics && <> Oraz: {tracking.customStatistics.description}.</>}
+          {tracking.customStatistics && <> Za zgodą wczytujemy też: {tracking.customStatistics.description}.</>}
         </p>
         <ul className="plain">
           <li>Cel: analiza korzystania z Serwisu, sprawdzanie, które strony są przydatne, i ulepszanie Serwisu.</li>
           <li>
             Podstawa: Twoja zgoda (art. 6 ust. 1 lit. a RODO oraz art. 399 ustawy Prawo komunikacji elektronicznej). Bez zgody
-            skrypt w ogóle się nie wczytuje.
+            te narzędzia w ogóle się nie wczytują.
           </li>
           <li>Okres: do wycofania zgody, a dane o pojedynczych odsłonach nie dłużej niż 2 lata.</li>
           <li>
@@ -341,7 +358,7 @@ export default async function PrivacyPolicyPage() {
               </tr>
               <tr>
                 <td>WitekCRM (witekcrm.com)</td>
-                <td>statystyki odwiedzin w przeglądarce (po zgodzie) i wejścia robotów</td>
+                <td>statystyki odwiedzin w przeglądarce i wejścia robotów</td>
                 <td>według ustawień systemu</td>
               </tr>
               {enabled.map((t) => (
@@ -424,8 +441,8 @@ export default async function PrivacyPolicyPage() {
               </tr>
               <tr>
                 <td>skrypt statystyk WitekCRM</td>
-                <td>{WITEKCRM.purpose} (punkt 2.2)</td>
-                <td>statystyczny, zewnętrzny, tylko po zgodzie</td>
+                <td>{WITEKCRM.purpose} (punkt 2.1)</td>
+                <td>statystyczny, zewnętrzny, bez zgody (prawnie uzasadniony interes)</td>
                 <td>{WITEKCRM.cookies}</td>
               </tr>
               {enabled.map((t) => (
