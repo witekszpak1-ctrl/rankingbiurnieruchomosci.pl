@@ -53,7 +53,7 @@ def test_przebieg_mieści_się_w_limicie(tmp_path):
     client = FakeClient()
     report = run(client, tmp_path, max_calls=15, http=FakeHttp())
     assert client.n <= 15
-    assert report["endpoint_used"] == "/api/google/ai_mode"
+    assert report["endpoint_used"] == ["/api/google/ai_mode"]
     assert all(p[1]["gl"] == "pl" and p[1]["hl"] == "pl" for p in client.params)
     assert report["ai_tests"][0]["domains"] == ["rankingbiurnieruchomosci.pl"]
     assert report["search_ai_overview"][0]["ai_keys"] == ["ai_overview"]

@@ -28,7 +28,7 @@ jobs:
       - name: Kolejka
         run: bash scripts/queue_sync.sh pull
       - name: Test odpowiedzi AI (najwyżej 15 zapytań)
-        run: katalog ai-check --max 15
+        run: katalog ai-check --max 12 --no-search --per-endpoint 4 --endpoint /api/google/gemini --endpoint /api/google/ai-mode --endpoint /api/google/ai-overview
       - name: Raport do kolejki
         if: always()
         run: bash scripts/queue_sync.sh push-results

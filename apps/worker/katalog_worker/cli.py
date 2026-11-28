@@ -320,7 +320,8 @@ def cmd_ai_check(args) -> int:
             if client is None:
                 _print({"ok": False, "error": "brak klucza LiteScrape w panelu"})
                 return 2
-            report = run(client, Path(args.out), max_calls=min(args.max, 15))
+            report = run(client, Path(args.out), max_calls=min(args.max, 15), paths=args.endpoint or None,
+                         per_endpoint=args.per_endpoint, overview_search=not args.no_search)
     _print({k: report.get(k) for k in ("endpoint_used", "calls", "saved", "openapi_error")})
     return 0
 
@@ -588,6 +589,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("ai-check", cmd_ai_check, "próbny pomiar odpowiedzi AI w Google przez LiteScrape (najwyżej 15 zapytań)")
     p.add_argument("--max", type=int, default=15)
     p.add_argument("--out", default="queue/results/reports")
+    p.add_argument("--endpoint", action="append", help="ścieżka endpointu AI (można podać kilka)")
+    p.add_argument("--per-endpoint", type=int, default=4)
+    p.add_argument("--no-search", action="store_true", help="bez testu bloku AI w zwykłym wyszukiwaniu")
     p = add("litescrape-check", cmd_litescrape_check, "test LiteScrape na żywo (najwyżej 4 zapytania)")
     p.add_argument("--city", default="Gdynia")
     p.add_argument("--firms", type=int, default=5)

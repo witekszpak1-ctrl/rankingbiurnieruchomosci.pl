@@ -97,7 +97,8 @@ def summarize(data: dict) -> dict:
     }
 
 
-def run(client, out_dir: Path, *, max_calls: int = 15, http: httpx.Client | None = None) -> dict:
+def run(client, out_dir: Path, *, max_calls: int = 15, http: httpx.Client | None = None,
+        paths: list[str] | None = None, per_endpoint: int = 4, overview_search: bool = True) -> dict:
     http = http or httpx.Client(timeout=30.0)
     report: dict = {"date": datetime.now(timezone.utc).isoformat(timespec="seconds"), "max_calls": max_calls}
     try:
@@ -111,33 +112,40 @@ def run(client, out_dir: Path, *, max_calls: int = 15, http: httpx.Client | None
     calls = 0
     tests = []
     gets = [e for e in report["endpoints_ai"] if e["method"] == "GET" and query_param(e["params"])]
-    gets.sort(key=lambda e: (0 if re.search(r"ai[_-]?mode", e["path"], re.I) else 1, e["path"]))
-    endpoint = gets[0] if gets else None
-    report["endpoint_used"] = endpoint["path"] if endpoint else None
-    if endpoint:
+    if paths:
+        chosen = [e for p in paths for e in gets if e["path"] == p]
+    else:
+        gets.sort(key=lambda e: (0 if re.search(r"ai[_-]?mode", e["path"], re.I) else 1, e["path"]))
+        chosen = gets[:1]
+    report["endpoint_used"] = [e["path"] for e in chosen] or None
+    for endpoint in chosen:
         qp = query_param(endpoint["params"])
         names = {p["name"] for p in endpoint["params"]}
-        for prompt in PROMPTS:
-            if calls >= max_calls - 2:
+        for prompt in PROMPTS[:per_endpoint]:
+            if calls >= max_calls:
                 break
             params = {qp: prompt}
             if "gl" in names:
                 params["gl"] = "pl"
             if "hl" in names:
                 params["hl"] = "pl"
+            if "country" in names:
+                params["country"] = "pl"
             started = time.monotonic()
             try:
                 data = client._get("ai", endpoint["path"], params, retries=1, timeout=120.0)
-                tests.append({"prompt": prompt, "ok": True, "seconds": round(time.monotonic() - started, 1), **summarize(data)})
+                tests.append({"endpoint": endpoint["path"], "prompt": prompt, "ok": True,
+                              "seconds": round(time.monotonic() - started, 1), **summarize(data)})
             except Exception as exc:  # noqa: BLE001
-                tests.append({"prompt": prompt, "ok": False, "seconds": round(time.monotonic() - started, 1), "error": str(exc)[:300]})
+                tests.append({"endpoint": endpoint["path"], "prompt": prompt, "ok": False,
+                              "seconds": round(time.monotonic() - started, 1), "error": str(exc)[:300]})
             calls += 1
             if not client.available:
                 break
     report["ai_tests"] = tests
 
     overview = []
-    for prompt in PROMPTS[:2]:
+    for prompt in (PROMPTS[:2] if overview_search else []):
         if calls >= max_calls or not client.available:
             break
         try:
