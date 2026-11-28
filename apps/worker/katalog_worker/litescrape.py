@@ -19,6 +19,7 @@ przebiegu: wyszukiwarka przechodzi wtedy na zapas (Serper), a pobieranie stron n
 
 from __future__ import annotations
 
+import json
 import os
 import threading
 import time
@@ -230,7 +231,11 @@ def _error_code(response: httpx.Response) -> str | None:
         return None
     if isinstance(data, dict):
         code = data.get("error_code") or (data.get("detail") if isinstance(data.get("detail"), str) else None)
-        return str(code)[:60] if code else None
+        details = data.get("details") or data.get("errors") or (data.get("detail") if not isinstance(data.get("detail"), str) else None)
+        text = str(code) if code else ""
+        if details:
+            text += f" {json.dumps(details, ensure_ascii=False)[:300]}"
+        return text.strip()[:400] or None
     return None
 
 
