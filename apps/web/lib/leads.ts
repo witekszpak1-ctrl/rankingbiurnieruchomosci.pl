@@ -1,15 +1,10 @@
 import { query } from "./db";
+import { currentPortal } from "./portal";
 
 export const LEAD_TOPICS = ["kupno", "sprzedaz", "wynajem", "najem", "wycena", "inne"] as const;
 export type LeadTopic = (typeof LEAD_TOPICS)[number];
-export const TOPIC_LABEL: Record<LeadTopic, string> = {
-  kupno: "Chcę kupić",
-  sprzedaz: "Chcę sprzedać",
-  wynajem: "Chcę wynająć (szukam mieszkania)",
-  najem: "Chcę oddać w najem",
-  wycena: "Wycena nieruchomości",
-  inne: "Inna sprawa",
-};
+// Klucze tematów są stałe (ograniczenie w bazie), a etykiety pochodzą z konfiguracji portalu (texts.lead).
+export const TOPIC_LABEL: Record<LeadTopic, string> = currentPortal().texts.lead.topics;
 export const LEADS_PER_HOUR = 60;
 export const LEADS_PER_EMAIL_PER_HOUR = 5;
 

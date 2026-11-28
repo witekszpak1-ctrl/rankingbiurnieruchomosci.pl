@@ -17,6 +17,15 @@ import { GOALS, type Goal } from "@/lib/city-view";
 import { BlogLinks } from "@/components/BlogLinks";
 import { latestBlogLinks } from "@/lib/blog-links";
 import { getBlogOverrides, withOverride } from "@/lib/blog-overrides";
+import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
+
+const portal = currentPortal();
+const { features, texts } = portal;
+// Nazwa jednostki i reszta frazy osobno ("biur" + " nieruchomości w katalogu"): zachowuje podział węzłów tekstu w HTML.
+const phraseHead = (n: number, suffix: string) => {
+  const [head, ...rest] = plural(n, portal.terms.phrase.one, portal.terms.phrase.few, portal.terms.phrase.many).split(" ");
+  return [head, `${rest.length > 0 ? ` ${rest.join(" ")}` : ""}${suffix}`] as const;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -41,21 +50,6 @@ const toInput = (l: TopListing): RankingInput => ({
   googleCount: l.googleCount,
 });
 
-const STEPS = [
-  {
-    title: "Wybierz miasto",
-    text: "Wpisz miejscowość i zobacz wszystkie biura nieruchomości, które sprawdziliśmy w tej okolicy.",
-  },
-  {
-    title: "Porównaj biura",
-    text: "Ranking pokazuje staż w rejestrze, jawność cennika, zakres usług i liczbę aktualnych ofert.",
-  },
-  {
-    title: "Napisz do biura",
-    text: "Zadaj pytanie przez formularz na stronie biura. Przekażemy je bezpłatnie i bez zobowiązań.",
-  },
-];
-
 const FAQ = [
   {
     q: "Skąd pochodzą dane o biurach?",
@@ -67,7 +61,7 @@ const FAQ = [
   },
   {
     q: "Jak często dane są aktualizowane?",
-    a: "Oferty, kontakt i obrazki sprawdzamy codziennie. Dane z rejestrów i opisy odświeżamy regularnie, a każda strona biura ma datę aktualizacji.",
+    a: `${features.offers ? "Oferty, kontakt" : "Kontakt"} i obrazki sprawdzamy codziennie. Dane z rejestrów i opisy odświeżamy regularnie, a każda strona biura ma datę aktualizacji.`,
   },
   {
     q: "Moje biuro ma błędne dane. Co zrobić?",
@@ -82,15 +76,17 @@ export default async function HomePage({ searchParams }: Props) {
     listCities(),
     homeStats(),
     listAllPublished(),
-    listLatestOffers(6),
+    features.offers ? listLatestOffers(6) : Promise.resolve([]),
   ]);
   const top = rankListings(all, toInput).slice(0, 6);
-  const blogOverrides = await getBlogOverrides();
-  const blogLinks = latestBlogLinks(
-    new Set(Object.entries(blogOverrides).filter(([, o]) => o.hidden).map(([k]) => k)),
-    3,
-    (p) => withOverride(p, blogOverrides).published,
-  );
+  const blogOverrides = features.blog ? await getBlogOverrides() : {};
+  const blogLinks = features.blog
+    ? latestBlogLinks(
+        new Set(Object.entries(blogOverrides).filter(([, o]) => o.hidden).map(([k]) => k)),
+        3,
+        (p) => withOverride(p, blogOverrides).published,
+      )
+    : [];
 
   return (
     <PublicShell wide>
@@ -100,7 +96,7 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="hero-copy">
             <span className="kicker">Dane z KRS i wykazu VAT · {nBiur(stats.firms)} w katalogu</span>
             <h1>
-              Ranking biur nieruchomości{" "}
+              {`Ranking ${firmPhrase("many")}`}{" "}
               <span className="swash">
                 w Polsce {new Date().getFullYear()}
                 <svg viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true">
@@ -109,12 +105,10 @@ export default async function HomePage({ searchParams }: Props) {
               </span>
             </h1>
             <p className="hero-sub">
-              Wybierz biuro nieruchomości <em>sprawdzone w rejestrach</em>
+              {`Wybierz ${firmPhrase("one")} `}
+              <em>sprawdzone w rejestrach</em>
             </p>
-            <p className="hero-lead">
-              Porównaj biura w swoim mieście według stażu, jawnych prowizji i liczby aktualnych ofert. Potem napisz do
-              wybranego biura jednym formularzem.
-            </p>
+            <p className="hero-lead">{texts.homeHeroLead}</p>
             <ul className="checks-row">
               <li>Bezpłatnie</li>
               <li>Bez zobowiązań</li>
@@ -155,17 +149,19 @@ export default async function HomePage({ searchParams }: Props) {
                 ))}
               </datalist>
             </div>
-            <div className="search-field">
-              <label htmlFor="cel">Czego potrzebujesz</label>
-              <select id="cel" name="cel" defaultValue="">
-                <option value="">Wszystkie biura</option>
-                {(Object.keys(GOALS) as Goal[]).map((g) => (
-                  <option key={g} value={g}>
-                    {GOALS[g].label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {features.goals && (
+              <div className="search-field">
+                <label htmlFor="cel">Czego potrzebujesz</label>
+                <select id="cel" name="cel" defaultValue="">
+                  <option value="">Wszystkie biura</option>
+                  {(Object.keys(GOALS) as Goal[]).map((g) => (
+                    <option key={g} value={g}>
+                      {GOALS[g].label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button type="submit">
               Pokaż biura <span aria-hidden="true">→</span>
             </button>
@@ -176,7 +172,7 @@ export default async function HomePage({ searchParams }: Props) {
             </p>
           )}
           <nav className="search-links" aria-label="Na skróty">
-            <Link href="/oferty">Aktualne oferty biur</Link>
+            {features.offers && <Link href="/oferty">Aktualne oferty biur</Link>}
             <Link href="/ranking">Ranking ogólnopolski</Link>
             <Link href="/miasta">Wszystkie miasta</Link>
             <Link href="/metodologia">Jak oceniamy</Link>
@@ -190,16 +186,21 @@ export default async function HomePage({ searchParams }: Props) {
         <div className="wrap">
           <div>
             <b>{stats.firms.toLocaleString("pl-PL")}</b>
-            <span>{plural(stats.firms, "biuro", "biura", "biur")} nieruchomości w katalogu</span>
+            <span>
+              {phraseHead(stats.firms, " w katalogu")[0]}
+              {phraseHead(stats.firms, " w katalogu")[1]}
+            </span>
           </div>
           <div>
             <b>{stats.cities.toLocaleString("pl-PL")}</b>
             <span>{plural(stats.cities, "miasto", "miasta", "miast")}, a co dzień kolejne</span>
           </div>
-          <div>
-            <b>{stats.offers.toLocaleString("pl-PL")}</b>
-            <span>{plural(stats.offers, "aktualna oferta", "aktualne oferty", "aktualnych ofert")} ze stron biur</span>
-          </div>
+          {features.offers && (
+            <div>
+              <b>{stats.offers.toLocaleString("pl-PL")}</b>
+              <span>{plural(stats.offers, "aktualna oferta", "aktualne oferty", "aktualnych ofert")} ze stron biur</span>
+            </div>
+          )}
           <div>
             <b>0 zł</b>
             <span>za wyszukiwanie. Płatność nie wpływa na pozycję w rankingu</span>
@@ -214,7 +215,7 @@ export default async function HomePage({ searchParams }: Props) {
             <h2>Dobre biuro w trzech krokach</h2>
           </div>
           <ol className="steps">
-            {STEPS.map((s, i) => (
+            {texts.homeSteps.map((s, i) => (
               <li key={s.title}>
                 <span className="step-num">{i + 1}</span>
                 <h3>{s.title}</h3>
@@ -268,7 +269,7 @@ export default async function HomePage({ searchParams }: Props) {
         </section>
       )}
 
-      {offers.length > 0 && (
+      {features.offers && offers.length > 0 && (
         <section id="oferty" className="section soft">
           <div className="wrap">
             <div className="section-head">
@@ -291,7 +292,7 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="section-head">
             <div>
               <span className="eyebrow">Miasta</span>
-              <h2>Biura nieruchomości w Twojej okolicy</h2>
+              <h2>{`${capitalize(firmPhrase("few"))} w Twojej okolicy`}</h2>
             </div>
           </div>
           {cities.length === 0 ? (
@@ -301,7 +302,7 @@ export default async function HomePage({ searchParams }: Props) {
               <ul className="city-grid">
                 {cities.slice(0, HOME_CITIES).map((c) => (
                   <li key={c.slug}>
-                    <Link href={`/${c.slug}`} title={`Biura nieruchomości ${inCity(c.name)}`}>
+                    <Link href={`/${c.slug}`} title={`${capitalize(firmPhrase("few"))} ${inCity(c.name)}`}>
                       <b>{c.name}</b>
                       <span>{nBiur(c.listings)}</span>
                     </Link>
@@ -318,11 +319,13 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
       </section>
 
-      <section className="section">
-        <div className="wrap">
-          <BlogLinks title="Z bloga: dane i poradniki" items={blogLinks} className="blog-links home-blog" />
-        </div>
-      </section>
+      {features.blog && (
+        <section className="section">
+          <div className="wrap">
+            <BlogLinks title="Z bloga: dane i poradniki" items={blogLinks} className="blog-links home-blog" />
+          </div>
+        </section>
+      )}
 
       <section className="section soft">
         <div className="wrap why">
@@ -348,7 +351,7 @@ export default async function HomePage({ searchParams }: Props) {
             </li>
             <li>
               <b>Codzienna aktualizacja</b>
-              <span>Oferty i kontakt sprawdzamy każdego dnia.</span>
+              <span>{texts.homeWhyDaily}</span>
             </li>
           </ul>
         </div>
@@ -376,14 +379,15 @@ export default async function HomePage({ searchParams }: Props) {
       <section className="section">
         <div className="wrap cta-dark">
           <div>
-            <h2>Prowadzisz biuro nieruchomości?</h2>
+            <h2>{`Prowadzisz ${firmPhrase("one")}?`}</h2>
             <p>Sprawdź swój wpis, popraw dane albo zgłoś biuro, którego jeszcze nie ma w katalogu.</p>
           </div>
           <Link className="btn-green" href="/dla-firm">
             Przejdź do strony dla biur
           </Link>
           <p className="cta-meta">
-            {nBiur(stats.firms)} w katalogu · {nMiast(stats.cities)} · {nOfert(stats.offers)} ze stron biur
+            {nBiur(stats.firms)} w katalogu · {nMiast(stats.cities)}
+            {features.offers && <> · {nOfert(stats.offers)} ze stron biur</>}
           </p>
         </div>
       </section>

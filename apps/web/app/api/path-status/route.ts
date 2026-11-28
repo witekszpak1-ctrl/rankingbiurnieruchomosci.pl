@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { query } from "@/lib/db";
 import { resolveRedirects } from "@/lib/redirects";
+import { inVertical } from "@/lib/vertical-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -14,19 +15,19 @@ export async function GET() {
     query<{ from: string; to: string; published: boolean }>(
       `select r.from_path as "from", '/' || c.slug || '/' || l.slug as "to", l.status = 'published' as published
        from listing_redirects r
-       join listings l on l.id = r.listing_id and l.slug is not null
+       join listings l on l.id = r.listing_id and l.slug is not null and ${inVertical("l")}
        join cities c on c.id = l.city_id`,
     ),
     query<{ path: string }>(
       `select distinct '/' || c.slug || '/' || l.slug as path
        from listings l join cities c on c.id = l.city_id
-       where l.status = 'removed' and l.slug is not null
-         and not exists (select 1 from listings p where p.city_id = l.city_id and p.slug = l.slug and p.status = 'published')`,
+       where l.status = 'removed' and l.slug is not null and ${inVertical("l")}
+         and not exists (select 1 from listings p where p.city_id = l.city_id and p.slug = l.slug and p.status = 'published' and p.vertical_id = l.vertical_id)`,
     ),
     query<{ path: string }>(
       `select '/' || c.slug as path from cities c
-       where exists (select 1 from listings l where l.city_id = c.id and l.slug is not null)
-         and not exists (select 1 from listings l where l.city_id = c.id and l.status = 'published')`,
+       where exists (select 1 from listings l where l.city_id = c.id and l.slug is not null and ${inVertical("l")})
+         and not exists (select 1 from listings l where l.city_id = c.id and l.status = 'published' and ${inVertical("l")})`,
     ),
   ]);
   const map = resolveRedirects(redirects);

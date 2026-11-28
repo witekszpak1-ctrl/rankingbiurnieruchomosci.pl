@@ -7,6 +7,7 @@ import { PublicShell } from "@/components/SiteChrome";
 import { CONSENT_COOKIE, CONSENT_MAX_AGE_DAYS, LEGAL_EFFECTIVE_DATE, RETENTION_MONTHS, SERVICE_HOST } from "@/lib/legal";
 import { SESSION_COOKIE } from "@/lib/session";
 import { pageMetadata } from "@/lib/seo";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { getTracking } from "@/lib/tracking";
 import { TOOLS, WITEKCRM } from "@/lib/tracking-tools";
 
@@ -16,7 +17,7 @@ export const revalidate = 300;
 export const metadata: Metadata = pageMetadata({
   title: "Polityka prywatności i plików cookie",
   description:
-    "Kto jest administratorem danych w serwisie Ranking Biur Nieruchomości, jakie dane przetwarzamy, w jakim celu, jak długo i jakie masz prawa. Informacje o plikach cookie.",
+    `Kto jest administratorem danych w serwisie ${currentPortal().brandName}, jakie dane przetwarzamy, w jakim celu, jak długo i jakie masz prawa. Informacje o plikach cookie.`,
   path: "/polityka-prywatnosci",
 });
 
@@ -154,7 +155,7 @@ export default async function PrivacyPolicyPage() {
               . Narzędzia te zapisują pliki cookie i przekazują dostawcom informacje o Twojej wizycie (m.in. adres IP,
               odwiedzone strony, identyfikatory urządzenia), które dostawcy mogą łączyć z danymi ze swoich serwisów.
               Przekazujemy im też zdarzenia z Serwisu: odsłonę strony, obejrzenie profilu biura, wyszukiwanie, pokazanie
-              numeru telefonu, kliknięcie w stronę biura lub w ofertę, wysłanie zapytania i zgłoszenie właściciela firmy.
+              numeru telefonu, kliknięcie w stronę biura{currentPortal().features.offers ? " lub w ofertę" : ""}, wysłanie zapytania i zgłoszenie właściciela firmy.
             </p>
             {metaCapi && (
               <p>
@@ -185,7 +186,7 @@ export default async function PrivacyPolicyPage() {
         </p>
         <ul className="plain">
           <li>
-            Cel: przekazanie zapytania wybranemu biuru nieruchomości, obsługa zapytania i zapobieganie nadużyciom (np. limit
+            Cel: przekazanie zapytania wybranemu {currentPortal().terms.phrase.datOne}, obsługa zapytania i zapobieganie nadużyciom (np. limit
             liczby zapytań wysyłanych z jednego adresu e-mail).
           </li>
           <li>
@@ -242,7 +243,7 @@ export default async function PrivacyPolicyPage() {
 
         <h3 id="dane-firm">2.7. Dane firm w katalogu</h3>
         <p>
-          Katalog obejmuje biura nieruchomości prowadzone jako spółki i jako jednoosobowe działalności gospodarcze. Dane spółek
+          Katalog obejmuje {firmPhrase("few")} prowadzone jako spółki i jako jednoosobowe działalności gospodarcze. Dane spółek
           nie są danymi osobowymi. Dane przedsiębiorców będących osobami fizycznymi (np. imię i nazwisko w nazwie firmy, adres
           działalności) już tak. Tych danych nie zbieramy od samych przedsiębiorców, dlatego informujemy o nich tutaj (art. 14
           RODO).
@@ -252,8 +253,7 @@ export default async function PrivacyPolicyPage() {
             Zakres: nazwa firmy i marki, NIP, REGON, numer KRS, forma prawna, data rozpoczęcia działalności, status VAT, adres
             siedziby lub miejsca wykonywania działalności (u osób fizycznych bez wpisanego adresu działalności tylko miejscowość
             i kod pocztowy), adres strony internetowej, dane kontaktowe opublikowane przez firmę na jej stronie (telefon,
-            firmowy adres e-mail, profile w mediach społecznościowych), informacje o usługach, cenach i prowizjach, tytuły, ceny
-            i linki do ofert nieruchomości, zdjęcia i logo ze strony firmy, ocena i opinie z Google, opis przygotowany na
+            firmowy adres e-mail, profile w mediach społecznościowych), informacje o usługach{currentPortal().features.saleCommission ? ", cenach i prowizjach" : " i cenach"}{currentPortal().features.offers ? ", tytuły, ceny i linki do ofert nieruchomości" : ""}, zdjęcia i logo ze strony firmy, ocena i opinie z Google, opis przygotowany na
             podstawie tych danych oraz wynik w rankingu.
           </li>
           <li>
@@ -266,7 +266,7 @@ export default async function PrivacyPolicyPage() {
             LiteScrape).
           </li>
           <li>
-            Cel: prowadzenie publicznie dostępnego katalogu i rankingu biur nieruchomości, który pomaga konsumentom porównać
+            Cel: prowadzenie publicznie dostępnego katalogu i rankingu {firmPhrase("many")}, który pomaga konsumentom porównać
             biura i wybrać jedno z nich, oraz aktualizacja wpisów.
           </li>
           <li>

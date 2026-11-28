@@ -5,6 +5,8 @@ import { currentPortal } from "./portal";
 const portal = currentPortal();
 export const SITE_URL = (process.env.SITE_URL ?? portal.siteUrl).replace(/\/+$/, "");
 export const SITE_NAME = portal.siteName;
+/** Nazwa hosta serwisu (do tekstów, np. "rankingbiurnieruchomosci.pl"). */
+export const SITE_HOST = new URL(SITE_URL).host;
 export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || portal.contactEmail;
 
 export function formatDate(value: Date | string | null | undefined): string {

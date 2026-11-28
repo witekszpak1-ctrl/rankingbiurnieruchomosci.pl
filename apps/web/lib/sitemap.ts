@@ -9,6 +9,7 @@ import { getBlogOverrides, isHidden, withOverride } from "./blog-overrides";
 import { cityPairs, loadBlogData } from "./blog-stats";
 import { listPublishedPaths, type SitemapEntry } from "./catalog";
 import { absoluteUrl } from "./format";
+import { currentPortal, isPathDisabled } from "./portal";
 import { CITY_RANKING_MIN, METHODOLOGY } from "./ranking";
 
 export const SITEMAP_FILES = ["strony", "miasta", "firmy"] as const;
@@ -50,7 +51,13 @@ export function splitCatalogEntries(entries: SitemapEntry[]): Pick<SitemapGroups
 }
 
 export async function sitemapGroups(): Promise<SitemapGroups> {
-  const [entries, blog, blogOverrides] = await Promise.all([listPublishedPaths(), loadBlogData().catch(() => null), getBlogOverrides()]);
+  const portal = currentPortal();
+  // Blog potrzebuje danych tylko w portalu z blogiem (loadBlogData czyta statystyki ofert i prowizji).
+  const [entries, blog, blogOverrides] = await Promise.all([
+    listPublishedPaths(),
+    portal.features.blog ? loadBlogData().catch(() => null) : Promise.resolve(null),
+    portal.features.blog ? getBlogOverrides() : Promise.resolve({}),
+  ]);
   const newest = newestDate(entries.map((e) => e.lastModified ?? undefined));
   // Strona główna i lista miast zmieniają się razem z katalogiem; strony informacyjne mają datę zmiany treści.
   const strony: SitemapUrl[] = [
@@ -58,18 +65,24 @@ export async function sitemapGroups(): Promise<SitemapGroups> {
     // Ranking ogólnopolski jest indeksowany od 10 biur (app/ranking/page.tsx); lista ofert ma noindex.
     ...(entries.filter((e) => e.firmSlug).length >= 10 ? [{ url: absoluteUrl("/ranking"), lastModified: newest }] : []),
     { url: absoluteUrl("/miasta"), lastModified: newest },
-    { url: absoluteUrl("/wyroznienia-2026"), lastModified: newest },
-    { url: absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026"), lastModified: newest },
+    ...(portal.features.awards ? [{ url: absoluteUrl("/wyroznienia-2026"), lastModified: newest }] : []),
+    ...(portal.features.reports ? [{ url: absoluteUrl("/raporty/prowizje-biur-nieruchomosci-2026"), lastModified: newest }] : []),
     { url: absoluteUrl("/metodologia"), lastModified: new Date(METHODOLOGY.modified) },
-    ...Object.entries(INFO_PAGES_MODIFIED).map(([path, date]) => ({ url: absoluteUrl(path), lastModified: new Date(date) })),
+    ...Object.entries(INFO_PAGES_MODIFIED)
+      .filter(([path]) => !isPathDisabled(path, portal))
+      .map(([path, date]) => ({ url: absoluteUrl(path), lastModified: new Date(date) })),
     // Blog: data zmiany tekstu z lib/blog.ts (liczby odświeżają się codziennie, ale to nie zmiana treści).
-    { url: absoluteUrl(BLOG_PATH), lastModified: new Date(blogModified()) },
-    ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides))
-      .map((p) => withOverride(p, blogOverrides))
-      .map((p) => ({ url: absoluteUrl(blogPath(p.slug)), lastModified: new Date(p.modified) })),
-    ...(blog ? cityPairs(blog.cities) : [])
-      .filter((p) => !isHidden(`porownanie-${p.slug}`, blogOverrides))
-      .map((p) => ({ url: absoluteUrl(blogPath(`porownanie/${p.slug}`)), lastModified: new Date(blogModified()) })),
+    ...(portal.features.blog
+      ? [
+          { url: absoluteUrl(BLOG_PATH), lastModified: new Date(blogModified()) },
+          ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides))
+            .map((p) => withOverride(p, blogOverrides))
+            .map((p) => ({ url: absoluteUrl(blogPath(p.slug)), lastModified: new Date(p.modified) })),
+          ...(blog ? cityPairs(blog.cities) : [])
+            .filter((p) => !isHidden(`porownanie-${p.slug}`, blogOverrides))
+            .map((p) => ({ url: absoluteUrl(blogPath(`porownanie/${p.slug}`)), lastModified: new Date(blogModified()) })),
+        ]
+      : []),
   ];
   return { strony, ...splitCatalogEntries(entries) };
 }

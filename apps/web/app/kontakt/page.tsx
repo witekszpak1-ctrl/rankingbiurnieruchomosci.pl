@@ -3,14 +3,14 @@ import Link from "next/link";
 
 import { OperatorDetails } from "@/components/LegalOperator";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { absoluteUrl } from "@/lib/format";
+import { absoluteUrl, SITE_HOST } from "@/lib/format";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { operator } from "@/lib/legal";
 import { organizationLd, pageMetadata, websiteRef } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Kontakt z rankingiem biur nieruchomości",
-  description:
-    "Kontakt z rankingbiurnieruchomosci.pl: e-mail, formularz korekty i usunięcia wpisu biura, dane administratora serwisu.",
+  title: `Kontakt z rankingiem ${firmPhrase("many")}`,
+  description: `Kontakt z ${SITE_HOST}: e-mail, formularz korekty i usunięcia wpisu biura, dane administratora serwisu.`,
   path: "/kontakt",
 });
 
@@ -53,7 +53,7 @@ export default function ContactPage() {
           e-mail. Szczegóły w <Link href="/polityka-prywatnosci#prawa">polityce prywatności</Link>.
         </li>
         <li>
-          <b>Zapytanie do konkretnego biura:</b> formularz „Zapytaj o ofertę” na profilu tego biura. Wiadomość trafia
+          <b>Zapytanie do konkretnego biura:</b> formularz „{currentPortal().texts.leadCta}” na profilu tego biura. Wiadomość trafia
           prosto do biura.
         </li>
         <li>

@@ -43,6 +43,7 @@ Każdy agent zaczyna od tego pliku i kończy jego aktualizacją w tym samym comm
 - [ ] Powiadomienia z art. 14 RODO do firm (informacja bez reklamy)
 - [~] Silnik wielu branż w stronie (apps/web): branża, nazwy, teksty, dane strukturalne i wygląd z konfiguracji
   - krok 1 zrobiony: konfiguracja portalu (`lib/portal.ts`, `portals/nieruchomosci.ts`), część wspólna (nazwa, adres, meta, llms, manifest, stopka, dane strukturalne, motyw `data-theme`) na konfiguracji, bez zmiany wyglądu; zostaje wybór po domenie, motywy i układy per portal, reszta tekstów (`docs/geo/silnik-branz.md`)
+  - krok 2 zrobiony: jeden projekt Vercel na portal (zmienna `PORTAL`, strony ISR bez `headers()`), dane ograniczone do branży portalu (`lib/vertical-scope.ts`), portal `rachunkowe` (`portals/rachunkowe.ts`, motyw `rachunkowe`), flagi funkcji (oferty, blog, raporty, wyróżnienia, cele klienta, mediana prowizji), teksty wspólne z konfiguracji; opis i uruchomienie nowego portalu w `docs/geo/silnik-branz.md`. Zostaje: logo i ikony per portal, wagi rankingu per branża, domena rachunkowych, osobne warianty układu
 - [x] Pakiet branży biura rachunkowe (packages/verticals/rachunkowe): konfiguracja, prompty, miasta (28.11; blokery: docs/geo/branza-rachunkowe.md)
 - [x] Robot wielobranżowy (28.11, gałąź claude/robot-branze): `domains.vertical_id`, osobna kolejka miast (`vertical_cities`)
       dla branż innych niż nieruchomości, `--vertical` we wszystkich etapach i workflowach, ścieżki kolejki z prefiksem

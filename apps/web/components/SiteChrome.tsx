@@ -19,16 +19,16 @@ export function SiteHeader() {
           <Logo />
         </Link>
         <nav className="nav" aria-label="Główna nawigacja">
-          <Link href="/miasta">Miasta</Link>
-          <Link href="/ranking">Ranking</Link>
-          <Link href="/blog">Blog</Link>
-          <Link href="/metodologia">Jak oceniamy</Link>
-          <Link href="/dla-firm">{texts.navForFirms}</Link>
+          {texts.headerNav.map((l) => (
+            <Link key={l.href} href={l.href}>
+              {l.label}
+            </Link>
+          ))}
         </nav>
         <Link className="header-cta" href="/#szukaj">
           {texts.headerCta}
         </Link>
-        <MobileNav />
+        <MobileNav links={texts.mobileNav} cta={texts.headerCta} />
       </div>
     </header>
   );

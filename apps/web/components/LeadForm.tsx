@@ -6,6 +6,7 @@ import { LeadTopicMessage } from "@/components/LeadTopicMessage";
 import { LeadFormStatus } from "@/components/LeadFormStatus";
 import { leadMessage } from "@/lib/lead-message";
 import { operator } from "@/lib/legal";
+import { currentPortal } from "@/lib/portal";
 import { LEAD_TOPICS, TOPIC_LABEL } from "@/lib/leads";
 import { RETENTION_MONTHS } from "@/lib/legal";
 
@@ -26,7 +27,7 @@ export function LeadForm({ listingId, firmName, where, path, imageSlot }: Props)
       <div className="lead-head">
         {imageSlot}
         <div>
-          <span className="lead-kicker">Zapytaj o ofertę</span>
+          <span className="lead-kicker">{currentPortal().texts.leadCta}</span>
           <h2>{firmName}</h2>
         </div>
       </div>
@@ -67,7 +68,7 @@ function form(listingId: string, firmName: string, path: string, messages: Recor
             biura {firmName} w celu odpowiedzi na zapytanie.
           </label>
           <button className="lead-submit" type="submit">
-            Zapytaj o ofertę
+            {currentPortal().texts.leadCta}
           </button>
           <p className="lead-note full">
             Dane przekażemy tylko temu biuru, w celu odpowiedzi na zapytanie, a z naszej bazy usuniemy je automatycznie po{" "}

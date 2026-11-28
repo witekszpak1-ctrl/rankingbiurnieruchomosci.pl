@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { GOALS, type Goal } from "@/lib/city-view";
 import { query } from "@/lib/db";
+import { inVertical } from "@/lib/vertical-scope";
 import { slugify } from "@/lib/slug";
 
 /**
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (slug) {
     const rows = await query<{ slug: string }>(
       `select c.slug from cities c where c.slug = $1
-         and exists (select 1 from listings l where l.city_id = c.id and l.status = 'published')`,
+         and exists (select 1 from listings l where l.city_id = c.id and l.status = 'published' and ${inVertical("l")})`,
       [slug],
     );
     if (rows[0]) {

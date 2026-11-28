@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
  * (telefon, tablet; CSS pokazuje go tylko w jednej kolumnie). Chowa się, gdy na ekranie widać przycisk u góry profilu
  * albo sam formularz, żeby nie dublować przycisku. Bez JavaScriptu zostaje schowany.
  */
-export function ProfileStickyCta() {
+export function ProfileStickyCta({ label }: { label: string }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export function ProfileStickyCta() {
   return (
     <div className="sticky-cta" data-hidden={show ? "false" : "true"} aria-hidden={!show}>
       <a className="btn-green" href="#zapytanie" tabIndex={show ? undefined : -1}>
-        Zapytaj o ofertę
+        {label}
       </a>
     </div>
   );

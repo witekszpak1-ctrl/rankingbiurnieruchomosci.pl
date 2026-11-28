@@ -4,20 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const LINKS: [string, string][] = [
-  ["/miasta", "Miasta"],
-  ["/ranking", "Ranking"],
-  ["/oferty", "Oferty biur"],
-  ["/blog", "Blog"],
-  ["/metodologia", "Jak oceniamy"],
-  ["/raporty/prowizje-biur-nieruchomosci-2026", "Prowizje biur 2026"],
-  ["/poradnik/jak-sprawdzic-biuro-nieruchomosci", "Jak sprawdzić biuro"],
-  ["/dla-firm", "Dla biur"],
-  ["/kontakt", "Kontakt"],
-];
-
 /** Menu na telefonie: przycisk w nagłówku otwiera panel z linkami. Zamyka się po wyborze strony, klawiszem Esc i przyciskiem. */
-export function MobileNav() {
+export function MobileNav({ links, cta }: { links: { href: string; label: string }[]; cta: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -52,7 +40,7 @@ export function MobileNav() {
       </button>
       <nav id="mnav-panel" className="mnav-panel" aria-label="Menu" hidden={!open}>
         <ul>
-          {LINKS.map(([href, label]) => (
+          {links.map(({ href, label }) => (
             <li key={href}>
               <Link href={href} aria-current={pathname === href ? "page" : undefined} onClick={() => setOpen(false)}>
                 {label}
@@ -61,7 +49,7 @@ export function MobileNav() {
           ))}
         </ul>
         <Link className="mnav-cta" href="/#szukaj" onClick={() => setOpen(false)}>
-          Znajdź biuro <span aria-hidden="true">→</span>
+          {cta} <span aria-hidden="true">→</span>
         </Link>
       </nav>
     </div>

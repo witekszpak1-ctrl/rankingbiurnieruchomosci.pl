@@ -2,6 +2,7 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 
 import { reportHit } from "./lib/analytics-edge";
 import { GONE_HTML, isCandidatePath, pathStatus } from "./lib/path-status";
+import { isPathDisabled } from "./lib/portal";
 import { reportBot } from "./lib/pulse-bots";
 import { SESSION_COOKIE, verifySession } from "./lib/session";
 
@@ -12,6 +13,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
   if (pathname !== "/admin" && !pathname.startsWith("/admin/")) {
     reportBot(request, event);
+    // Funkcje wyłączone w tym portalu (np. oferty i blog w portalu bez nich): zwykła strona 404 z tej samej aplikacji.
+    if (isPathDisabled(pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/nie-ma-takiej-strony";
+      url.search = "";
+      return NextResponse.rewrite(url, { status: 404 });
+    }
     // Przeniesione i scalone profile: przekierowanie stałe; wycofane wpisy i puste miasta: 410 (plan poprawy, etap 2-3).
     if (isCandidatePath(pathname)) {
       const status = await pathStatus(pathname, request.nextUrl.origin, (p) => event.waitUntil(p));

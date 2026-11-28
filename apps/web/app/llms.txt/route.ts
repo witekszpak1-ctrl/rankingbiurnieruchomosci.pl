@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 // Plik dla asystentów AI: krótki opis serwisu i najważniejsze adresy. Skuteczność llms.txt nie jest potwierdzona,
 // ale koszt jest znikomy.
 export async function GET() {
-  const [cities, blogOverrides] = await Promise.all([listCities(), getBlogOverrides()]);
-  const op = operator();
   const portal = currentPortal();
+  const [cities, blogOverrides] = await Promise.all([listCities(), portal.features.blog ? getBlogOverrides() : Promise.resolve({})]);
+  const op = operator();
   const lines = [
     `# ${SITE_NAME}`,
     "",
@@ -30,10 +30,14 @@ export async function GET() {
     `- [O nas](${absoluteUrl("/o-nas")}): kto prowadzi serwis (${op.name ?? "operator serwisu"}), skąd są dane i jak często je odświeżamy`,
     `- [Kontakt](${absoluteUrl("/kontakt")})${op.email ? `: ${op.email}` : ""}`,
     "",
-    "## Blog",
-    `- [Blog](${absoluteUrl(BLOG_PATH)}): artykuły z danymi katalogu, odświeżane codziennie`,
-    ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides)).map((p) => `- [${p.h1}](${absoluteUrl(blogPath(p.slug))})`),
-    "",
+    ...(portal.features.blog
+      ? [
+          "## Blog",
+          `- [Blog](${absoluteUrl(BLOG_PATH)}): artykuły z danymi katalogu, odświeżane codziennie`,
+          ...BLOG_POSTS.filter((p) => !isHidden(p.slug, blogOverrides)).map((p) => `- [${p.h1}](${absoluteUrl(blogPath(p.slug))})`),
+          "",
+        ]
+      : []),
     "## Miasta",
     ...cities.map((c) => `- [${capitalize(firmPhrase("few"))} ${c.name}](${absoluteUrl(`/${c.slug}`)}): ${nBiur(c.listings)} ${inCity(c.name)}`),
     "",

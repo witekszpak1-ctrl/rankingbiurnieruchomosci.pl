@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 import { PublicShell } from "@/components/SiteChrome";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL, SITE_URL } from "@/lib/format";
 
 export const metadata: Metadata = pageMetadata({
-  title: "KatalogBot: robot katalogu biur nieruchomości",
-  description:
-    "Jak działa robot zbierający dane o biurach nieruchomości: jakie strony odwiedza, jak przestrzega robots.txt i jak wykluczyć swoją stronę.",
+  title: `KatalogBot: robot katalogu ${firmPhrase("many")}`,
+  description: `Jak działa robot zbierający dane o ${currentPortal().terms.phrase.locPl}: jakie strony odwiedza, jak przestrzega robots.txt i jak wykluczyć swoją stronę.`,
   path: "/bot",
 });
 
@@ -18,7 +18,7 @@ export default function BotPage() {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          Nasz robot odwiedza strony biur nieruchomości, żeby zapisać dane firmowe do katalogu. Przestrzega pliku
+          Nasz robot odwiedza strony {firmPhrase("many")}, żeby zapisać dane firmowe do katalogu. Przestrzega pliku
           robots.txt, robi przerwy między zapytaniami do tego samego serwera i przedstawia się nazwą KatalogBot.
         </p>
       </div>

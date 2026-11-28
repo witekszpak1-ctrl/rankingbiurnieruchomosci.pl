@@ -42,8 +42,12 @@ export default function OgImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO_WHITE} width={LOGO_WIDTH} height={LOGO_HEIGHT} alt="" />
+          {portal.themeId === "nieruchomosci" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={LOGO_WHITE} width={LOGO_WIDTH} height={LOGO_HEIGHT} alt="" />
+          ) : (
+            <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: 1 }}>{portal.brandName}</div>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1.05 }}>{portal.texts.ogHeadline}</div>

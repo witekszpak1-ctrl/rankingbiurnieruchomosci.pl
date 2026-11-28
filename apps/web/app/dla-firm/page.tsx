@@ -6,13 +6,14 @@ import { OperatorContact, OperatorDetails } from "@/components/LegalOperator";
 import { PublicShell } from "@/components/SiteChrome";
 import { pageMetadata } from "@/lib/seo";
 import { CONTACT_EMAIL } from "@/lib/format";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { RETENTION_MONTHS } from "@/lib/legal";
 import { KIND_LABEL, REQUEST_KINDS } from "@/lib/requests";
 
 import { submitRequestAction } from "./actions";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Dla biur nieruchomości: korekta danych i pozycja w rankingu",
+  title: `Dla ${firmPhrase("many")}: korekta danych i pozycja w rankingu`,
   description:
     "Jakie dane o biurze publikujemy, od czego zależy pozycja w rankingu i jak zgłosić korektę albo usunięcie wpisu. Płatność nie wpływa na wynik.",
   path: "/dla-firm",
@@ -114,8 +115,8 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
       <p>
         Dane o firmie pochodzą z rejestrów publicznych (KRS, wykaz podatników VAT) oraz z jej oficjalnej strony
         internetowej. Publikujemy wyłącznie dane firmowe: nazwę, miasto i adres biura, formę prawną i rok wpisu do
-        rejestru, stronę internetową, firmowy telefon i e-mail, profile w mediach społecznościowych, logo, zakres usług,
-        ceny i oferty, które firma sama pokazuje na swojej stronie, oraz ocenę z Map Google, jeśli biuro ma tam profil.
+        rejestru, stronę internetową, firmowy telefon i e-mail, profile w mediach społecznościowych, logo, zakres usług,{" "}
+        {currentPortal().texts.forFirmsDataList}, które firma sama pokazuje na swojej stronie, oraz ocenę z Map Google, jeśli biuro ma tam profil.
         Opis biura piszemy od nowa na podstawie tych faktów, bez kopiowania tekstów ze strony.
       </p>
 
@@ -130,14 +131,16 @@ export default async function ForCompaniesPage({ searchParams }: Props) {
           biura bez potwierdzenia są w katalogu, ale niżej w rankingu.
         </li>
         <li>
-          <b>Jawny cennik</b>, czyli stawki prowizji podane na stronie, z informacją o VAT.
+          <b>Jawny cennik</b>, czyli stawki {currentPortal().terms.fee.genPl} podane na stronie, z informacją o VAT.
         </li>
         <li>
-          <b>Opisany zakres usług</b>: sprzedaż, wynajem, zarządzanie najmem, rynek pierwotny i inne.
+          <b>Opisany zakres usług</b>: {currentPortal().texts.serviceExamples}.
         </li>
-        <li>
-          <b>Aktualne oferty</b> widoczne na stronie biura.
-        </li>
+        {currentPortal().features.offers && (
+          <li>
+            <b>Aktualne oferty</b> widoczne na stronie biura.
+          </li>
+        )}
       </ul>
       <p>
         Dane odświeżamy automatycznie, więc zmiany na stronie biura trafiają do katalogu zwykle w ciągu kilku dni. Jeśli

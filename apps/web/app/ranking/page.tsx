@@ -7,7 +7,8 @@ import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listAllPublished, type TopListing } from "@/lib/catalog";
 import { inCity } from "@/lib/cities";
 import { absoluteUrl, formatDate } from "@/lib/format";
-import { nBiur, plural } from "@/lib/plural";
+import { nFirmUnits, plural } from "@/lib/plural";
+import { capitalize, firmPhrase, nFirmPhrase, currentPortal } from "@/lib/portal";
 import { rankListings, type RankingInput } from "@/lib/ranking";
 import { breadcrumbLd, pageMetadata, websiteRef } from "@/lib/seo";
 
@@ -36,8 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const cities = new Set(all.map((l) => l.citySlug)).size;
   const year = new Date().getFullYear();
   return pageMetadata({
-    title: `Najlepsze biura nieruchomości w Polsce ${year} | Ranking ogólnopolski`,
-    description: `Ogólnopolskie zestawienie ${nBiur(all.length)} nieruchomości z ${citiesLabel(cities)}, ocenianych według jednej jawnej metodologii: rejestr, staż, cennik, zakres usług i oferty.`,
+    title: `Najlepsze ${firmPhrase("few")} w Polsce ${year} | Ranking ogólnopolski`,
+    description: `Ogólnopolskie zestawienie ${nFirmPhrase(all.length)} z ${citiesLabel(cities)}, ocenianych według jednej jawnej metodologii: rejestr, staż, cennik, zakres usług${currentPortal().features.offers ? " i oferty" : ""}.`,
     path: "/ranking",
     noindex: all.length < MIN_FOR_INDEX,
   });
@@ -58,11 +59,11 @@ export default async function NationalRankingPage() {
       <p className="crumbs">
         <Link href="/">Strona główna</Link> / Ranking ogólnopolski
       </p>
-      <h1>Najlepsze biura nieruchomości w Polsce {year}</h1>
+      <h1>Najlepsze {firmPhrase("few")} w Polsce {year}</h1>
       <p>
-        Zestawienie obejmuje {nBiur(all.length)} nieruchomości z {citiesLabel(cities.length)}, ocenianych według tej samej{" "}
+        Zestawienie obejmuje {nFirmPhrase(all.length)} z {citiesLabel(cities.length)}, ocenianych według tej samej{" "}
         <Link href="/metodologia">jawnej metodologii</Link>: potwierdzenie w rejestrze, staż, jawność cennika, zakres usług
-        i aktualne oferty. {confirmed} z nich {plural(confirmed, "ma", "mają", "ma")} potwierdzenie w rejestrach publicznych, a {withPrices}{" "}
+        {currentPortal().features.offers ? " i aktualne oferty" : ""}. {confirmed} z nich {plural(confirmed, "ma", "mają", "ma")} potwierdzenie w rejestrach publicznych, a {withPrices}{" "}
         {plural(withPrices, "publikuje", "publikują", "publikuje")} cennik.
         Pokazujemy {Math.min(TOP, ranked.length)} najwyżej ocenionych. Biuro wybiera się zwykle lokalnie, dlatego pełne
         porównanie znajdziesz na stronach miast. Dane zaktualizowaliśmy {formatDate(updated)}.
@@ -97,7 +98,7 @@ export default async function NationalRankingPage() {
         </div>
       )}
 
-      <h2>Ranking biur nieruchomości w Polsce</h2>
+      <h2>{`Ranking ${firmPhrase("many")} w Polsce`}</h2>
       <div className="tablewrap">
         <table>
           <thead>
@@ -136,13 +137,13 @@ export default async function NationalRankingPage() {
         Wynik liczymy według <Link href="/metodologia">publicznej metodologii</Link>. Płatność nie wpływa na pozycję.
       </p>
 
-      <h2>Rankingi biur nieruchomości w miastach</h2>
+      <h2>{`Rankingi ${firmPhrase("many")} w miastach`}</h2>
       <ul className="city-grid">
         {cities.map(([slug, name]) => (
           <li key={slug}>
-            <Link href={`/${slug}`} title={`Biura nieruchomości ${inCity(name)}`}>
+            <Link href={`/${slug}`} title={`${capitalize(firmPhrase("few"))} ${inCity(name)}`}>
               <b>{name}</b>
-              <span>{nBiur(all.filter((l) => l.citySlug === slug).length)}</span>
+              <span>{nFirmUnits(all.filter((l) => l.citySlug === slug).length)}</span>
             </Link>
           </li>
         ))}
@@ -153,7 +154,7 @@ export default async function NationalRankingPage() {
           "@context": "https://schema.org",
           "@type": "CollectionPage",
           url: absoluteUrl("/ranking"),
-          name: `Najlepsze biura nieruchomości w Polsce ${year}`,
+          name: `Najlepsze ${firmPhrase("few")} w Polsce ${year}`,
           inLanguage: "pl-PL",
           dateModified: updated.toISOString(),
           isPartOf: websiteRef(),

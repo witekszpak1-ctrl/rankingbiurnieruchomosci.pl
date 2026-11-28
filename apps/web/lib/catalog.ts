@@ -5,6 +5,7 @@ import { memoize } from "./memo";
 import { addressText } from "./format";
 import { isPlausible, priceKind } from "./prices";
 import { median } from "./ranking";
+import { inVertical, verticalIdSql } from "./vertical-scope";
 
 export type CityRow = { slug: string; name: string; listings: number };
 
@@ -84,7 +85,8 @@ export type ListingDetail = ListingCard & {
   cities: { name: string; path: string }[];
 };
 
-const CARD_SQL = `
+/** Karta wpisu; wpisy innej branży niż portal są wycięte już tutaj (patrz lib/vertical-scope.ts). */
+const cardSql = () => `
   select l.id as "listingId", b.id as "brandId", l.slug, b.name, d.host, d.canonical_url as "websiteUrl", b.image_url as "imageUrl", b.image_kind as "imageKind",
     coalesce(b.logo_url, case when b.image_kind <> 'og' then b.image_url end, b.image_url) as "logoUrl",
     b.cover_url as "coverUrl",
@@ -102,7 +104,7 @@ const CARD_SQL = `
   from listings l
   join brands b on b.id = l.brand_id
   left join legal_entities le on le.id = b.legal_entity_id
-  join cities c on c.id = l.city_id
+  join cities c on c.id = l.city_id and ${inVertical("l")}
   left join lateral (
     select host, canonical_url, verification_score from domains
     where brand_id = b.id order by verification_score desc nulls last limit 1
@@ -116,7 +118,7 @@ export const listCities = memoize(
   (): Promise<CityRow[]> =>
     query<CityRow>(
       `select c.slug, c.name, count(*)::int as listings
-       from cities c join listings l on l.city_id = c.id and l.status = 'published'
+       from cities c join listings l on l.city_id = c.id and l.status = 'published' and ${inVertical("l")}
        group by c.id order by listings desc, c.name`,
     ),
   CATALOG_TTL_MS,
@@ -131,14 +133,14 @@ export async function getCity(slug: string): Promise<{ id: string; slug: string;
 }
 
 export async function listCityListings(citySlug: string): Promise<ListingCard[]> {
-  return query<ListingCard>(`${CARD_SQL} where c.slug = $1 and l.status = 'published' order by b.name`, [citySlug]);
+  return query<ListingCard>(`${cardSql()} where c.slug = $1 and l.status = 'published' order by b.name`, [citySlug]);
 }
 
 export async function getPublishedListing(citySlug: string, firmSlug: string): Promise<ListingDetail | null> {
   const cards = await query<ListingCard & { cityName: string; citySlug: string; legalForm: string | null; nip: string | null; brandId: string; verticalId: string }>(
     `select card.*, c.name as "cityName", c.slug as "citySlug", le.legal_form as "legalForm", le.nip, b.id as "brandId",
             l.vertical_id as "verticalId"
-     from (${CARD_SQL} where c.slug = $1 and l.slug = $2 and l.status = 'published') card
+     from (${cardSql()} where c.slug = $1 and l.slug = $2 and l.status = 'published') card
      join listings l on l.id = card."listingId"
      join brands b on b.id = l.brand_id
      left join legal_entities le on le.id = b.legal_entity_id
@@ -231,7 +233,7 @@ export async function cityCommissionStats(citySlug: string): Promise<CommissionS
             p.observed_at as "observedAt"
      from price_items p
      join brands b on b.id = p.brand_id
-     join listings l on l.brand_id = b.id and l.status = 'published'
+     join listings l on l.brand_id = b.id and l.status = 'published' and ${inVertical("l")}
      join cities c on c.id = l.city_id
      where c.slug = $1 and p.is_current and p.unit = 'percent' and p.amount_min is not null`,
     [citySlug],
@@ -277,8 +279,8 @@ export async function commissionReport(): Promise<CommissionReport> {
       `select l.brand_id as "brandId", c.name, c.slug,
               exists (select 1 from price_items p where p.brand_id = l.brand_id and p.is_current) as "hasPrices"
        from listings l join cities c on c.id = l.city_id
-       where l.status = 'published' and l.id = (
-         select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
+       where l.status = 'published' and ${inVertical("l")} and l.id = (
+         select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.vertical_id = l.vertical_id and l1.status = 'published' and l1.slug is not null
          order by l1.published_at nulls last, l1.created_at limit 1)`,
     ),
     query<{ brandId: string; service: string; unit: PriceRow["unit"]; amountMin: number | null; amountMax: number | null; observedAt: Date }>(
@@ -286,7 +288,7 @@ export async function commissionReport(): Promise<CommissionReport> {
               p.amount_max::float8 as "amountMax", p.observed_at as "observedAt"
        from price_items p
        where p.is_current and p.unit = 'percent' and p.amount_min is not null
-         and exists (select 1 from listings l where l.brand_id = p.brand_id and l.status = 'published')`,
+         and exists (select 1 from listings l where l.brand_id = p.brand_id and l.status = 'published' and ${inVertical("l")})`,
     ),
   ]);
   const perBrand = new Map<string, { v: number; observedAt: Date }>();
@@ -336,7 +338,7 @@ export async function listPublishedPaths(): Promise<SitemapEntry[]> {
                      (select max(x.created_at) from descriptions x where x.brand_id = l.brand_id and x.status in ('validated', 'published')),
                      (select max(p.observed_at) from price_items p where p.brand_id = l.brand_id and p.is_current)) as "lastModified"
      from listings l join cities c on c.id = l.city_id
-     where l.status = 'published' and not l.noindex and l.slug is not null`,
+     where l.status = 'published' and not l.noindex and l.slug is not null and ${inVertical("l")}`,
   );
   // Firma w kilku miastach: w mapie strony tylko główny wpis (pozostałe wskazują go jako kanoniczny),
   // ale do liczby firm w mieście liczą się wszystkie wpisy.
@@ -358,8 +360,8 @@ export const listAllPublished = memoize(
   (): Promise<TopListing[]> =>
     query<TopListing>(
       `select card.*, c.name as "cityName", c.slug as "citySlug"
-       from (${CARD_SQL} where l.status = 'published' and l.id = (
-         select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.status = 'published' and l1.slug is not null
+       from (${cardSql()} where l.status = 'published' and l.id = (
+         select l1.id from listings l1 where l1.brand_id = l.brand_id and l1.vertical_id = l.vertical_id and l1.status = 'published' and l1.slug is not null
          order by l1.published_at nulls last, l1.created_at limit 1)) card
        join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
     ),
@@ -371,7 +373,7 @@ export const listPublishedCards = memoize(
   (): Promise<TopListing[]> =>
     query<TopListing>(
       `select card.*, c.name as "cityName", c.slug as "citySlug"
-       from (${CARD_SQL} where l.status = 'published') card
+       from (${cardSql()} where l.status = 'published') card
        join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
     ),
   CATALOG_TTL_MS,
@@ -382,7 +384,7 @@ export async function getBadgeListing(listingId: string): Promise<{ name: string
   const rows = await query<{ name: string; slug: string | null; cityName: string; citySlug: string }>(
     `select b.name, l.slug, c.name as "cityName", c.slug as "citySlug"
      from listings l join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
-     where l.id = $1 and l.status = 'published'`,
+     where l.id = $1 and l.status = 'published' and ${inVertical("l")}`,
     [listingId],
   );
   return rows[0] ?? null;
@@ -399,7 +401,7 @@ export async function compareCards(ids: string[]): Promise<CompareCard[]> {
                and p.unit = 'percent' and p.service ~* 'sprzeda|kupn' and p.amount_min between 0.5 and 10) as "saleCommission",
             coalesce((select array_agg(distinct f.value #>> '{}') from facts f
                where f.brand_id = l.brand_id and f.type = 'service' and f.is_current), '{}') as services
-     from (${CARD_SQL} where l.status = 'published' and l.id = any($1::uuid[])) card
+     from (${cardSql()} where l.status = 'published' and l.id = any($1::uuid[])) card
      join listings l on l.id = card."listingId" join cities c on c.id = l.city_id`,
     [ids],
   );
@@ -423,8 +425,8 @@ export type LatestOffer = {
  * Główny wpis firmy (najwcześniej opublikowany), ten sam co kanoniczny na stronie firmy i w mapie strony.
  * Oferty biorą z niego miasto, żeby firma z kilkoma miastami nie pokazywała tej samej oferty kilka razy.
  */
-const PRIMARY_LISTING = `select l1.id, l1.slug, l1.city_id from listings l1
-  where l1.brand_id = b.id and l1.status = 'published' and l1.slug is not null
+const primaryListing = () => `select l1.id, l1.slug, l1.city_id from listings l1
+  where l1.brand_id = b.id and l1.vertical_id = ${verticalIdSql()} and l1.status = 'published' and l1.slug is not null
   order by l1.published_at nulls last, l1.created_at limit 1`;
 
 export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
@@ -436,7 +438,7 @@ export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
               row_number() over (partition by o.brand_id order by o.position) as rn
        from offers o
        join brands b on b.id = o.brand_id
-       join lateral (${PRIMARY_LISTING}) l on true
+       join lateral (${primaryListing()}) l on true
        join cities c on c.id = l.city_id
        where o.is_active and o.price_amount is not null and o.last_seen_at > now() - interval '14 days'
      ) x where rn <= 2 order by first_seen_at desc limit $1`,
@@ -447,13 +449,13 @@ export async function listLatestOffers(limit = 6): Promise<LatestOffer[]> {
 export async function homeStats(): Promise<{ firms: number; cities: number; offers: number; withPrices: number }> {
   const rows = await query<{ firms: number; cities: number; offers: number; withPrices: number }>(
     // Firma z wpisami w kilku miastach liczy się raz, a jej oferty nie są mnożone przez liczbę miast.
-    `select (select count(distinct brand_id)::int from listings where status = 'published') as firms,
-            (select count(distinct city_id)::int from listings where status = 'published') as cities,
+    `select (select count(distinct brand_id)::int from listings where status = 'published' and vertical_id = ${verticalIdSql()}) as firms,
+            (select count(distinct city_id)::int from listings where status = 'published' and vertical_id = ${verticalIdSql()}) as cities,
             (select count(*)::int from offers o
               where o.is_active and o.last_seen_at > now() - interval '14 days'
-                and exists (select 1 from listings l where l.brand_id = o.brand_id and l.status = 'published')) as offers,
+                and exists (select 1 from listings l where l.brand_id = o.brand_id and l.status = 'published' and ${inVertical("l")})) as offers,
             (select count(distinct p.brand_id)::int from price_items p
-              join listings l on l.brand_id = p.brand_id and l.status = 'published' where p.is_current) as "withPrices"`,
+              join listings l on l.brand_id = p.brand_id and l.status = 'published' and ${inVertical("l")} where p.is_current) as "withPrices"`,
   );
   return rows[0] ?? { firms: 0, cities: 0, offers: 0, withPrices: 0 };
 }
@@ -468,7 +470,7 @@ export async function listOffersPage(opts: { citySlug?: string; page: number; pe
   }
   const base = `from offers o
      join brands b on b.id = o.brand_id
-     join lateral (${PRIMARY_LISTING}) l on true
+     join lateral (${primaryListing()}) l on true
      join cities c on c.id = l.city_id
      where o.is_active and o.last_seen_at > now() - interval '14 days' ${cond}`;
   const [offers, total] = await Promise.all([
@@ -489,7 +491,7 @@ export async function listOffersPage(opts: { citySlug?: string; page: number; pe
 export async function offerCities(): Promise<{ slug: string; name: string; n: number }[]> {
   return query<{ slug: string; name: string; n: number }>(
     `select c.slug, c.name, count(*)::int as n
-     from offers o join listings l on l.brand_id = o.brand_id and l.status = 'published' join cities c on c.id = l.city_id
+     from offers o join listings l on l.brand_id = o.brand_id and l.status = 'published' and ${inVertical("l")} join cities c on c.id = l.city_id
      where o.is_active and o.last_seen_at > now() - interval '14 days'
      group by c.slug, c.name order by n desc, c.name`,
   );
@@ -513,7 +515,7 @@ export async function cityPriceExamples(citySlug: string): Promise<CityPriceExam
             p.amount_max::float8 as "amountMax", p.tax_mode as "taxMode", p.observed_at as "observedAt"
      from price_items p
      join brands b on b.id = p.brand_id
-     join listings l on l.brand_id = b.id and l.status = 'published'
+     join listings l on l.brand_id = b.id and l.status = 'published' and ${inVertical("l")}
      join cities c on c.id = l.city_id
      where c.slug = $1 and p.is_current
      order by b.name, p.service`,
@@ -526,7 +528,7 @@ export async function cityServices(citySlug: string): Promise<{ brandId: string;
   return query<{ brandId: string; service: string }>(
     `select distinct f.brand_id as "brandId", f.value #>> '{}' as service
      from facts f
-     join listings l on l.brand_id = f.brand_id and l.status = 'published'
+     join listings l on l.brand_id = f.brand_id and l.status = 'published' and ${inVertical("l")}
      join cities c on c.id = l.city_id
      where c.slug = $1 and f.type = 'service' and f.is_current`,
     [citySlug],

@@ -4,12 +4,15 @@ import Link from "next/link";
 import { OperatorContact, OperatorDetails } from "@/components/LegalOperator";
 import { PublicShell } from "@/components/SiteChrome";
 import { LEGAL_EFFECTIVE_DATE, SERVICE_HOST } from "@/lib/legal";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { pageMetadata } from "@/lib/seo";
+
+const { features, texts } = currentPortal();
 
 export const metadata: Metadata = pageMetadata({
   title: "Regulamin serwisu",
   description:
-    "Zasady korzystania z serwisu Ranking Biur Nieruchomości: usługi, wymagania techniczne, ranking i opinie, formularze, reklamacje i odpowiedzialność.",
+    `Zasady korzystania z serwisu ${currentPortal().brandName}: usługi, wymagania techniczne, ranking i opinie, formularze, reklamacje i odpowiedzialność.`,
   path: "/regulamin",
 });
 
@@ -23,9 +26,8 @@ export default function TermsPage() {
         <div className="answer">
           <strong>W skrócie</strong>
           <p>
-            Serwis jest bezpłatnym katalogiem i rankingiem biur nieruchomości. Dane pochodzą z rejestrów publicznych, ze stron
-            biur i z Google. Pozycja w rankingu nie zależy od płatności. Nie jesteśmy pośrednikiem w obrocie nieruchomościami i
-            nie jesteśmy stroną umów, które zawierasz z biurami.
+            Serwis jest bezpłatnym katalogiem i rankingiem {firmPhrase("many")}. Dane pochodzą z rejestrów publicznych, ze stron
+            biur i z Google. Pozycja w rankingu nie zależy od płatności. {texts.notPartyShort}
           </p>
         </div>
 
@@ -43,7 +45,7 @@ export default function TermsPage() {
             <ul className="plain">
               <li>Użytkownik: każda osoba korzystająca z Serwisu,</li>
               <li>Konsument: Użytkownik będący konsumentem w rozumieniu art. 22¹ Kodeksu cywilnego,</li>
-              <li>Biuro: przedsiębiorca prowadzący biuro nieruchomości, którego dane są prezentowane w Serwisie,</li>
+              <li>Biuro: przedsiębiorca prowadzący {firmPhrase("one")}, którego dane są prezentowane w Serwisie,</li>
               <li>Formularz: formularz w Serwisie, przez który Użytkownik wysyła zapytanie lub zgłoszenie.</li>
             </ul>
           </li>
@@ -58,7 +60,7 @@ export default function TermsPage() {
           <li>
             Operator świadczy bezpłatnie następujące usługi:
             <ul className="plain">
-              <li>przeglądanie katalogu i rankingu biur nieruchomości, profili biur, ofert biur i opinii,</li>
+              <li>przeglądanie katalogu i rankingu {firmPhrase("many")}, profili biur, {features.offers ? "ofert biur " : ""}i opinii,</li>
               <li>wyszukiwanie biur według miasta,</li>
               <li>formularz zapytania do wybranego Biura, przekazywanego temu Biuru przez Operatora,</li>
               <li>formularze dla Biur: korekta danych, usunięcie wpisu, zgłoszenie właściciela firmy i inne sprawy.</li>
@@ -109,8 +111,7 @@ export default function TermsPage() {
             prawnej, podatkowej czy inwestycyjnej.
           </li>
           <li>
-            Operator nie jest pośrednikiem w obrocie nieruchomościami i nie jest stroną umów zawieranych między Użytkownikami a
-            Biurami. Za usługi Biur odpowiadają Biura.
+            {texts.notPartyLong} Za usługi Biur odpowiadają Biura.
           </li>
           <li>
             Kolejność Biur w rankingu wynika wyłącznie z parametrów opisanych w <Link href="/metodologia">metodologii</Link>,
@@ -131,14 +132,29 @@ export default function TermsPage() {
           </li>
         </ol>
 
-        <h2 id="p7">§ 7. Oferty nieruchomości</h2>
-        <ol>
-          <li>
-            Serwis pokazuje tytuły, ceny i linki do ofert opublikowanych przez Biura na ich stronach. Pełna i aktualna treść
-            oferty znajduje się na stronie Biura, a cenę i dostępność nieruchomości trzeba potwierdzić w Biurze.
-          </li>
-          <li>Za treść ofert odpowiadają Biura. Biuro może poprosić o usunięcie swoich ofert z Serwisu.</li>
-        </ol>
+        {features.offers ? (
+          <>
+            <h2 id="p7">§ 7. Oferty nieruchomości</h2>
+            <ol>
+              <li>
+                Serwis pokazuje tytuły, ceny i linki do ofert opublikowanych przez Biura na ich stronach. Pełna i aktualna treść
+                oferty znajduje się na stronie Biura, a cenę i dostępność nieruchomości trzeba potwierdzić w Biurze.
+              </li>
+              <li>Za treść ofert odpowiadają Biura. Biuro może poprosić o usunięcie swoich ofert z Serwisu.</li>
+            </ol>
+          </>
+        ) : (
+          <>
+            <h2 id="p7">§ 7. Treści ze stron Biur</h2>
+            <ol>
+              <li>
+                Serwis pokazuje informacje opublikowane przez Biura na ich stronach, np. zakres usług i ceny. Pełna i aktualna
+                treść znajduje się na stronie Biura, a cenę i zakres usług trzeba potwierdzić w Biurze.
+              </li>
+              <li>Za treść stron odpowiadają Biura. Biuro może poprosić o usunięcie swoich danych z Serwisu.</li>
+            </ol>
+          </>
+        )}
 
         <h2 id="p8">§ 8. Formularze i zasady korzystania</h2>
         <ol>
@@ -194,7 +210,7 @@ export default function TermsPage() {
             podaniem źródła i linkiem do Serwisu.
           </li>
           <li>
-            Nazwy, znaki towarowe, logo, zdjęcia i oferty Biur należą do ich właścicieli i są prezentowane wyłącznie w celu
+            Nazwy, znaki towarowe, logo, zdjęcia{features.offers ? " i oferty" : ""} Biur należą do ich właścicieli i są prezentowane wyłącznie w celu
             informacyjnym.
           </li>
         </ol>
@@ -203,7 +219,7 @@ export default function TermsPage() {
         <ol>
           <li>
             Operator odpowiada za świadczenie usług zgodnie z Regulaminem i przepisami prawa. Operator nie odpowiada za usługi
-            Biur, treść stron Biur i ofert ani za decyzje podjęte wyłącznie na podstawie informacji z Serwisu.
+            Biur, treść stron Biur{features.offers ? " i ofert" : ""} ani za decyzje podjęte wyłącznie na podstawie informacji z Serwisu.
           </li>
           <li>
             Operator może czasowo ograniczyć dostęp do Serwisu z powodu prac technicznych, awarii lub ze względów

@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PublicShell } from "@/components/SiteChrome";
+import { firmPhrase } from "@/lib/portal";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Reklama i niezależność rankingu biur nieruchomości",
-  description:
-    "Zasady oznaczania reklam w katalogu biur nieruchomości. Pozycja w rankingu nie zależy od płatności, a treści sponsorowane są oddzielone od rankingu.",
+  title: `Reklama i niezależność rankingu ${firmPhrase("many")}`,
+  description: `Zasady oznaczania reklam w katalogu ${firmPhrase("many")}. Pozycja w rankingu nie zależy od płatności, a treści sponsorowane są oddzielone od rankingu.`,
   path: "/reklama",
 });
 

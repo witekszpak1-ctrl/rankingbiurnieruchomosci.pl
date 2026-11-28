@@ -100,21 +100,79 @@ usunięciu części zmiennych (identyfikator budowy, hashe plików JS i CSS, non
 elementów listy w ładunku RSC). Wynik: brak różnic. Jedyna zamierzona różnica: atrybut `data-theme="nieruchomosci"`
 na `<html>`.
 
+## Krok 2: wybór portalu, zakres danych, portal rachunkowe
+
+### Wybór portalu i domeny (decyzja i kompromis)
+
+Źródłem prawdy na produkcji jest zmienna `PORTAL`: **jeden projekt Vercel na portal, ten sam kod, inna wartość `PORTAL`**
+(oraz `SITE_URL` z domeną). Powód: profile `/[city]/[firm]` są renderowane przez ISR (`generateStaticParams` zwraca `[]`,
+`revalidate = 300`). Odczyt `headers()` albo `cookies()` w stronie lub layoucie robi z niej stronę dynamiczną, czyli
+wyłącza pamięć podręczną i wraca obciążenie bazy przy każdym wejściu botów. Wybór portalu po nagłówku `Host` na jednym
+wdrożeniu wymagałby tego odczytu w layoucie (nazwa, metadane, motyw), więc go nie robimy. Skutek uboczny na plus: portale
+są w pełni niezależnymi wdrożeniami (osobne pamięci podręczne, osobne awarie, osobne zmienne), zgodnie z decyzją
+"portale mają być niezależne i różne" (`docs/ops/DECISIONS.md`).
+
+Co zostało z wyboru po hoście: `portalForHost(host)` i `portal.domains` (testy, podglądy, praca lokalna), a
+`currentPortal(host?)` daje host pierwszeństwo przed `PORTAL`. Middleware (`middleware.ts`) nie zmienia zachowania, poza
+jednym: adresy funkcji wyłączonych w portalu (`isPathDisabled`) odpowiadają zwykłą stroną 404. Stałe zależne od portalu
+(`SITE_URL`, `SITE_NAME`, `SITE_DESCRIPTION`, metadane layoutu) zostają stałymi modułowymi, bo wartość jest stała dla
+wdrożenia. Praca lokalna: `PORTAL=rachunkowe npm run dev`.
+
+### Zakres danych (branża)
+
+`lib/vertical-scope.ts` (`inVertical`, `verticalIdSql`) dodaje do zapytań warunek `listings.vertical_id =
+(select id from verticals where slug = portal.verticalSlug)`. Objęte: `lib/catalog.ts` (wszystkie zapytania: miasta,
+listy, profil, ranking krajowy, mapa strony, raporty, oferty, statystyki, porównanie, odznaka), `app/szukaj`,
+`app/api/path-status` (przekierowania i 410 dla middleware). Firma w kilku miastach liczy się w obrębie branży. Test
+`tests/vertical-scope.test.ts` sprawdza, że każde zapytanie katalogu ma ten filtr, dla obu portali. Poza zakresem:
+panel `/admin`, formularze po identyfikatorze wpisu (zgłoszenia, odznaki), statystyki bloga (blog jest tylko w
+nieruchomościach). Tematy zapytań w formularzu to stałe klucze z ograniczenia w bazie (`leads.topic`), więc portal
+rachunkowe zmienia tylko ich etykiety i gotowe wiadomości (`texts.lead`), bez zmiany schematu.
+
+### Konfiguracja portalu, flagi i teksty
+
+`PortalConfig` dostał: `verticalSlug`, `features` (oferty, kalkulator prowizji, blog, raporty i poradniki, wyróżnienia,
+cele klienta, mediana prowizji), `catalogView` (cele i filtry), `serviceGroups` (grupy usług z wyrażeniami), `terms.phrase`
+(pełne frazy z przymiotnikiem: "biura rachunkowego", celownik, miejscownik), `terms.fee.genPl`, `terms.synonym`,
+`expertFull` oraz teksty wspólne: strona główna, menu (`headerNav`, `mobileNav`), formularz zapytania, zdania w
+regulaminie, poradnik wyboru, pytania FAQ i zdania o cenach w miastach (`texts.city`). Wyłączona funkcja znika ze stron,
+menu, mapy strony i `llms.txt`, a jej adresy dają 404. Parametr rankingu "aktualne oferty" jest pomijany w portalach bez
+ofert (`PARAMETERS` w `lib/ranking.ts`).
+
+### Motyw rachunkowe
+
+Blok `html[data-theme="rachunkowe"]` w `app/globals.css`: paleta lodowo-granatowa z zielenią akcentu i miedzią
+(kontrast opisany w komentarzu), nagłówki w kroju szeryfowym systemowym, tekst Inter (`@fontsource-variable/inter`,
+importowany w `app/layout.tsx` tylko przy budowaniu z `PORTAL=rachunkowe`, przez `env` w `next.config.mjs`, więc portal
+nieruchomości go nie ładuje), jasna sekcja otwierająca stronę główną zamiast ciemnej, kwadratowe rogi, znak tekstowy
+"RBR" zamiast rysowanego logo (`components/Logo.tsx`).
+
+### Jak uruchomić nowy portal
+
+1. Pakiet branży w `packages/verticals/<slug>/` i dane w bazie (branża `verticals`, wpisy `listings` z `vertical_id`).
+2. Plik `apps/web/portals/<slug>.ts` (wzór: `rachunkowe.ts`): nazwa, `verticalSlug`, frazy z odmianą, flagi `features`,
+   typ schema.org, teksty; wpis w `PORTALS` (`lib/portal.ts`).
+3. Motyw: blok `html[data-theme="<slug>"]` w `globals.css` (te same zmienne CSS), w razie potrzeby czcionki (warunkowy
+   import w `layout.tsx` przez `PORTAL_THEME_FONTS`), własne logo i ikony (`app/icon.svg`, `app/apple-icon.png`,
+   `public/icon-*.png` są dziś wspólne, to jeszcze do zrobienia per portal).
+4. Projekt Vercel z tym samym repozytorium i katalogiem `apps/web`, zmienne: `PORTAL=<slug>`, `SITE_URL=https://domena`,
+   `DATABASE_URL`, `ADMIN_*`, `NEXT_PUBLIC_CONTACT_EMAIL`. Domena w projekcie, adres w `portal.domains` i `siteUrl`.
+5. Sprawdzenie: `PORTAL=<slug> npm run build`, test z `tests/portal.test.ts` i `tests/vertical-scope.test.ts`.
+
+### Weryfikacja kroku 2
+
+Przed zmianami i po nich pobrano HTML 31 adresów portalu nieruchomości (lokalna baza rozwojowa, strona główna, miasta,
+profile, ranking, metodologia, strony prawne, blog, mapa strony, robots, llms, manifest, obrazek OG, 404). Po
+normalizacji (identyfikator budowy, hashe, daty, podział węzłów tekstu, kolejność metadanych i strumienia) wynik: brak
+różnic w HTML. Zamierzone różnice poza HTML: w ładunku RSC nowe właściwości `MobileNav` (menu z konfiguracji) i
+`ProfileStickyCta` (etykieta), parametr hasha obrazka OG. Portal rachunkowe na tej samej bazie (bez wpisów tej branży):
+wszystkie strony odpowiadają bez błędów, puste stany, adresy ofert, bloga, raportów i wyróżnień dają 404, w widocznych
+tekstach brak słów branży nieruchomości (poza ogólnym "oferty" w sensie prawnym w regulaminie).
+
 ## Następne kroki
 
-1. Wybór portalu po domenie: w `middleware.ts` odczytać nagłówek `Host`, wywołać `portalForHost(host)` i przekazać slug
-   dalej (nagłówek żądania); komponenty serwerowe czytają go przez `headers()`. Wymaga zamiany stałych modułowych
-   (`SITE_URL`, `SITE_NAME`, `SITE_DESCRIPTION`, `metadata` w layoucie) na funkcje wywoływane w żądaniu
-   (`generateMetadata`), oraz osobnych map strony i `robots` na portal. Alternatywa: osobne wdrożenie Vercel na portal
-   ze zmienną `PORTAL` (działa już dziś, bez zmian w kodzie).
-2. Warianty motywu: dla każdego portalu blok `html[data-theme="..."]` w `globals.css` (paleta, czcionki, promienie,
-   cienie) oraz własne logo, ikony i obrazek do udostępniania.
-3. Warianty układu stron (nagłówek, karty firm, układ profilu, strona główna), żeby portale nie wyglądały jak jeden
-   szablon: wybór komponentu po `portal.layout`, a nie tylko inne kolory.
-4. Przeniesienie pozostałych tekstów (lista wyżej) do konfiguracji albo do plików treści na portal; grupy usług
-   (`SERVICE_GROUPS`), opisy parametrów rankingu i porady do osobnych definicji branżowych (powiązanie z
-   `packages/verticals/*`).
-5. Blog i raporty: ustalić, które artykuły są wspólne dla branż, a które zostają przypisane do portalu (pole `portal`
-   w rejestrze artykułów).
-6. Test pilnujący, że zmiana portalu zmienia teksty (portal testowy w testach) oraz brak tekstów branżowych
-   nieruchomości w stronach wspólnych.
+1. Logo i ikony per portal, obrazek do udostępniania per portal.
+2. Wagi rankingu per branża (`ranking.weights` z `vertical.yaml`) zamiast wspólnej listy parametrów.
+3. Warianty układu stron (nagłówek, karty firm, układ profilu), żeby portale różniły się nie tylko kolorami.
+4. Pozostałe teksty branżowe (blog, raporty, poradniki) przypisać do portalu (pole `portal` w rejestrze artykułów).
+5. Test pilnujący brak tekstów drugiej branży w stronach wspólnych (część jest w `tests/portal.test.ts`).

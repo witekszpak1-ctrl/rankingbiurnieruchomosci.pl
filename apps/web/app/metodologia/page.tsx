@@ -4,16 +4,18 @@ import Link from "next/link";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
 import { listCityListings, type ListingCard } from "@/lib/catalog";
 import { formatDate } from "@/lib/format";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { articleLd, pageMetadata } from "@/lib/seo";
 import { CITY_RANKING_MIN, METHODOLOGY, PARAMETERS, PRICE_STAT_MIN, rankListings, type RankingInput, weightShare } from "@/lib/ranking";
 
 // Przykład wyliczenia korzysta z aktualnych danych, odświeżany raz na dobę.
 export const revalidate = 86400;
 
+const { features, texts } = currentPortal();
+
 export const metadata: Metadata = pageMetadata({
-  title: "Metodologia rankingu biur nieruchomości | Jak oceniamy",
-  description:
-    "Jak powstaje ranking biur nieruchomości: źródła danych (KRS, wykaz VAT, strony biur), parametry i wagi, potwierdzenie w rejestrze i zasady liczenia prowizji.",
+  title: `Metodologia rankingu ${firmPhrase("many")} | Jak oceniamy`,
+  description: `Jak powstaje ranking ${firmPhrase("many")}: źródła danych (KRS, wykaz VAT, strony biur), parametry i wagi, potwierdzenie w rejestrze i ${features.saleCommission ? "zasady liczenia prowizji" : "zasady publikowania cen"}.`,
   path: "/metodologia",
 });
 
@@ -50,7 +52,7 @@ export default async function MethodologyPage() {
     <PublicShell>
       <JsonLd
         data={articleLd({
-            headline: "Metodologia rankingu biur nieruchomości",
+            headline: `Metodologia rankingu ${firmPhrase("many")}`,
             path: "/metodologia",
             description: typeof metadata.description === "string" ? metadata.description : null,
             datePublished: METHODOLOGY.published,
@@ -66,7 +68,7 @@ export default async function MethodologyPage() {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          Do katalogu trafiają biura nieruchomości z własną stroną internetową. Biura, których NIP ze strony zgadza się
+          Do katalogu trafiają {firmPhrase("few")} z własną stroną internetową. Biura, których NIP ze strony zgadza się
           z rejestrem publicznym, oznaczamy jako potwierdzone. Biura bez takiego potwierdzenia (najczęściej brak NIP na
           stronie) też publikujemy, ale z wyraźnym oznaczeniem i niżej w rankingu. Wynik liczymy z mierzalnych parametrów
           ze strony firmy, rejestrów i Map Google. Płatność nie wpływa na pozycję.
@@ -76,7 +78,7 @@ export default async function MethodologyPage() {
       <h2>Skąd bierzemy dane</h2>
       <ul className="plain">
         <li>Rejestry publiczne: KRS (Ministerstwo Sprawiedliwości) i wykaz podatników VAT (Ministerstwo Finansów).</li>
-        <li>Oficjalna strona internetowa firmy: dane kontaktowe, zakres usług, cennik, aktualne oferty.</li>
+        <li>Oficjalna strona internetowa firmy: {texts.siteDataList}.</li>
         <li>Mapy Google: średnia ocena i liczba opinii, jeśli biuro ma tam profil.</li>
       </ul>
       <p>
@@ -172,12 +174,16 @@ export default async function MethodologyPage() {
         </>
       )}
 
-      <h2>Oferty nieruchomości</h2>
-      <p>
-        Oferty widoczne na stronie biura pobieramy zwykle co 1-2 dni, najwyżej 20 najnowszych. Liczba na profilu to liczba ofert
-        pobranych przez robota, a nie całkowita liczba ofert biura; przy pełnej próbce piszemy „co najmniej 20”.
-        Lokalizacja nieruchomości wynika z treści ogłoszenia, a nie z adresu biura.
-      </p>
+      {features.offers && (
+        <>
+          <h2>Oferty nieruchomości</h2>
+          <p>
+            Oferty widoczne na stronie biura pobieramy zwykle co 1-2 dni, najwyżej 20 najnowszych. Liczba na profilu to liczba ofert
+            pobranych przez robota, a nie całkowita liczba ofert biura; przy pełnej próbce piszemy „co najmniej 20”.
+            Lokalizacja nieruchomości wynika z treści ogłoszenia, a nie z adresu biura.
+          </p>
+        </>
+      )}
 
       <h2>Kiedy publikujemy ranking</h2>
       <p>
@@ -188,11 +194,11 @@ export default async function MethodologyPage() {
       <h2>Ceny i statystyki</h2>
       <p>
         Ceny to wartości deklarowane przez firmy na ich stronach, zapisane z cytatem i datą. Mogły się zmienić po
-        dacie pobrania. Medianę prowizji od sprzedaży liczymy tylko ze stawek procentowych za sprzedaż lub kupno (bez opłat
-        za najem i zarządzanie najmem), po jednej stawce na biuro, i pomijamy wartości spoza przedziału 0,5-10%, które
-        zwykle są błędnym odczytem. Statystyki miasta publikujemy, gdy mamy co najmniej {PRICE_STAT_MIN} takie stawki, i
-        zawsze podajemy liczbę biur, na których się opierają. Tryb VAT (netto, brutto, + VAT) pokazujemy tak, jak podaje
-        go biuro.
+        dacie pobrania.{" "}
+        {features.saleCommission
+          ? `Medianę prowizji od sprzedaży liczymy tylko ze stawek procentowych za sprzedaż lub kupno (bez opłat za najem i zarządzanie najmem), po jednej stawce na biuro, i pomijamy wartości spoza przedziału 0,5-10%, które zwykle są błędnym odczytem. Statystyki miasta publikujemy, gdy mamy co najmniej ${PRICE_STAT_MIN} takie stawki, i zawsze podajemy liczbę biur, na których się opierają. `
+          : ""}
+        Tryb VAT (netto, brutto, + VAT) pokazujemy tak, jak podaje go biuro.
       </p>
 
       <h2>Niezależność i reklama</h2>

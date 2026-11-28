@@ -2,6 +2,8 @@
  * Przekierowania i adresy usunięte (kod 410) dla middleware, z pamięcią podręczną na 5 minut.
  * Dane z /api/path-status; przy błędzie strona działa jak dotąd (bez przekierowań i bez 410).
  */
+import { firmPhrase } from "./portal";
+
 type PathStatus = { redirects: Record<string, string>; gone: Set<string> };
 
 const TTL_MS = 5 * 60 * 1000;

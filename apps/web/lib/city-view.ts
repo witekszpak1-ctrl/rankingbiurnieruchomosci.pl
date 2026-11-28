@@ -2,21 +2,17 @@
  * Widok strony miasta zapisany w adresie: cel klienta (?cel=), filtry (?filtr=) i numer strony (?strona=).
  * Strony z filtrami mają noindex i canonical na stronę miasta, kolejne strony listy własny canonical.
  */
+import { currentPortal } from "./portal";
+
 export type SearchParams = Record<string, string | string[] | undefined>;
 
 export const PER_PAGE = 20;
-// Cel klienta filtruje biura po deklarowanych usługach (grupy z lib/city-content.ts).
-export const GOALS = {
-  sprzedaz: { label: "Chcę sprzedać", group: "sale" },
-  kupno: { label: "Chcę kupić", group: "sale" },
-  wynajem: { label: "Chcę wynająć", group: "rent" },
-} as const;
-export const FILTERS = {
-  zarzadzanie: { label: "Zarządzanie najmem", group: "management" },
-  cennik: { label: "Jawny cennik", group: null },
-} as const;
-export type Goal = keyof typeof GOALS;
-export type Filter = keyof typeof FILTERS;
+// Cel klienta i filtry pochodzą z konfiguracji portalu (portals/*.ts, catalogView); grupy usług z lib/city-content.ts.
+// Wartość jest stała dla wdrożenia (zmienna PORTAL), więc wyliczamy ją raz.
+export const GOALS: Record<string, { label: string; group: string }> = currentPortal().catalogView.goals;
+export const FILTERS: Record<string, { label: string; group: string | null }> = currentPortal().catalogView.filters;
+export type Goal = string;
+export type Filter = string;
 export type View = { page: number; goal: Goal | null; filters: Filter[] };
 
 function first(v: string | string[] | undefined): string | undefined {

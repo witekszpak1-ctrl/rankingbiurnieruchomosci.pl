@@ -3,11 +3,12 @@
  * przeliczane proporcjonalnie. Płatność nie ma wpływu na wynik.
  * Metodologia jest publicznie opisana na /metodologia i musi być zgodna z tym plikiem.
  */
+import { currentPortal } from "./portal";
 
 export const CITY_RANKING_MIN = 5; // poniżej tej liczby firm pokazujemy listę, nie ranking
 export const PRICE_STAT_MIN = 3; // minimalna próba do publikacji mediany prowizji
 
-export const PARAMETERS = [
+const ALL_PARAMETERS = [
   { key: "rejestr", label: "Potwierdzenie w rejestrze", weight: 20, whenMissing: "0 punktów: brak potwierdzenia to wynik sprawdzenia", description: "Firma potwierdzona w KRS albo w wykazie podatników VAT (NIP ze strony zgodny z rejestrem). Firmy bez potwierdzenia są w katalogu, ale niżej w rankingu." },
   { key: "staz", label: "Staż w rejestrze", weight: 10, whenMissing: "pomijany (brak daty wpisu do rejestru)", description: "Lata od wpisu do rejestru (pełna punktacja od 15 lat)." },
   { key: "jawnosc_cennika", label: "Jawność cennika", weight: 15, whenMissing: "0 punktów: strona nie podaje cen", description: "Firma publikuje ceny usług na swojej stronie." },
@@ -17,6 +18,12 @@ export const PARAMETERS = [
   { key: "aktualne_oferty", label: "Aktualne oferty", weight: 15, whenMissing: "0 punktów: brak ofert na stronie", description: "Oferty nieruchomości widoczne na stronie firmy, sprawdzane zwykle co 1-2 dni. Robot pobiera najwyżej 20 najnowszych ogłoszeń, więc parametr mierzy, czy biuro publikuje aktualne oferty (pełna punktacja od 20), a nie całkowitą liczbę jego ofert." },
 ] as const;
 
+/**
+ * Parametry obowiązujące w portalu: parametr ofert dotyczy tylko portali z ofertami (portal.features.offers).
+ * Wartość jest stała dla wdrożenia (zmienna PORTAL). Wagi per branża (packages/verticals/*) to osobny, kolejny krok.
+ */
+export const PARAMETERS = ALL_PARAMETERS.filter((p) => p.key !== "aktualne_oferty" || currentPortal().features.offers);
+
 /** Wersja metodologii i historia zmian (strona /metodologia). Każda zmiana wag lub parametrów dostaje wpis. */
 export const METHODOLOGY = {
   version: "1.1",
@@ -24,7 +31,7 @@ export const METHODOLOGY = {
   modified: "2026-11-14",
   changes: [
     { version: "1.1", date: "2026-11-14", text: "Wagi pokazane jako udział w 100 punktach (bez zmiany wyników), opis parametrów pomijanych i ocenianych na 0, przykład wyliczenia dla prawdziwego biura, opinie z Google na profilach." },
-    { version: "1.0", date: "2026-11-10", text: "Pierwsza wersja: potwierdzenie w rejestrze, staż, jawność cennika, spójność danych, zakres usług, opinie w Google, aktualne oferty." },
+    { version: "1.0", date: "2026-11-10", text: `Pierwsza wersja: potwierdzenie w rejestrze, staż, jawność cennika, spójność danych, zakres usług, opinie w Google${currentPortal().features.offers ? ", aktualne oferty" : ""}.` },
   ],
 } as const;
 

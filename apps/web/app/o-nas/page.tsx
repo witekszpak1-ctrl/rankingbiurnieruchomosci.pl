@@ -3,14 +3,14 @@ import Link from "next/link";
 
 import { OperatorContact, OperatorDetails } from "@/components/LegalOperator";
 import { JsonLd, PublicShell } from "@/components/SiteChrome";
-import { absoluteUrl, SITE_NAME } from "@/lib/format";
+import { absoluteUrl, SITE_HOST, SITE_NAME } from "@/lib/format";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { operator } from "@/lib/legal";
 import { organizationLd, pageMetadata, websiteRef } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "O nas: kto prowadzi ranking biur nieruchomości",
-  description:
-    "Kto prowadzi rankingbiurnieruchomosci.pl, skąd są dane o biurach nieruchomości, jak często je odświeżamy i jak zgłosić błąd we wpisie.",
+  title: `O nas: kto prowadzi ranking ${firmPhrase("many")}`,
+  description: `Kto prowadzi ${SITE_HOST}, skąd są dane o ${currentPortal().terms.phrase.locPl}, jak często je odświeżamy i jak zgłosić błąd we wpisie.`,
   path: "/o-nas",
 });
 
@@ -33,7 +33,7 @@ export default function AboutPage() {
       <div className="answer">
         <strong>W skrócie</strong>
         <p>
-          {SITE_NAME} to katalog i ranking biur nieruchomości w Polsce. Dane o biurach zbieramy z rejestrów publicznych
+          {SITE_NAME} to katalog i ranking {firmPhrase("many")} w Polsce. Dane o biurach zbieramy z rejestrów publicznych
           i z ich własnych stron, a kolejność w rankingu wynika z <Link href="/metodologia">jawnej metodologii</Link>.
           Płatność nie wpływa na pozycję biura.
         </p>
@@ -51,7 +51,7 @@ export default function AboutPage() {
           stronie biura, nazwę firmy, formę prawną i datę wpisu.
         </li>
         <li>
-          <b>Strona internetowa biura:</b> zakres usług, ceny i prowizje, aktualne oferty, firmowe dane kontaktowe.
+          <b>Strona internetowa biura:</b> zakres usług, ceny{currentPortal().features.saleCommission ? " i prowizje" : ""}{currentPortal().features.offers ? ", aktualne oferty" : ""}, firmowe dane kontaktowe.
           Publikujemy tylko to, co biuro samo pokazuje.
         </li>
         <li>
@@ -67,7 +67,7 @@ export default function AboutPage() {
       <h2>Jak często odświeżamy dane</h2>
       <ul className="plain">
         <li>Nowe biura i opisy trafiają do katalogu na bieżąco, automat pracuje co godzinę.</li>
-        <li>Oferty ze stron biur sprawdzamy zwykle co 1-2 dni.</li>
+        {currentPortal().features.offers && <li>Oferty ze stron biur sprawdzamy zwykle co 1-2 dni.</li>}
         <li>Oceny z Google i dane kontaktowe odświeżamy regularnie, partiami.</li>
       </ul>
 

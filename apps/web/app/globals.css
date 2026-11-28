@@ -947,3 +947,119 @@ nav .chips li { background: none; border: 0; padding: 0; }
 .blog-links .cards small { color: var(--muted); }
 .blog-list.pairs { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .blog-list.pairs b { font-size: 0.98rem; }
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Motyw "rachunkowe" (Ranking biur rachunkowych): chłodny, "biurowy" wygląd, wyraźnie inny niż motyw nieruchomości.
+   Paleta: lód i granat, głęboka zieleń jako akcent, miedź jako wyróżnienie. Krój: Inter w tekście (własny hosting,
+   @fontsource-variable/inter), szeryfowy krój systemowy w nagłówkach (Iowan Old Style, Palatino, Georgia).
+   Kontrast (WCAG): tekst #0d2438 na #eef3f7 to 14:1, tekst pomocniczy #44596b to 6,3:1, biały na #0e5c55 to 7,6:1.
+   Warianty układu: jasna sekcja otwierająca stronę główną (zamiast ciemnej), kwadratowe rogi, szeryfowe nagłówki,
+   znak tekstowy zamiast rysowanego logo.
+   --------------------------------------------------------------------------------------------------------------- */
+html[data-theme="rachunkowe"] {
+  --bg: #eef3f7;
+  --fg: #0d2438;
+  --muted: #44596b;
+  --line: #cfdae3;
+  --card: #ffffff;
+  --paper-2: #e2eaf1;
+  --accent: #0e5c55;
+  --accent-soft: #dcefec;
+  --yellow: #b8661d;
+  --yellow-soft: #f6e6d3;
+  --green: #0e7a6f;
+  --green-dark: #0e5c55;
+  --green-bg: #dcefec;
+  --navy: #0d2438;
+  --night: #0d2438;
+  --night-2: #16354d;
+  --night-line: #254a66;
+  --warn: #7a4a00;
+  --warn-soft: #fff3df;
+  --bad: #9b1c1c;
+  --bad-soft: #fde8e8;
+  --radius: 6px;
+  --shadow: 0 1px 2px rgba(13, 36, 56, 0.08);
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --body: "Inter Variable", "Inter", "Segoe UI", system-ui, Arial, sans-serif;
+  --mono-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --header-bg: rgba(255, 255, 255, 0.94);
+  --surface-alt: #e2eaf1;
+  --cta-shadow: rgba(14, 92, 85, 0.25);
+  color-scheme: light;
+}
+html[data-theme="rachunkowe"] h1,
+html[data-theme="rachunkowe"] h2,
+html[data-theme="rachunkowe"] h3 { font-weight: 600; letter-spacing: -0.01em; }
+html[data-theme="rachunkowe"] a { text-decoration-color: var(--yellow); }
+html[data-theme="rachunkowe"] :focus-visible { outline-color: var(--accent); }
+html[data-theme="rachunkowe"] .site-header { background: var(--header-bg); border-bottom: 3px solid var(--accent); backdrop-filter: blur(10px); }
+html[data-theme="rachunkowe"] .site-header .brand,
+html[data-theme="rachunkowe"] .site-header .nav a { color: var(--fg); }
+html[data-theme="rachunkowe"] .site-header .nav a { font-weight: 500; opacity: 1; }
+html[data-theme="rachunkowe"] .site-header .nav a:hover { color: var(--accent); text-decoration: underline; text-decoration-color: var(--yellow); text-underline-offset: 6px; }
+html[data-theme="rachunkowe"] .header-cta { color: #fff; }
+html[data-theme="rachunkowe"] .header-cta,
+html[data-theme="rachunkowe"] .btn-green,
+html[data-theme="rachunkowe"] .lead-submit { background: var(--accent); color: #fff; border-radius: 6px; box-shadow: none; }
+html[data-theme="rachunkowe"] .btn-green:hover,
+html[data-theme="rachunkowe"] .lead-submit:hover,
+html[data-theme="rachunkowe"] .header-cta:hover { background: #0a4a44; filter: none; box-shadow: none; }
+
+/* znak tekstowy: skrót w ramce i nazwa w dwóch liniach (portale bez rysowanego logo) */
+html[data-theme="rachunkowe"] .site-logo.wordmark { display: inline-flex; align-items: center; gap: 10px; width: auto; height: auto; color: var(--fg); }
+html[data-theme="rachunkowe"] .wm-mark { display: inline-grid; place-items: center; min-width: 46px; height: 40px; padding: 0 8px; border: 2px solid var(--accent); border-radius: 4px; color: var(--accent); font: 700 1.05rem/1 var(--display); letter-spacing: 0.04em; }
+html[data-theme="rachunkowe"] .wm-name { display: grid; font: 600 0.98rem/1.15 var(--display); letter-spacing: 0; }
+html[data-theme="rachunkowe"] .site-footer .wm-mark { height: 44px; }
+html[data-theme="rachunkowe"] .logo-mark.logo-mark-text { display: inline-grid; place-items: center; width: auto; min-width: 34px; height: 30px; padding: 0 6px; border: 2px solid var(--accent); border-radius: 4px; color: var(--accent); font: 700 0.8rem/1 var(--display); }
+
+/* strona główna: jasna sekcja zamiast ciemnej */
+html[data-theme="rachunkowe"] .hero-dark { background: linear-gradient(180deg, #ffffff 0%, #e6eef4 100%); color: var(--fg); border-bottom: 1px solid var(--line); }
+html[data-theme="rachunkowe"] .hero-dark h1 { color: var(--fg); font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; font-size: clamp(2.2rem, 4.8vw, 3.8rem); }
+html[data-theme="rachunkowe"] .hero-dark .kicker { color: var(--accent); }
+html[data-theme="rachunkowe"] .swash path { stroke: var(--yellow); stroke-width: 6; }
+html[data-theme="rachunkowe"] .hero-sub { color: var(--fg); font-weight: 500; }
+html[data-theme="rachunkowe"] .hero-sub em { color: var(--accent); font-style: italic; }
+html[data-theme="rachunkowe"] .hero-lead { color: var(--muted); }
+html[data-theme="rachunkowe"] .hero-dark .checks-row { color: var(--muted); }
+html[data-theme="rachunkowe"] .hero-dark .checks-row li::before { color: var(--accent); }
+html[data-theme="rachunkowe"] .showcase-ghost { background: #d6e3ec; border-color: var(--line); }
+html[data-theme="rachunkowe"] .showcase-dots button { background: #b5c6d4; }
+html[data-theme="rachunkowe"] .showcase-dots button.on { background: var(--accent); }
+html[data-theme="rachunkowe"] .showcase-card { border-radius: 8px; box-shadow: 0 1px 0 var(--line), 0 18px 40px -22px rgba(13, 36, 56, 0.45); }
+html[data-theme="rachunkowe"] .search-band { background: #e6eef4; padding: 8px 0 36px; }
+html[data-theme="rachunkowe"] .hero-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+html[data-theme="rachunkowe"] .search-bar { grid-template-columns: minmax(0, 1fr) auto; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 8px 24px -16px rgba(13, 36, 56, 0.4); }
+html[data-theme="rachunkowe"] .search-field:focus-within { box-shadow: inset 0 -3px 0 var(--accent); }
+html[data-theme="rachunkowe"] .search-bar button { background: var(--accent); color: #fff; border-radius: 6px; }
+html[data-theme="rachunkowe"] .search-miss { color: var(--bad); }
+html[data-theme="rachunkowe"] .search-links a { color: var(--fg); }
+html[data-theme="rachunkowe"] .search-links a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+html[data-theme="rachunkowe"] .stats-row .wrap { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+html[data-theme="rachunkowe"] .stats-row b { font-weight: 600; letter-spacing: -0.02em; }
+html[data-theme="rachunkowe"] .step-num { background: var(--accent); color: #fff; border-radius: 4px; }
+html[data-theme="rachunkowe"] .eyebrow { color: var(--accent); letter-spacing: 0.12em; }
+html[data-theme="rachunkowe"] .eyebrow.line::before { background: var(--yellow); }
+html[data-theme="rachunkowe"] .cta-dark { background: var(--night); border-radius: 8px; box-shadow: none; }
+html[data-theme="rachunkowe"] .cta-dark .btn-green { background: #fff; color: var(--fg); }
+html[data-theme="rachunkowe"] .cta-dark p { color: #c4d3df; }
+html[data-theme="rachunkowe"] .agency-card,
+html[data-theme="rachunkowe"] .steps li,
+html[data-theme="rachunkowe"] .why-list li,
+html[data-theme="rachunkowe"] .faq details,
+html[data-theme="rachunkowe"] .city-grid a,
+html[data-theme="rachunkowe"] .top3-card,
+html[data-theme="rachunkowe"] .city-stats li,
+html[data-theme="rachunkowe"] .lead { border-radius: 6px; }
+html[data-theme="rachunkowe"] .agency-card:hover,
+html[data-theme="rachunkowe"] a.top3-card:hover,
+html[data-theme="rachunkowe"] .city-grid a:hover { border-color: var(--accent); box-shadow: 0 8px 22px -14px rgba(13, 36, 56, 0.5); transform: none; }
+html[data-theme="rachunkowe"] .top3-rank.r1 { background: var(--accent); color: #fff; }
+html[data-theme="rachunkowe"] .section.soft,
+html[data-theme="rachunkowe"] .band { background: var(--paper-2); }
+html[data-theme="rachunkowe"] .answer { background: var(--accent-soft); border-color: #b9d9d4; }
+html[data-theme="rachunkowe"] .answer strong { color: var(--accent); }
+html[data-theme="rachunkowe"] .mnav-btn { border-color: var(--line); border-radius: 6px; }
+html[data-theme="rachunkowe"] .mnav-btn span { background: var(--fg); }
+html[data-theme="rachunkowe"] .mnav-panel li a[aria-current="page"] { color: #9fd9d1; }
+html[data-theme="rachunkowe"] .mnav-cta { background: #fff; color: var(--fg); border-radius: 6px; }

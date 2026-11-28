@@ -7,10 +7,11 @@ import { PublicShell } from "@/components/SiteChrome";
 import { TrackEvent } from "@/components/TrackEvent";
 import { CLAIM_WANTS, WANT_LABEL, getClaimTarget } from "@/lib/claims";
 import { RETENTION_MONTHS } from "@/lib/legal";
+import { SITE_NAME } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: { absolute: "Jestem właścicielem firmy | Ranking biur nieruchomości" },
+  title: { absolute: `Jestem właścicielem firmy | ${SITE_NAME}` },
   robots: { index: false, follow: false },
 };
 

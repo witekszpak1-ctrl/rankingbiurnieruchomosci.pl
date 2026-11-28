@@ -6,6 +6,12 @@ import "@fontsource-variable/instrument-sans";
 import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
+// Czcionka motywu "rachunkowe" (Inter, własny hosting). Warunek jest stały w czasie budowania (next.config.mjs, env),
+// więc paczka portalu nieruchomości jej nie zawiera.
+if (process.env.PORTAL_THEME_FONTS === "rachunkowe") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("@fontsource-variable/inter");
+}
 import { CookieConsent } from "@/components/CookieConsent";
 import { SITE_NAME, SITE_URL } from "@/lib/format";
 import { currentPortal } from "@/lib/portal";

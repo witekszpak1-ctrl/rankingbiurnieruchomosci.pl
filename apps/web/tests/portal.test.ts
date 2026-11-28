@@ -6,6 +6,9 @@ import {
   capitalize,
   currentPortal,
   expertPhrase,
+  featureForPath,
+  isPathDisabled,
+  nFirmPhrase,
   firmPhrase,
   nounForm,
   portalBySlug,
@@ -14,6 +17,7 @@ import {
   type PortalConfig,
 } from "../lib/portal";
 import { nieruchomosci } from "../portals/nieruchomosci";
+import { rachunkowe } from "../portals/rachunkowe";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -50,9 +54,33 @@ describe("wybór portalu", () => {
   it("slug w rejestrze zgadza się z kluczem, a domeny i motyw są ustawione", () => {
     for (const [key, portal] of Object.entries(PORTALS)) {
       expect(portal.slug).toBe(key);
-      expect(portal.domains.length).toBeGreaterThan(0);
+      // domena portalu rachunkowe jest jeszcze nieustalona (TBD), więc lista może być pusta
+      expect(Array.isArray(portal.domains)).toBe(true);
       expect(portal.themeId).toBeTruthy();
       expect(portal.siteUrl).not.toMatch(/\/$/);
+    }
+  });
+});
+
+describe("wybór portalu po domenie", () => {
+  it("domena należy do jednego portalu", () => {
+    const all = Object.values(PORTALS).flatMap((p) => p.domains);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("host ma pierwszeństwo przed zmienną PORTAL, nieznany host oddaje wybór zmiennej", () => {
+    const withDomain: PortalConfig = { ...rachunkowe, domains: ["ranking-rachunkowych.example"] };
+    PORTALS[withDomain.slug] = withDomain;
+    try {
+      vi.stubEnv("PORTAL", "nieruchomosci");
+      expect(portalForHost("www.Ranking-Rachunkowych.example:3000")).toBe(withDomain);
+      expect(currentPortal("ranking-rachunkowych.example")).toBe(withDomain);
+      expect(currentPortal("localhost:3000")).toBe(nieruchomosci);
+      vi.stubEnv("PORTAL", "rachunkowe");
+      expect(currentPortal("localhost:3000")).toBe(withDomain);
+      expect(currentPortal("rankingbiurnieruchomosci.pl")).toBe(nieruchomosci);
+    } finally {
+      PORTALS[rachunkowe.slug] = rachunkowe;
     }
   });
 });
@@ -101,20 +129,63 @@ describe("odmiana z konfiguracji", () => {
     expect(nFirm(2)).toBe("2 firmy");
   });
 
-  it("inny portal zmienia odmianę i frazy (kontrakt dla kolejnych branż)", () => {
-    const rachunkowe: PortalConfig = {
-      ...nieruchomosci,
-      slug: "rachunkowe",
-      terms: {
-        ...nieruchomosci.terms,
-        firm: { one: "biuro", few: "biura", many: "biur", genOne: "biura" },
-        domainGen: "rachunkowych",
-        expert: "księgowy",
-        fee: { nom: "stawka", nomPl: "stawki" },
-      },
-    };
+  it("inny portal zmienia odmianę i frazy (przymiotnik zmienia formę, więc frazy są podane wprost)", () => {
+    expect(firmPhrase("one", rachunkowe)).toBe("biuro rachunkowe");
+    expect(firmPhrase("few", rachunkowe)).toBe("biura rachunkowe");
     expect(firmPhrase("many", rachunkowe)).toBe("biur rachunkowych");
-    expect(expertPhrase(rachunkowe)).toBe("księgowy rachunkowych");
+    expect(rachunkowe.terms.phrase.genOne).toBe("biura rachunkowego");
+    expect(rachunkowe.terms.phrase.datOne).toBe("biuru rachunkowemu");
+    expect(rachunkowe.terms.phrase.locPl).toBe("biurach rachunkowych");
+    expect(capitalize(firmPhrase("few", rachunkowe))).toBe("Biura rachunkowe");
+    expect(expertPhrase(rachunkowe)).toBe("obsługa księgowa");
+    expect([1, 2, 5, 12, 22, 25].map((n) => nFirmPhrase(n, rachunkowe))).toEqual([
+      "1 biuro rachunkowe",
+      "2 biura rachunkowe",
+      "5 biur rachunkowych",
+      "12 biur rachunkowych",
+      "22 biura rachunkowe",
+      "25 biur rachunkowych",
+    ]);
+    expect(nFirmPhrase(6)).toBe("6 biur nieruchomości");
+  });
+
+  it("portal rachunkowe: dane strukturalne, motyw i flagi funkcji", () => {
+    expect(rachunkowe.schema.firmType).toBe("AccountingService");
+    expect(rachunkowe.themeId).toBe("rachunkowe");
+    expect(rachunkowe.verticalSlug).toBe("rachunkowe");
+    expect(Object.values(rachunkowe.features).every((v) => v === false)).toBe(true);
+    expect(Object.values(nieruchomosci.features).every((v) => v === true)).toBe(true);
+  });
+
+  it("czyta PORTAL=rachunkowe i nie miesza go z domyślnym portalem", () => {
+    vi.stubEnv("PORTAL", "rachunkowe");
+    expect(currentPortal()).toBe(rachunkowe);
+    expect(currentPortal("rankingbiurnieruchomosci.pl")).toBe(nieruchomosci);
+    expect(firmPhrase("many")).toBe("biur rachunkowych");
+    vi.stubEnv("PORTAL", "");
+    expect(currentPortal()).toBe(nieruchomosci);
+  });
+
+  it("adresy funkcji wyłączonych w portalu (oferty, blog, raporty, wyróżnienia)", () => {
+    expect(featureForPath("/oferty")).toBe("offers");
+    expect(featureForPath("/blog/okladka/x")).toBe("blog");
+    expect(featureForPath("/raporty/prowizje-biur-nieruchomosci-2026")).toBe("reports");
+    expect(featureForPath("/poradnik/jak-sprawdzic-biuro-nieruchomosci")).toBe("reports");
+    expect(featureForPath("/wyroznienia-2026")).toBe("awards");
+    expect(featureForPath("/wroclaw")).toBeNull();
+    expect(featureForPath("/blogger")).toBeNull();
+    expect(isPathDisabled("/oferty", rachunkowe)).toBe(true);
+    expect(isPathDisabled("/oferty", nieruchomosci)).toBe(false);
+    expect(isPathDisabled("/ranking", rachunkowe)).toBe(false);
+  });
+
+  it("konfiguracje portali nie zawierają tekstów drugiej branży ani długich myślników", () => {
+    const dump = JSON.stringify(rachunkowe, (_k, v) => (typeof v === "function" ? v.toString() : v instanceof RegExp ? v.source : v));
+    expect(dump).not.toMatch(/nieruchomo|pośrednik|prowizj/i);
+    for (const portal of Object.values(PORTALS)) {
+      const text = JSON.stringify(portal, (_k, v) => (typeof v === "function" ? v.toString() : v));
+      expect(text).not.toMatch(/[\u2013\u2014]/);
+    }
   });
 });
 

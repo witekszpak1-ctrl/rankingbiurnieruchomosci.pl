@@ -8,7 +8,7 @@ import { inCity } from "./cities";
 import { formatDate, formatPrice } from "./format";
 import { nBiur, nBiurGen, plural } from "./plural";
 import { isPlausible, priceBasis, priceKind } from "./prices";
-import { capitalize, currentPortal, expertPhrase, firmPhrase } from "./portal";
+import { capitalize, currentPortal, expertPhrase, firmPhrase, nFirmPhrase, type CityCtx } from "./portal";
 import { PRICE_STAT_MIN } from "./ranking";
 
 export type CityFirm = {
@@ -35,15 +35,22 @@ export type CityData = {
   national?: { median: number | null; n: number; withPricesPct: number | null };
 };
 
-const SERVICE_GROUPS: { key: string; label: string; re: RegExp }[] = [
-  { key: "sale", label: "sprzedaż nieruchomości", re: /sprzeda|zbyci/i },
-  { key: "rent", label: "wynajem", re: /wynaj|najem(?!.*zarz)/i },
-  { key: "management", label: "zarządzanie najmem", re: /zarządza|zarzadza|administrow/i },
-  { key: "primary", label: "rynek pierwotny", re: /pierwotn|deweloper|nowe (inwestycje|mieszkania|budownictwo)/i },
-  { key: "commercial", label: "nieruchomości komercyjne", re: /komercyj|lokal(e|i) użytkow|biur(a|o) do wynaj|magazyn/i },
-  { key: "credit", label: "pomoc w kredycie", re: /kredyt|finansowa/i },
-  { key: "valuation", label: "wycena nieruchomości", re: /wycen/i },
-];
+// Grupy usług pochodzą z konfiguracji portalu (portals/*.ts, serviceGroups).
+const SERVICE_GROUPS = currentPortal().serviceGroups;
+
+/** Dane do zdań konfiguracji portalu (portals/*.ts, texts.city). */
+function cityCtx(d: CityData, groupLimit = 4): CityCtx {
+  const n = d.firms.length;
+  return {
+    where: inCity(d.cityName),
+    n,
+    withPrices: d.firms.filter((f) => f.hasPublicPrices).length,
+    confirmed: d.firms.filter((f) => f.registryConfirmed).length,
+    units: nBiur,
+    unitsGen: nBiurGen,
+    groups: serviceGroups(d.services).slice(0, groupLimit),
+  };
+}
 
 /** Grupy usług każdej firmy (sale, rent, management, ...), do filtrów na stronie miasta. */
 export function brandServiceGroups(services: CityData["services"]): Map<string, Set<string>> {
@@ -83,12 +90,12 @@ export function cityIntro(d: CityData): string {
   const withPrices = d.firms.filter((f) => f.hasPublicPrices).length;
   const withOffers = d.firms.filter((f) => f.offersCount > 0).length;
   const parts = [
-    `Zestawienie obejmuje ${nBiur(n)} ${currentPortal().terms.domainGen} ${where}, które mają własną stronę internetową.`,
+    `Zestawienie obejmuje ${nFirmPhrase(n)} ${where}, które mają własną stronę internetową.`,
     confirmed === n
       ? "Każde z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT)."
       : `${confirmed} z nich potwierdziliśmy w rejestrach publicznych (KRS lub wykaz podatników VAT), pozostałe opisujemy na podstawie ich stron i oznaczamy jako niepotwierdzone.`,
     d.ranked
-      ? "Kolejność wynika z jawnej metodologii, a nie z płatności: liczą się m.in. potwierdzenie w rejestrze, staż, jawność cennika, zakres usług i aktualne oferty."
+      ? `Kolejność wynika z jawnej metodologii, a nie z płatności: liczą się m.in. potwierdzenie w rejestrze, staż, jawność cennika, zakres usług${currentPortal().features.offers ? " i aktualne oferty" : ""}.`
       : "Biur jest jeszcze za mało na ranking z pozycjami, dlatego pokazujemy je alfabetycznie.",
     `Możesz porównać ${withPrices > 0 ? `cenniki (${withPrices} ${plural(withPrices, "biuro publikuje", "biura publikują", "biur publikuje")} stawki), ` : ""}zakres usług${withOffers > 0 ? `, oferty ze stron biur` : ""} i dane kontaktowe, a z każdego profilu wysłać zapytanie.`,
     `Dane zaktualizowaliśmy ${formatDate(d.updatedAt)}.`,
@@ -115,29 +122,29 @@ export function commissionSection(d: CityData): CommissionSection {
   const sale = plausible.filter((p) => p.unit === "percent" && priceKind(p.service) === "sale");
   const saleFirms = new Set(sale.map((p) => p.firmSlug)).size;
   const sentences: string[] = [];
+  const copy = currentPortal().texts.city;
+  const ctx = cityCtx(d);
   if (withPrices === 0) {
-    sentences.push(
-      `Żadne z ${firmPhrase("many")} ${where} w naszym katalogu (${nBiur(n)}) nie publikuje na swojej stronie stawek prowizji, więc wysokość wynagrodzenia trzeba ustalić bezpośrednio z biurem.`,
-    );
+    sentences.push(copy.noPrices(ctx));
   } else {
     const share = n > 0 ? Math.round((100 * withPrices) / n) : 0;
     const natShare = d.national?.withPricesPct;
-    sentences.push(
-      `${withPrices} z ${nBiurGen(n)} ${where} (${share}%${natShare != null ? `, w całym katalogu ${natShare}%` : ""}) ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług, a ${saleFirms} ${plural(saleFirms, "podaje", "podają", "podaje")} procentową prowizję od sprzedaży, którą da się porównać.`,
-    );
-    if (d.median != null && d.medianN >= PRICE_STAT_MIN) {
-      sentences.push(
-        `Mediana najniższych deklarowanych stawek od sprzedaży wynosi ${pct(d.median)} ceny transakcyjnej (na podstawie ${nBiurGen(d.medianN)}).`,
-      );
-      const nat = d.national;
-      if (nat?.median != null && nat.n >= PRICE_STAT_MIN * 3) {
-        const diff = Math.round((d.median - nat.median) * 100) / 100;
-        const pp = (x: number) => pct(x).replace("%", " pkt proc.");
-        const relation = diff === 0 ? "tyle samo, co" : diff < 0 ? `o ${pp(Math.abs(diff))} mniej niż` : `o ${pp(diff)} więcej niż`;
-        sentences.push(`To ${relation} mediana w całym katalogu (${pct(nat.median)}, ${nBiurGen(nat.n)}).`);
+    sentences.push(copy.somePrices(ctx, share, natShare ?? null, saleFirms));
+    if (currentPortal().features.saleCommission) {
+      if (d.median != null && d.medianN >= PRICE_STAT_MIN) {
+        sentences.push(
+          `Mediana najniższych deklarowanych stawek od sprzedaży wynosi ${pct(d.median)} ceny transakcyjnej (na podstawie ${nBiurGen(d.medianN)}).`,
+        );
+        const nat = d.national;
+        if (nat?.median != null && nat.n >= PRICE_STAT_MIN * 3) {
+          const diff = Math.round((d.median - nat.median) * 100) / 100;
+          const pp = (x: number) => pct(x).replace("%", " pkt proc.");
+          const relation = diff === 0 ? "tyle samo, co" : diff < 0 ? `o ${pp(Math.abs(diff))} mniej niż` : `o ${pp(diff)} więcej niż`;
+          sentences.push(`To ${relation} mediana w całym katalogu (${pct(nat.median)}, ${nBiurGen(nat.n)}).`);
+        }
+      } else if (saleFirms > 0) {
+        sentences.push(`To za mała próba, żeby podawać medianę dla miasta; poniżej pokazujemy stawki konkretnych biur.`);
       }
-    } else if (saleFirms > 0) {
-      sentences.push(`To za mała próba, żeby podawać medianę dla miasta; poniżej pokazujemy stawki konkretnych biur.`);
     }
   }
   const seen = new Set<string>();
@@ -156,38 +163,12 @@ export function commissionSection(d: CityData): CommissionSection {
       value: `${formatPrice(p)}${priceBasis(p) ? ` ${priceBasis(p)}` : ""}`,
     }));
   const latest = plausible.reduce<Date | null>((acc, p) => (!acc || p.observedAt > acc ? p.observedAt : acc), null);
-  const note = latest
-    ? `Stawki są deklarowane przez biura na ich stronach i sprawdzone ${formatDate(latest)}. Mogły się zmienić, a ostateczne wynagrodzenie określa umowa pośrednictwa.`
-    : "Ostateczne wynagrodzenie zawsze określa umowa pośrednictwa.";
+  const note = copy.priceNote(latest ? formatDate(latest) : null);
   return { summary: sentences.join(" "), examples, note };
 }
 
 export function choosingGuide(d: CityData): string[] {
-  const where = inCity(d.cityName);
-  const n = d.firms.length;
-  const withPrices = d.firms.filter((f) => f.hasPublicPrices).length;
-  const confirmed = d.firms.filter((f) => f.registryConfirmed).length;
-  const groups = serviceGroups(d.services).slice(0, 4);
-  const paragraphs = [
-    `Zacznij od zakresu usług. Biuro, które na co dzień sprzedaje mieszkania, niekoniecznie dobrze poprowadzi wynajem lokalu czy sprzedaż działki.${
-      groups.length > 0
-        ? ` Wśród biur ${where} z naszego katalogu najczęściej deklarowane są: ${groups.map((g) => `${g.label} (${nBiur(g.count)})`).join(", ")}.`
-        : ""
-    }`,
-    `Zapytaj o prowizję i o to, co obejmuje: sesję zdjęciową, publikację ogłoszeń, prezentacje, negocjacje, pomoc przy dokumentach i kredycie. ${
-      withPrices > 0
-        ? `Cennik publikuje ${withPrices} z ${nBiurGen(n)}, u pozostałych stawkę poznasz dopiero w rozmowie.`
-        : "Biura w tym mieście nie publikują cenników, więc poproś o stawkę na piśmie przed podpisaniem umowy."
-    } Sprawdź, czy kwota jest netto, brutto czy powiększona o VAT.`,
-    `Przeczytaj umowę pośrednictwa przed podpisaniem: czy jest na wyłączność, na jak długo, z jakim okresem wypowiedzenia i kiedy należy się wynagrodzenie. Umowa na wyłączność bywa korzystna, ale tylko wtedy, gdy biuro jasno opisuje, co w zamian zrobi.`,
-    `Zwróć uwagę na lokalizację i doświadczenie. Biuro, które ma aktualne oferty w Twojej okolicy, zna ceny i kupujących z tego rynku. Na stronie biura obejrzyj, jak prezentuje nieruchomości: zdjęcia, opisy, rzuty i informacje o stanie prawnym mówią dużo o tym, jak pokaże Twoją.`,
-    `Na koniec sprawdź firmę w rejestrze. ${
-      confirmed === n
-        ? `Wszystkie biura z tej listy potwierdziliśmy numerem NIP w rejestrach publicznych.`
-        : `${confirmed} z ${nBiurGen(n)} ${where} potwierdziliśmy numerem NIP w rejestrach; przy pozostałych poproś o NIP i sprawdź go w wykazie podatników VAT.`
-    }`,
-  ];
-  return paragraphs;
+  return currentPortal().texts.city.guide(cityCtx(d));
 }
 
 export type FaqItem = { q: string; a: string };
@@ -196,26 +177,28 @@ export function cityFaq(d: CityData): FaqItem[] {
   const where = inCity(d.cityName);
   const n = d.firms.length;
   const withPrices = d.firms.filter((f) => f.hasPublicPrices).length;
-  const confirmed = d.firms.filter((f) => f.registryConfirmed).length;
   const top = topThree(d)[0];
   const commission = commissionSection(d);
+  const portal = currentPortal();
+  const copy = portal.texts.city.faq;
+  const ctx = cityCtx(d);
   const faq: FaqItem[] = [];
   faq.push({
-    q: `Ile kosztuje ${expertPhrase()} ${where}?`,
+    q: copy.feeQuestion(where),
     a:
-      d.median != null && d.medianN >= PRICE_STAT_MIN
+      portal.features.saleCommission && d.median != null && d.medianN >= PRICE_STAT_MIN
         ? `Według cenników publikowanych przez biura mediana najniższych stawek prowizji od sprzedaży ${where} wynosi ${pct(d.median)} ceny transakcyjnej (${nBiur(d.medianN)} z jawną stawką). Do prowizji często dochodzi VAT, a ostateczną kwotę określa umowa.`
         : commission.examples.length > 0
-          ? `Za mało biur publikuje porównywalne stawki, żeby podać medianę dla miasta. Przykłady z cenników: ${commission.examples
+          ? `${portal.features.saleCommission ? "Za mało biur publikuje porównywalne stawki, żeby podać medianę dla miasta. " : ""}Przykłady z cenników: ${commission.examples
               .slice(0, 3)
               .map((e) => `${e.firmName}: ${e.value}`)
               .join("; ")}.`
-          : `Biura ${where} w naszym katalogu nie publikują stawek prowizji, więc koszt trzeba ustalić z wybranym biurem. Poproś o stawkę na piśmie i sprawdź, czy zawiera VAT.`,
+          : copy.feeNoPrices(where),
   });
   if (top) {
     faq.push({
       q: `Które ${firmPhrase("one")} ma najwyższy wynik w rankingu ${where}?`,
-      a: `Najwyższy wynik w naszym zestawieniu ma ${top.name} (${top.score}/100). To ocena według jawnej metodologii katalogu (m.in. potwierdzenie w rejestrze, staż, cennik, usługi i oferty), a nie opinia o jakości obsługi.`,
+      a: `Najwyższy wynik w naszym zestawieniu ma ${top.name} (${top.score}/100). To ocena według jawnej metodologii katalogu (m.in. potwierdzenie w rejestrze, staż, cennik, usługi${portal.features.offers ? " i oferty" : ""}), a nie opinia o jakości obsługi.`,
     });
   }
   faq.push({
@@ -227,16 +210,8 @@ export function cityFaq(d: CityData): FaqItem[] {
           ? `Tak, wszystkie ${nBiur(n)} w naszym katalogu podają ceny usług na swoich stronach.`
           : `Nie. Ceny usług na swojej stronie podaje ${withPrices} z ${nBiurGen(n)} w naszym katalogu. Jawny cennik jest jednym z parametrów rankingu.`,
   });
-  faq.push({
-    q: `Jak sprawdzić wiarygodność ${currentPortal().terms.firm.genOne} ${currentPortal().terms.domainGen}?`,
-    a: `Poproś o NIP i sprawdź go w wykazie podatników VAT lub w KRS, przeczytaj umowę pośrednictwa i zapytaj o ubezpieczenie OC. W naszym katalogu ${
-      confirmed === n ? "wszystkie biura z tego miasta mają" : `${confirmed} z ${nBiurGen(n)} ${where} ma`
-    } potwierdzenie w rejestrze, oznaczone na profilu.`,
-  });
-  faq.push({
-    q: `Od czego zależy ${currentPortal().terms.fee.nom} ${currentPortal().terms.firm.genOne} ${currentPortal().terms.domainGen}?`,
-    a: "Najczęściej od wartości nieruchomości, rodzaju transakcji (sprzedaż, kupno, wynajem), zakresu usług, rodzaju umowy (na wyłączność lub otwarta) i od tego, czy w cenie są np. zdjęcia, reklama i pomoc prawna. Stawka bywa podawana netto, brutto albo z doliczanym VAT.",
-  });
+  faq.push({ q: copy.trustQuestion, a: copy.trustAnswer(ctx) });
+  faq.push({ q: copy.factorsQuestion, a: copy.factorsAnswer });
   return faq.slice(0, 6);
 }
 

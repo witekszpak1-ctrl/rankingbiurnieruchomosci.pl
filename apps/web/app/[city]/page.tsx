@@ -21,7 +21,10 @@ import { CITY_RANKING_MIN, PRICE_STAT_MIN, rankListings, type RankingInput } fro
 import { BlogLinks } from "@/components/BlogLinks";
 import { blogPairLinks, cityBlogLinks } from "@/lib/blog-links";
 import { getBlogOverrides } from "@/lib/blog-overrides";
-import { capitalize, firmPhrase } from "@/lib/portal";
+import { capitalize, currentPortal, firmPhrase, nFirmPhrase } from "@/lib/portal";
+
+const portal = currentPortal();
+const { features } = portal;
 
 export const revalidate = 300;
 
@@ -58,7 +61,7 @@ async function load(slug: string) {
     cityPriceExamples(slug),
     cityServices(slug),
     listCities().catch(() => []),
-    nationalCommission().catch(() => null),
+    features.saleCommission ? nationalCommission().catch(() => null) : Promise.resolve(null),
   ]);
   const national = report ?? undefined;
   const ranked = listings.length >= CITY_RANKING_MIN ? rankListings(listings, toInput) : null;
@@ -98,7 +101,9 @@ export default async function CityPage({ params, searchParams }: Props) {
   if (!data) notFound();
   const view = parseView(await searchParams);
   const { city, listings, stats, ranked, updatedAt, prices, services, cities, national } = data;
-  const [pairLinks, blogOverrides] = await Promise.all([blogPairLinks().catch(() => []), getBlogOverrides()]);
+  const [pairLinks, blogOverrides] = features.blog
+    ? await Promise.all([blogPairLinks().catch(() => []), getBlogOverrides()])
+    : [[], {}];
   const blogLinks = cityBlogLinks(
     city.slug,
     pairLinks,
@@ -142,13 +147,13 @@ export default async function CityPage({ params, searchParams }: Props) {
     national,
   };
   const medianText =
-    stats.n >= PRICE_STAT_MIN && stats.median != null
+    features.saleCommission && stats.n >= PRICE_STAT_MIN && stats.median != null
       ? ` Mediana jawnej prowizji od sprzedaży wynosi ${stats.median.toLocaleString("pl-PL")}% (na podstawie ${nBiurGen(stats.n)}, ceny deklarowane przez firmy, wg ich stron z dnia ${formatDate(stats.observedAt)}).`
       : "";
   const confirmed = listings.filter((l) => l.registryConfirmed).length;
   const confirmedText =
     confirmed === listings.length ? "Wszystkie są potwierdzone w rejestrach publicznych." : `${confirmed} z nich ${plural(confirmed, "jest potwierdzone", "są potwierdzone", "jest potwierdzonych")} w rejestrach publicznych.`;
-  const summary = `Katalog zawiera ${nBiur(listings.length)} nieruchomości ${where}. ${confirmedText} ${withPrices} z nich ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług.${medianText}`;
+  const summary = `Katalog zawiera ${nFirmPhrase(listings.length)} ${where}. ${confirmedText} ${withPrices} z nich ${plural(withPrices, "publikuje", "publikują", "publikuje")} na swojej stronie ceny usług.${medianText}`;
   const top = topThree(content);
   const commission = commissionSection(content);
   const guide = choosingGuide(content);
@@ -173,7 +178,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           .split(/\n\s*\n/)
           .map((para, i) => <p key={i}>{para.trim()}</p>)}
 
-      <ul className="city-stats" aria-label={`Biura nieruchomości ${where} w liczbach`}>
+      <ul className="city-stats" aria-label={`${capitalize(firmPhrase("few"))} ${where} w liczbach`}>
         <li>
           <b>{listings.length}</b>
           <span>{plural(listings.length, "biuro", "biura", "biur")} w katalogu</span>
@@ -186,7 +191,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           <b>{withPrices}</b>
           <span>z jawnym cennikiem</span>
         </li>
-        {stats.n >= PRICE_STAT_MIN && stats.median != null && (
+        {features.saleCommission && stats.n >= PRICE_STAT_MIN && stats.median != null && (
           <li>
             <b>{stats.median.toLocaleString("pl-PL")}%</b>
             <span>mediana prowizji od sprzedaży ({nBiurGen(stats.n)})</span>
@@ -196,7 +201,7 @@ export default async function CityPage({ params, searchParams }: Props) {
 
       {firstView && top.length > 0 && (
         <>
-          <h2>Najlepsze biura nieruchomości {where}</h2>
+          <h2>{`Najlepsze ${firmPhrase("few")} ${where}`}</h2>
           <TopThree
             firms={top.map((f) => ({
               key: f.slug ?? f.name,
@@ -216,29 +221,31 @@ export default async function CityPage({ params, searchParams }: Props) {
               </span>
             ))}
             . To wynik według <Link href="/metodologia">jawnej metodologii katalogu</Link>, opartej m.in. na
-            potwierdzeniu w rejestrze, stażu, jawności cennika, zakresie usług i aktualnych ofertach, a nie ocena jakości
-            obsługi.
+            potwierdzeniu w rejestrze, stażu, jawności cennika, zakresie usług{features.offers ? " i aktualnych ofertach" : ""}, a nie
+            ocena jakości obsługi.
           </p>
         </>
       )}
 
-      <h2 id="lista">{ranked ? `Porównanie biur nieruchomości ${where}` : `Lista biur nieruchomości ${where} (alfabetycznie)`}</h2>
-      <nav aria-label="Czego szukasz">
-        <ul className="chips">
-          <li>
-            <a href={viewHref(city.slug, { page: 1, goal: null, filters: view.filters }) + "#lista"} aria-current={view.goal === null}>
-              Wszystkie biura
-            </a>
-          </li>
-          {(Object.keys(GOALS) as Goal[]).map((g) => (
-            <li key={g}>
-              <a href={viewHref(city.slug, { page: 1, goal: g, filters: view.filters }) + "#lista"} aria-current={view.goal === g}>
-                {GOALS[g].label}
+      <h2 id="lista">{ranked ? `Porównanie ${firmPhrase("many")} ${where}` : `Lista ${firmPhrase("many")} ${where} (alfabetycznie)`}</h2>
+      {features.goals && (
+        <nav aria-label="Czego szukasz">
+          <ul className="chips">
+            <li>
+              <a href={viewHref(city.slug, { page: 1, goal: null, filters: view.filters }) + "#lista"} aria-current={view.goal === null}>
+                Wszystkie biura
               </a>
             </li>
-          ))}
-        </ul>
-      </nav>
+            {(Object.keys(GOALS) as Goal[]).map((g) => (
+              <li key={g}>
+                <a href={viewHref(city.slug, { page: 1, goal: g, filters: view.filters }) + "#lista"} aria-current={view.goal === g}>
+                  {GOALS[g].label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <nav aria-label="Filtry">
         <ul className="chips">
           {(Object.keys(FILTERS) as Filter[]).map((f) => {
@@ -272,7 +279,7 @@ export default async function CityPage({ params, searchParams }: Props) {
           <a href={viewHref(city.slug, { page: 1, goal: null, filters: [] }) + "#lista"}>Pokaż wszystkie biura</a>.
         </p>
       ) : (
-        <ol className="firm-list" aria-label={`Biura nieruchomości ${where}`}>
+        <ol className="firm-list" aria-label={`${capitalize(firmPhrase("few"))} ${where}`}>
           {pageRows.map((row) => {
             const href = `/${city.slug}/${row.slug}`;
             const since = row.registryConfirmed && row.startDate ? formatYear(row.startDate) : null;
@@ -373,7 +380,7 @@ export default async function CityPage({ params, searchParams }: Props) {
 
       {firstView && (
         <>
-      <h2>Ile wynosi prowizja biura nieruchomości {where}?</h2>
+      <h2>{portal.texts.city.priceHeading(where)}</h2>
       <p>{commission.summary}</p>
       {commission.examples.length > 0 && (
         <ul className="plain">
@@ -385,20 +392,24 @@ export default async function CityPage({ params, searchParams }: Props) {
         </ul>
       )}
       <p className="note">{commission.note}</p>
-      <p>
-        Porównanie z innymi miastami: raport{" "}
-        <Link href="/raporty/prowizje-biur-nieruchomosci-2026">Prowizje biur nieruchomości 2026</Link>. Jak czytać stawki:{" "}
-        <Link href="/poradnik/ile-bierze-biuro-nieruchomosci">ile bierze biuro nieruchomości</Link>.
-      </p>
+      {features.reports && (
+        <p>
+          Porównanie z innymi miastami: raport{" "}
+          <Link href="/raporty/prowizje-biur-nieruchomosci-2026">Prowizje biur nieruchomości 2026</Link>. Jak czytać stawki:{" "}
+          <Link href="/poradnik/ile-bierze-biuro-nieruchomosci">ile bierze biuro nieruchomości</Link>.
+        </p>
+      )}
 
-      <h2>Jak wybrać biuro nieruchomości {where}?</h2>
+      <h2>{`Jak wybrać ${firmPhrase("one")} ${where}?`}</h2>
       {guide.map((para, i) => (
         <p key={i}>{para}</p>
       ))}
-      <p>
-        Lista kontrolna przed podpisaniem umowy:{" "}
-        <Link href="/poradnik/jak-sprawdzic-biuro-nieruchomosci">jak sprawdzić biuro nieruchomości</Link>.
-      </p>
+      {features.reports && (
+        <p>
+          Lista kontrolna przed podpisaniem umowy:{" "}
+          <Link href="/poradnik/jak-sprawdzic-biuro-nieruchomosci">jak sprawdzić biuro nieruchomości</Link>.
+        </p>
+      )}
 
       <h2>Najczęściej zadawane pytania</h2>
       <div className="faq">
@@ -410,18 +421,18 @@ export default async function CityPage({ params, searchParams }: Props) {
         ))}
       </div>
 
-      <BlogLinks title={`Porównania i dane o biurach ${where}`} items={blogLinks} />
+      {features.blog && <BlogLinks title={`Porównania i dane o biurach ${where}`} items={blogLinks} />}
 
         </>
       )}
 
       {otherCities.length > 0 && (
         <>
-          <h2>Biura nieruchomości w innych miastach</h2>
+          <h2>{`${capitalize(firmPhrase("few"))} w innych miastach`}</h2>
           <ul className="city-grid">
             {otherCities.map((c) => (
               <li key={c.slug}>
-                <Link href={`/${c.slug}`} title={`Biura nieruchomości ${inCity(c.name)}`}>
+                <Link href={`/${c.slug}`} title={`${capitalize(firmPhrase("few"))} ${inCity(c.name)}`}>
                   <b>{c.name}</b>
                   <span>{nBiur(c.listings)}</span>
                 </Link>

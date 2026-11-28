@@ -45,8 +45,8 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
         ? `Według cennika na stronie biura: ${f.prices
             .slice(0, 3)
             .map((p) => `${p.service}: ${formatPrice(p)}${priceBasis(p) ? ` ${priceBasis(p)}` : ""}`)
-            .join("; ")}. Ostateczne wynagrodzenie określa umowa pośrednictwa.`
-        : `${f.name} nie publikuje stawek prowizji na swojej stronie, więc wysokość wynagrodzenia trzeba ustalić bezpośrednio z biurem.`,
+            .join("; ")}. Ostateczne wynagrodzenie określa ${currentPortal().texts.contractName}.`
+        : currentPortal().texts.firmNoRates(f.name),
   });
   faq.push({
     q: `Czy ${f.name} jest firmą wpisaną do rejestru?`,
@@ -54,7 +54,7 @@ export function firmFaq(f: FirmFaqInput): FaqItem[] {
       ? `Tak. NIP ze strony biura zgadza się z rejestrem publicznym (KRS lub wykaz podatników VAT)${f.registryYears ? `, a firma jest w rejestrze od ${nLatGen(f.registryYears)}` : ""}.`
       : `Nie udało się tego potwierdzić: strona biura nie podaje NIP albo dane nie zgadzają się z rejestrem. Przed podpisaniem umowy poproś o NIP i sprawdź go w wykazie podatników VAT.`,
   });
-  if (f.offersCount > 0) {
+  if (f.offersCount > 0 && currentPortal().features.offers) {
     faq.push({
       q: `Czy ${f.name} ma aktualne oferty?`,
       a: `Tak, przy ostatnim sprawdzeniu na stronie biura było ${offersLabel(f.offersCount).replace(" na stronie", "")}. Najnowsze z nich pokazujemy na tym profilu z linkami do strony biura.`,

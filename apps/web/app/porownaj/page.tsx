@@ -6,14 +6,15 @@ import { PublicShell } from "@/components/SiteChrome";
 import { compareCards, type CompareCard } from "@/lib/catalog";
 import { formatYear } from "@/lib/format";
 import { nOfert, nOpinii } from "@/lib/plural";
+import { currentPortal, firmPhrase } from "@/lib/portal";
 import { scoreListing } from "@/lib/ranking";
 import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Porównanie biur nieruchomości",
-  description: "Porównaj wybrane biura nieruchomości: wynik w rankingu, prowizja, ocena w Google, staż, usługi i oferty.",
+  title: `Porównanie ${firmPhrase("many")}`,
+  description: `Porównaj wybrane ${firmPhrase("few")}: wynik w rankingu, ${currentPortal().terms.fee.nom}, ocena w Google, staż, usługi${currentPortal().features.offers ? " i oferty" : ""}.`,
   path: "/porownaj",
   noindex: true,
 });
@@ -44,10 +45,14 @@ export default async function ComparePage({ searchParams }: Props) {
   const rows: { label: string; value: (c: CompareCard) => React.ReactNode }[] = [
     { label: "Miasto", value: (c) => c.cityName },
     { label: "Wynik w rankingu", value: (c) => `${score(c)}/100` },
-    {
-      label: "Prowizja od sprzedaży",
-      value: (c) => (c.saleCommission != null ? `od ${c.saleCommission.toLocaleString("pl-PL")}%` : "brak na stronie"),
-    },
+    ...(currentPortal().features.saleCommission
+      ? [
+          {
+            label: "Prowizja od sprzedaży",
+            value: (c: CompareCard) => (c.saleCommission != null ? `od ${c.saleCommission.toLocaleString("pl-PL")}%` : "brak na stronie"),
+          },
+        ]
+      : []),
     {
       label: "Ocena w Google",
       value: (c) =>
@@ -55,12 +60,12 @@ export default async function ComparePage({ searchParams }: Props) {
     },
     { label: "W rejestrze od", value: (c) => (c.registryConfirmed ? formatYear(c.startDate) : "bez potwierdzenia") },
     { label: "Usługi", value: (c) => (c.services.length > 0 ? c.services.slice(0, 8).join(", ") : "nie podaje") },
-    { label: "Aktualne oferty", value: (c) => nOfert(c.offersCount) },
+    ...(currentPortal().features.offers ? [{ label: "Aktualne oferty", value: (c: CompareCard) => nOfert(c.offersCount) }] : []),
   ];
 
   return (
     <PublicShell>
-      <h1>Porównanie biur nieruchomości</h1>
+      <h1>{`Porównanie ${firmPhrase("many")}`}</h1>
       {cards.length < 2 ? (
         <p>
           Wybierz co najmniej dwa biura do porównania. Na stronie miasta zaznacz pole „Porównaj” przy biurach (najwyżej
@@ -100,7 +105,7 @@ export default async function ComparePage({ searchParams }: Props) {
                 {cards.map((c) => (
                   <td key={c.listingId}>
                     <Link className="compare-go" href={`/${c.citySlug}/${c.slug}#zapytanie`}>
-                      Zapytaj o ofertę
+                      {currentPortal().texts.leadCta}
                     </Link>
                   </td>
                 ))}
@@ -110,8 +115,9 @@ export default async function ComparePage({ searchParams }: Props) {
         </div>
       )}
       <p className="note">
-        Wynik liczymy według <Link href="/metodologia">metodologii</Link>. Prowizja to najniższa stawka procentowa za
-        sprzedaż, którą biuro podaje na swojej stronie.
+        Wynik liczymy według <Link href="/metodologia">metodologii</Link>.
+        {currentPortal().features.saleCommission &&
+          " Prowizja to najniższa stawka procentowa za sprzedaż, którą biuro podaje na swojej stronie."}
       </p>
     </PublicShell>
   );

@@ -27,6 +27,7 @@ import { CITY_RANKING_MIN, PARAMETERS, rankListings, scoreListing, weightShare }
 import { capitalize, currentPortal, firmPhrase } from "@/lib/portal";
 
 const portal = currentPortal();
+const { features } = portal;
 
 export const revalidate = 300;
 
@@ -129,7 +130,9 @@ export default async function FirmPage({ params }: Props) {
   const position = cityRanked?.find((r) => r.listingId === listing.listingId)?.position ?? null;
   const similar = similarFirms(listing.listingId, cityRanked ?? cityListings.map((l, i) => ({ ...l, position: i + 1, score: 0, breakdown: [] })));
   const where = inCity(listing.cityName);
-  const [pairLinks, blogOverrides] = await Promise.all([blogPairLinks().catch(() => []), getBlogOverrides()]);
+  const [pairLinks, blogOverrides] = features.blog
+    ? await Promise.all([blogPairLinks().catch(() => []), getBlogOverrides()])
+    : [[], {}];
   const hiddenPosts = new Set(Object.entries(blogOverrides).filter(([, o]) => o.hidden).map(([k]) => k));
   const blogLinks = firmBlogLinks(
     {
@@ -160,7 +163,7 @@ export default async function FirmPage({ params }: Props) {
     cityCount: cityRanked?.length ?? null,
   });
   const intro = [
-    `${listing.name} to biuro nieruchomości ${where}${listing.registryConfirmed ? ", potwierdzone w rejestrze publicznym" : ""}.`,
+    `${listing.name} to ${firmPhrase("one")} ${where}${listing.registryConfirmed ? ", potwierdzone w rejestrze publicznym" : ""}.`,
     position && cityRanked
       ? `W rankingu biur ${where} zajmuje ${position}. miejsce na ${cityRanked.length} z wynikiem ${score}/100.`
       : `Wynik w rankingu: ${score}/100.`,
@@ -200,7 +203,7 @@ export default async function FirmPage({ params }: Props) {
             <nav className="crumbs" aria-label="Okruszki">
               <Link href="/">Strona główna</Link>
               <span>›</span>
-              <Link href={`/${listing.citySlug}`}>Biura nieruchomości {listing.cityName}</Link>
+              <Link href={`/${listing.citySlug}`}>{capitalize(firmPhrase("few"))} {listing.cityName}</Link>
               <span>›</span>
               <span>{listing.name}</span>
             </nav>
@@ -220,7 +223,7 @@ export default async function FirmPage({ params }: Props) {
             <div className="profile-score">
               <span className="score-pill">{score}/100</span>
               <span>
-                wynik w rankingu <Link href={`/${listing.citySlug}`}>biur nieruchomości {where}</Link>
+                wynik w rankingu <Link href={`/${listing.citySlug}`}>{firmPhrase("many")} {where}</Link>
                 {position && cityRanked ? ` (${position}. miejsce na ${cityRanked.length})` : ""}
               </span>
             </div>
@@ -253,10 +256,10 @@ export default async function FirmPage({ params }: Props) {
             <div className="profile-actions">
               {listing.phone && <ShowPhone phone={listing.phone} label={formatPhone(listing.phone)} />}
               <a className="btn-green" href="#zapytanie">
-                Zapytaj o ofertę
+                {portal.texts.leadCta}
               </a>
             </div>
-            {position && cityRanked && position <= AWARD.top ? (
+            {features.awards && position && cityRanked && position <= AWARD.top ? (
               <AwardBox listingId={listing.listingId} place={position} cityName={listing.cityName} profilePath={path} />
             ) : null}
 
@@ -302,7 +305,7 @@ export default async function FirmPage({ params }: Props) {
               </section>
             )}
 
-            {listing.offers.length > 0 && (
+            {features.offers && listing.offers.length > 0 && (
               <section className="profile-section">
                 <h2>Aktualne oferty</h2>
                 <ul className="offer-rows">
@@ -359,7 +362,7 @@ export default async function FirmPage({ params }: Props) {
             )}
 
             <section className="profile-section">
-              <h2>Prowizje i ceny usług</h2>
+              <h2>{portal.texts.priceSectionHeading}</h2>
               {visiblePrices.length > 0 ? (
                 <>
                   <div className="price-boxes">
@@ -454,7 +457,7 @@ export default async function FirmPage({ params }: Props) {
             <section className="profile-section">
               <h2>Wynik w rankingu: {score}/100</h2>
               <p className="note">
-                Wynik w rankingu mierzy, jak kompletne i sprawdzalne są dane biura (rejestr, cennik, usługi, oferty).
+                Wynik w rankingu mierzy, jak kompletne i sprawdzalne są dane biura (rejestr, cennik, usługi{features.offers ? ", oferty" : ""}).
                 {listing.googleRating && listing.googleCount
                   ? ` Ocena w Google (${listing.googleRating.toFixed(1)}, ${nOpinii(listing.googleCount)}) to opinie klientów i wchodzi do wyniku tylko jako jeden z parametrów, więc to dwie różne miary.`
                   : " Opinie klientów w Google, gdy biuro ma tam profil, są jednym z parametrów wyniku."}
@@ -499,7 +502,7 @@ export default async function FirmPage({ params }: Props) {
 
             {similar.length > 0 && (
               <section className="profile-section">
-                <h2>Podobne biura nieruchomości {where}</h2>
+                <h2>Podobne {firmPhrase("few")} {where}</h2>
                 <ul className="plain">
                   {similar.map((f) => (
                     <li key={f.listingId}>
@@ -509,7 +512,7 @@ export default async function FirmPage({ params }: Props) {
                   ))}
                 </ul>
                 <p className="note">
-                  Pełne zestawienie: <Link href={`/${listing.citySlug}`}>ranking biur nieruchomości {where}</Link>.
+                  Pełne zestawienie: <Link href={`/${listing.citySlug}`}>ranking {firmPhrase("many")} {where}</Link>.
                 </p>
               </section>
             )}
@@ -526,7 +529,7 @@ export default async function FirmPage({ params }: Props) {
               </div>
             </section>
 
-            <BlogLinks title="Przydatne przed podpisaniem umowy" items={blogLinks} className="profile-section blog-links" />
+            {features.blog && <BlogLinks title="Przydatne przed podpisaniem umowy" items={blogLinks} className="profile-section blog-links" />}
 
             <section className="owner-band">
               <div>
@@ -550,7 +553,7 @@ export default async function FirmPage({ params }: Props) {
                 {position && cityRanked ? (
                   <>
                     {position}. miejsce na {cityRanked.length} w rankingu{" "}
-                    <Link href={`/${listing.citySlug}`}>biur nieruchomości {where}</Link>
+                    <Link href={`/${listing.citySlug}`}>{firmPhrase("many")} {where}</Link>
                   </>
                 ) : (
                   <>
@@ -575,7 +578,7 @@ export default async function FirmPage({ params }: Props) {
           </aside>
         </div>
       </div>
-      <ProfileStickyCta />
+      <ProfileStickyCta label={portal.texts.leadCta} />
 
       <JsonLd
         data={{

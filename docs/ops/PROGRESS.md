@@ -2,6 +2,7 @@
 
 ## 28.11.2026
 
+- Silnik branż, krok 2 (apps/web): wybór portalu zmienną `PORTAL` (jeden projekt Vercel na portal), zapytania katalogu ograniczone do branży portalu, portal `rachunkowe` z własnym motywem, flagi funkcji i teksty wspólne z konfiguracji; strona nieruchomości bez zmian w HTML (porównanie 31 adresów), testy 158+.
 - Audyt projektu i koncepcja (raport dla właściciela poza repozytorium).
 - Gałąź `claude/geo-platforma`: aplikacja `apps/geo` z kontami, pakietami i programem partnerskim, schemat `db/geo/0001_core.sql`,
   CI `geo-ci.yml`. Testy: 17 jednostkowych, typecheck, build bez bazy, pełny obieg w przeglądarce na lokalnym PostgreSQL 16.
