@@ -11,6 +11,8 @@ export function ProfileStickyCta() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    // Po wysłaniu zapytania (?sent=1) przycisk nie jest potrzebny.
+    if (new URLSearchParams(window.location.search).get("sent") === "1") return;
     const form = document.getElementById("zapytanie");
     if (!form || typeof IntersectionObserver === "undefined") return;
     const watched = [form, document.querySelector(".profile-actions")].filter((el): el is Element => el !== null);
