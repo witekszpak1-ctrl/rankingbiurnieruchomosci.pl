@@ -106,7 +106,7 @@ class PrefetchSearch:
     Jedno wyszukiwanie w LiteScrape trwa około minuty (rozwijanie linków Google), więc po kolei 15 miast to ok. 2 godziny.
     """
 
-    def __init__(self, provider, workers: int = 12) -> None:
+    def __init__(self, provider, workers: int = 20) -> None:
         self._provider = provider
         self._workers = workers
         self._cache: dict[str, tuple[list[SearchResult], bool] | SearchError] = {}

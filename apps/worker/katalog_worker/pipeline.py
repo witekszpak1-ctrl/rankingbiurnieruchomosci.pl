@@ -220,14 +220,19 @@ def stage_discover_queue(ctx: Context, provider: SearchProvider, cities: int, di
     totals: Counter = Counter()
     done = []
     queue = cities_to_search(ctx, cities)
-    if hasattr(provider, "prefetch"):
-        # Wszystkie frazy z tego przebiegu naraz (LiteScrape: ok. minuta na zapytanie), zapis do bazy potem po kolei.
-        search_cfg = ctx.vertical.search
-        provider.prefetch(
-            [q for city in queue for q in city_queries(ctx, city["name"], city["deep"], districts, pages)],
-            country=search_cfg.country, lang=search_cfg.language,
-        )
-    for city in queue:
+    prefetched: set[str] = set()
+    search_cfg = ctx.vertical.search
+    for index, city in enumerate(queue):
+        if hasattr(provider, "prefetch") and city["name"] not in prefetched:
+            # Frazy kolejnych 10 miast naraz (LiteScrape: ok. minuta na zapytanie), zapis do bazy po każdej partii.
+            # Przed długim pobieraniem zamykamy transakcję: Neon zrywa połączenie bezczynne w otwartej transakcji.
+            ctx.repo.conn.commit()
+            chunk = queue[index:index + 10]
+            provider.prefetch(
+                [q for c in chunk for q in city_queries(ctx, c["name"], c["deep"], districts, pages)],
+                country=search_cfg.country, lang=search_cfg.language,
+            )
+            prefetched.update(c["name"] for c in chunk)
         queries = city_queries(ctx, city["name"], city["deep"], districts, pages)
         # Opcjonalny miesięczny limit zapytań do wyszukiwarki (ustawiany w panelu, /admin/koszty). Limit LiteScrape
         # pilnuje sam klient (jeden licznik dla wyszukiwania, Map i pobierania stron).

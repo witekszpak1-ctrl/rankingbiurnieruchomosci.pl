@@ -70,7 +70,17 @@ def _litescrape(ctx):
         raise
     finally:
         if client is not None and client.total:
-            ctx.repo.api_usage_add(client.usage())
+            try:
+                ctx.repo.api_usage_add(client.usage())
+            except Exception as exc:  # noqa: BLE001 - zerwane połączenie nie może ukryć liczby zapytań
+                try:
+                    from .db import connect as _connect
+                    from .repo import Repo
+
+                    with _connect() as fresh:
+                        Repo(fresh).api_usage_add(client.usage())
+                except Exception:  # noqa: BLE001
+                    print(json.dumps({"litescrape_usage_not_saved": client.usage(), "error": str(exc)[:200]}), file=sys.stderr)
             _LAST["litescrape_calls"] = client.total
             print(json.dumps({"litescrape": client.usage(), "stopped": client.disabled}, ensure_ascii=False),
                   file=sys.stderr)
