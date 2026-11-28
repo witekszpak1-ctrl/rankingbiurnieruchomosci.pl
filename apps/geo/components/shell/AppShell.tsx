@@ -5,6 +5,7 @@ import { auditFormAction, logoutAction } from "@/app/actions";
 import { Icon, LogoMark, type IconName } from "@/components/ui/Icon";
 import { Pill } from "@/components/ui/ui";
 import type { User } from "@/lib/auth";
+import { listPortalNav } from "@/lib/master-repo";
 import { loadPanelContext, type PanelContext } from "@/lib/panel-repo";
 
 import { MobileNav } from "./MobileNav";
@@ -18,7 +19,53 @@ import { SlashFocus } from "./SlashFocus";
 type Item = { href: string; label: string; icon: IconName; badge?: string };
 type Group = { title: string; items: Item[] };
 
-function groups(user: User, ctx: PanelContext | null): Group[] {
+/** Grupy nawigacji administratora (Master Dashboard). Pozycje portali pojawiają się tylko w sekcji "Portale". */
+function adminGroups(portalNav: { slug: string; name: string }[]): Group[] {
+  return [
+    { title: "Pulpit", items: [{ href: "/admin", label: "Przegląd całości", icon: "home" }] },
+    {
+      title: "Portale",
+      items: [
+        { href: "/admin/portale", label: "Wszystkie portale", icon: "globe" },
+        ...portalNav.map((p): Item => ({ href: `/admin/portale/${p.slug}`, label: p.name, icon: "building" })),
+      ],
+    },
+    {
+      title: "Dane",
+      items: [
+        { href: "/admin/robot", label: "Robot i kolejki", icon: "bolt" },
+        { href: "/admin/koszty", label: "Koszty API", icon: "wallet" },
+      ],
+    },
+    {
+      title: "Widoczność AI",
+      items: [
+        { href: "/admin/ai", label: "Przegląd AI", icon: "sparkle" },
+        { href: "/admin/pomiary", label: "Pomiary", icon: "pulse" },
+        { href: "/admin/zrodla", label: "Źródła", icon: "link" },
+        { href: "/admin/firmy", label: "Firmy w odpowiedziach", icon: "building" },
+      ],
+    },
+    { title: "Ruch", items: [{ href: "/admin/ruch", label: "Ruch i boty", icon: "eye" }] },
+    {
+      title: "Biznes",
+      items: [
+        { href: "/admin/uzytkownicy", label: "Użytkownicy", icon: "users" },
+        { href: "/admin/partnerzy", label: "Partnerzy", icon: "gift" },
+        { href: "/admin/lista", label: "Lista oczekujących", icon: "list" },
+      ],
+    },
+  ];
+}
+
+function groups(user: User, ctx: PanelContext | null, current: string, portalNav: { slug: string; name: string }[]): Group[] {
+  // W administracji menu pokazuje tylko grupy administratora i dojście do panelu klienta.
+  if (user.isAdmin && current.startsWith("/admin")) {
+    return [
+      ...adminGroups(current.startsWith("/admin/portale") ? portalNav : []),
+      { title: "Konto", items: [{ href: "/panel", label: "Panel klienta", icon: "chart" }, { href: "/panel/ustawienia", label: "Ustawienia", icon: "settings" }] },
+    ];
+  }
   const d = ctx?.domain ? `/audyt/${encodeURIComponent(ctx.domain)}` : "/audyt";
   const done = ctx ? ctx.steps.filter((s) => s.done).length : 0;
   const total = ctx ? ctx.steps.length : 0;
@@ -35,25 +82,12 @@ function groups(user: User, ctx: PanelContext | null): Group[] {
     { title: "Rozwój", items: [{ href: "/partner/panel", label: "Program partnerski", icon: "gift" }] },
     { title: "Konto", items: [{ href: "/panel/ustawienia", label: "Ustawienia", icon: "settings" }] },
   ];
-  if (user.isAdmin) {
-    g.push({
-      title: "Administracja",
-      items: [
-        { href: "/admin", label: "Przegląd", icon: "shield" },
-        { href: "/admin/pomiary", label: "Pomiary", icon: "pulse" },
-        { href: "/admin/zrodla", label: "Źródła", icon: "link" },
-        { href: "/admin/firmy", label: "Firmy", icon: "building" },
-        { href: "/admin/lista", label: "Lista oczekujących", icon: "list" },
-        { href: "/admin/uzytkownicy", label: "Użytkownicy", icon: "users" },
-        { href: "/admin/partnerzy", label: "Partnerzy", icon: "wallet" },
-      ],
-    });
-  }
+  if (user.isAdmin) g.push({ title: "Administracja", items: [{ href: "/admin", label: "Master Dashboard", icon: "shield" }] });
   return g;
 }
 
-function Nav({ user, ctx, current }: { user: User; ctx: PanelContext | null; current: string }) {
-  const gs = groups(user, ctx);
+function Nav({ user, ctx, current, portalNav }: { user: User; ctx: PanelContext | null; current: string; portalNav: { slug: string; name: string }[] }) {
+  const gs = groups(user, ctx, current, portalNav);
   return (
     <>
       {gs.map((g) => (
@@ -80,7 +114,7 @@ function Nav({ user, ctx, current }: { user: User; ctx: PanelContext | null; cur
   );
 }
 
-function SidebarBody({ user, ctx, current }: { user: User; ctx: PanelContext | null; current: string }) {
+function SidebarBody({ user, ctx, current, portalNav }: { user: User; ctx: PanelContext | null; current: string; portalNav: { slug: string; name: string }[] }) {
   const orgName = ctx?.primary?.name ?? user.name ?? user.email;
   const plan = ctx?.primary?.planName ?? "Free";
   const initial = (orgName.trim()[0] ?? "G").toUpperCase();
@@ -97,7 +131,7 @@ function SidebarBody({ user, ctx, current }: { user: User; ctx: PanelContext | n
           <span>Pakiet {plan}</span>
         </div>
       </div>
-      <Nav user={user} ctx={ctx} current={current} />
+      <Nav user={user} ctx={ctx} current={current} portalNav={portalNav} />
       <div className="sidebar-foot">
         <div className="upgrade">
           <b>Pakiety płatne wkrótce</b>
@@ -127,15 +161,23 @@ export async function AppShell({
   } catch {
     ctx = null; // powłoka nie może wywrócić strony, gdy pulpit nie da się policzyć
   }
+  let portalNav: { slug: string; name: string }[] = [];
+  if (user.isAdmin && current.startsWith("/admin/portale")) {
+    try {
+      portalNav = await listPortalNav();
+    } catch {
+      portalNav = []; // brak migracji 0005 nie może wywrócić strony
+    }
+  }
   return (
     <div className="shell">
       <aside className="sidebar" aria-label="Menu główne">
-        <SidebarBody user={user} ctx={ctx} current={current} />
+        <SidebarBody user={user} ctx={ctx} current={current} portalNav={portalNav} />
       </aside>
       <div className="shell-main">
         <header className="topbar">
           <MobileNav>
-            <SidebarBody user={user} ctx={ctx} current={current} />
+            <SidebarBody user={user} ctx={ctx} current={current} portalNav={portalNav} />
           </MobileNav>
           <form action={auditFormAction} className="search" role="search">
             <span className="s-ic">
