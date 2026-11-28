@@ -1,4 +1,4 @@
-/* GeoTrace: system wyglądu. Tokeny (jasny motyw, ciemny przez prefers-color-scheme), komponenty, powłoka aplikacji, strona publiczna.
+/* GeoTrace: system wyglądu. Tokeny (zawsze jasny motyw; ciemny tylko przez data-theme="dark"), komponenty, powłoka aplikacji, strona publiczna.
    Opis: docs/geo/wyglad.md */
 
 :root {
@@ -51,42 +51,40 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --canvas: #0b0c15;
-    --surface: #141626;
-    --surface-2: #181a2d;
-    --sunken: #101121;
-    --line: #25283f;
-    --line-strong: #323653;
-    --ink: #eef0fb;
-    --ink-2: #c3c6dc;
-    --muted: #9a9eb9;
-    --brand: #8479ff;
-    --brand-hover: #9b92ff;
-    --brand-ink: #b3acff;
-    --brand-soft: #211f4a;
-    --brand-line: #35317a;
-    --on-brand: #0b0c15;
-    --accent: #2dd4bf;
-    --accent-soft: #11332f;
-    --good: #3ecf94;
-    --good-soft: #10301f;
-    --warn: #f2b24a;
-    --warn-soft: #3a2a0d;
-    --bad: #f48075;
-    --bad-soft: #3b1714;
-    --c1: #8479ff;
-    --c2: #2dd4bf;
-    --c3: #f2b24a;
-    --c4: #f07aa8;
-    --c5: #93a0ff;
-    --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --sh-md: 0 6px 18px rgba(0, 0, 0, 0.4);
-    --sh-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 8px 20px rgba(0, 0, 0, 0.4);
-    --ring: 0 0 0 3px rgba(132, 121, 255, 0.4);
-    color-scheme: dark;
-  }
+:root[data-theme="dark"] {
+  --canvas: #0b0c15;
+  --surface: #141626;
+  --surface-2: #181a2d;
+  --sunken: #101121;
+  --line: #25283f;
+  --line-strong: #323653;
+  --ink: #eef0fb;
+  --ink-2: #c3c6dc;
+  --muted: #9a9eb9;
+  --brand: #8479ff;
+  --brand-hover: #9b92ff;
+  --brand-ink: #b3acff;
+  --brand-soft: #211f4a;
+  --brand-line: #35317a;
+  --on-brand: #0b0c15;
+  --accent: #2dd4bf;
+  --accent-soft: #11332f;
+  --good: #3ecf94;
+  --good-soft: #10301f;
+  --warn: #f2b24a;
+  --warn-soft: #3a2a0d;
+  --bad: #f48075;
+  --bad-soft: #3b1714;
+  --c1: #8479ff;
+  --c2: #2dd4bf;
+  --c3: #f2b24a;
+  --c4: #f07aa8;
+  --c5: #93a0ff;
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-md: 0 6px 18px rgba(0, 0, 0, 0.4);
+  --sh-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 8px 20px rgba(0, 0, 0, 0.4);
+  --ring: 0 0 0 3px rgba(132, 121, 255, 0.4);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }

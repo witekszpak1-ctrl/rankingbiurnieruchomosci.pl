@@ -6,7 +6,7 @@ Liczby na stronach pochodzą wyłącznie z bazy; przy próbie poniżej `MIN_SAMP
 
 ## Tokeny (`app/globals.css`)
 
-- Jasny motyw jako domyślny, ciemny przez `prefers-color-scheme`. Płótno jest złamaną bielą (`--canvas`), karty białe (`--surface`).
+- Zawsze jasny motyw (taki jak na zrzutach), niezależnie od trybu ciemnego w telefonie. Ciemne tokeny zostają pod `:root[data-theme="dark"]`, gdyby właściciel chciał przełącznik. Płótno jest złamaną bielą (`--canvas`), karty białe (`--surface`).
 - Jeden mocny kolor marki: elektryczny indygo (`--brand`), akcent morski (`--accent`). Semantyka: `--good`, `--warn`, `--bad` (każdy z wersją `-soft` do tła pigułek).
 - Kolory kategorii wykresów `--c1..--c5`, promienie `--r-sm..--r-xl`, cienie `--sh-sm/md/lg`, pierścień fokusa `--ring`.
 - Układ: siatki `.g2/.g3/.g4`, `.g-score` (karta wyniku + analiza), progi responsywności 1180, 1000 i 720 px; telefon 390 px bez przewijania poziomego (tabele przewijają się wewnątrz karty).
