@@ -89,3 +89,18 @@ def test_google_reviews_stage_without_key_does_nothing(db):
     ctx.repo = Repo(db)
     out = pipeline.stage_google_reviews(ctx, None, LiteScrapeConfig(), limit=100)
     assert out["skipped"].startswith("brak klucza LiteScrape")
+
+
+def test_not_found_keeps_previous_rating(db):
+    from katalog_worker.google_maps import PlaceResult
+    from katalog_worker.repo import Repo
+
+    repo = Repo(db)
+    brand = str(db.execute("insert into brands (name, slug) values ('Beta', 'beta') returning id").fetchone()["id"])
+    repo.save_google_place(brand, PlaceResult(place_id="p", rating=4.5, rating_count=10, reviews=[{"author": "A", "rating": 5, "text": "Dobrze"}]))
+    repo.save_google_place(brand, PlaceResult(status="not_found"))
+    row = db.execute("select status, rating, jsonb_array_length(reviews) as n from google_places where brand_id = %s", (brand,)).fetchone()
+    assert (row["status"], float(row["rating"]), row["n"]) == ("ok", 4.5, 1)
+    other = str(db.execute("insert into brands (name, slug) values ('Gamma', 'gamma') returning id").fetchone()["id"])
+    repo.save_google_place(other, PlaceResult(status="not_found"))
+    assert db.execute("select status from google_places where brand_id = %s", (other,)).fetchone()["status"] == "not_found"

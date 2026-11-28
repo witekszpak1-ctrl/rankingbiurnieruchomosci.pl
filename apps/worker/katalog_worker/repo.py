@@ -841,7 +841,16 @@ class Repo:
         ).fetchall()
 
     def save_google_place(self, brand_id: str, result) -> None:
-        """Zapisuje wynik. Przy błędzie API poprzednie dane zostają, zmienia się tylko status i data."""
+        """Zapisuje wynik. Przy błędzie API poprzednie dane zostają, zmienia się tylko status i data.
+        Gdy Mapy nie znalazły firmy, a wcześniej miała ocenę, ocena i opinie zostają (zmienia się tylko data):
+        wyszukiwanie po nazwie bywa zawodne, a lepiej pokazać starszą ocenę niż żadną."""
+        if result.status == "not_found":
+            kept = self.conn.execute(
+                "update google_places set fetched_at = now() where brand_id = %s and status = 'ok' returning brand_id",
+                (brand_id,),
+            ).fetchone()
+            if kept:
+                return
         if result.status == "error":
             self.conn.execute(
                 """insert into google_places (brand_id, status) values (%s, 'error')
