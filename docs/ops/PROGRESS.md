@@ -2,6 +2,7 @@
 
 ## 28.11.2026
 
+- Panel administratora GeoTrace (`apps/geo`, `/admin`): przegląd liczb (konta, partnerzy, prowizje, pomiary, wzmianki, cytowania), pomiary z filtrami i szczegółami, źródła, firmy (z katalogu i kandydaci), lista oczekujących z eksportem CSV, użytkownicy z nadawaniem administratora (`docs/geo/panel-admina.md`). 12 nowych testów, typecheck i build, sprawdzone w przeglądarce na lokalnym PostgreSQL 16 (administrator, zwykły użytkownik, anonim).
 - Silnik branż, krok 2 (apps/web): wybór portalu zmienną `PORTAL` (jeden projekt Vercel na portal), zapytania katalogu ograniczone do branży portalu, portal `rachunkowe` z własnym motywem, flagi funkcji i teksty wspólne z konfiguracji; strona nieruchomości bez zmian w HTML (porównanie 31 adresów), testy 158+.
 - Audyt projektu i koncepcja (raport dla właściciela poza repozytorium).
 - Gałąź `claude/geo-platforma`: aplikacja `apps/geo` z kontami, pakietami i programem partnerskim, schemat `db/geo/0001_core.sql`,

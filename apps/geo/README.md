@@ -25,4 +25,5 @@ npm run dev         # http://localhost:3100
 ```
 
 Administrator: `update geo.users set is_admin = true where email_norm = '...'` (panel wypłat `/admin/partnerzy`).
+Panel administratora: `/admin` (przegląd, pomiary, źródła, firmy, lista oczekujących, użytkownicy; `docs/geo/panel-admina.md`).
 Opis programu partnerskiego: `docs/geo/program-partnerski.md`.

@@ -30,8 +30,8 @@ export async function requireUser(next = "/panel"): Promise<User> {
   return user;
 }
 
-export async function requireAdmin(): Promise<User> {
-  const user = await requireUser("/admin/partnerzy");
+export async function requireAdmin(next = "/admin"): Promise<User> {
+  const user = await requireUser(next);
   if (!user.isAdmin) redirect("/");
   return user;
 }

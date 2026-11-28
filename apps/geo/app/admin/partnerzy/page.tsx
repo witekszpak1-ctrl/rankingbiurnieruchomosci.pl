@@ -1,3 +1,4 @@
+import { AdminNav } from "@/components/AdminNav";
 import { Notice, one, type SP } from "@/components/Notice";
 import { canRequestPayout, formatPln } from "@/lib/affiliate";
 import { adminAffiliates, currentTerms } from "@/lib/affiliate-repo";
@@ -10,12 +11,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminAffiliates({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
-  await requireAdmin();
+  await requireAdmin("/admin/partnerzy");
   const [rows, terms] = await Promise.all([adminAffiliates(), currentTerms()]);
   const done = one(sp.wyplacono);
   return (
     <>
       <h1>Partnerzy i wypłaty</h1>
+      <AdminNav current="/admin/partnerzy" />
       <p className="muted">
         Raz w miesiącu: zrób przelew na wskazany rachunek, wpisz tytuł przelewu i kliknij „Rozlicz”. Prowizje do wypłaty dostaną
         status „wypłacona”. Minimum: {formatPln(terms.minPayoutGrosze)}.
