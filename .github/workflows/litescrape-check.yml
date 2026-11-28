@@ -1,0 +1,42 @@
+# Test LiteScrape na żywo (ręcznie): saldo, wyszukiwanie, Mapy Google z opiniami i pobranie jednej strony,
+# a potem mały przebieg ocen i opinii. Klucz jest w panelu (/admin/koszty), workflow go nie wypisuje.
+name: litescrape-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      city:
+        description: "Miasto do testu"
+        default: "Gdynia"
+      reviews_limit:
+        description: "Ile firm odświeżyć opiniami z Map Google po teście (0 = tylko test)"
+        default: "20"
+
+concurrency:
+  group: katalog-offers
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CRAWLER_USER_AGENT: ${{ vars.CRAWLER_USER_AGENT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e apps/worker
+      - name: Migracje
+        run: katalog migrate
+      - name: Test LiteScrape (najwyżej 4 zapytania)
+        env:
+          INPUT_CITY: ${{ inputs.city }}
+        run: katalog litescrape-check --city "$INPUT_CITY"
+      - name: Mały przebieg ocen i opinii z Map Google
+        if: ${{ inputs.reviews_limit != '0' }}
+        env:
+          INPUT_LIMIT: ${{ inputs.reviews_limit }}
+        run: katalog google-reviews --limit "$INPUT_LIMIT"

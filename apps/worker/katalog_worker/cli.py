@@ -300,6 +300,63 @@ def cmd_prompts(args) -> int:
     return 0
 
 
+def cmd_litescrape_check(args) -> int:
+    """Test LiteScrape na żywo: saldo, jedno wyszukiwanie, jedno miejsce w Mapach z opiniami, jedna strona.
+    Wypisuje tylko kształt odpowiedzi i przykładowe pola (bez klucza). Koszt: najwyżej 4 zapytania."""
+    from .google_maps import fetch_place
+    from .litescrape import LiteScrapeError, result_from_fetch, robots_token
+    from .search import LiteScrapeSearch
+    from .verify import name_similarity
+
+    out: dict = {}
+    with connect() as conn:
+        ctx, settings = _context(args, conn)
+        with _litescrape(ctx) as (client, config):
+            if client is None:
+                _print({"ok": False, "error": "brak klucza LiteScrape w panelu"})
+                return 2
+            try:
+                status = client.key_status()
+                out["key_status"] = {k: status.get(k) for k in ("status", "remaining_calls", "concurrency_limit")}
+            except LiteScrapeError as exc:
+                _print({"ok": False, "error": str(exc)})
+                return 2
+            search = LiteScrapeSearch(client)
+            try:
+                results = search.search(f"biuro nieruchomości {args.city}")
+                out["search"] = {"results": len(results), "next_page": bool(search._tokens),
+                                 "sample": [(r.rank, r.url) for r in results[:5]]}
+            except Exception as exc:  # noqa: BLE001 - raport testu
+                out["search"] = {"error": str(exc)}
+            row = ctx.repo.conn.execute(
+                """select b.name, c.name as city, d.canonical_url as website from listings l
+                   join brands b on b.id = l.brand_id join cities c on c.id = l.city_id
+                   join lateral (select canonical_url from domains where brand_id = b.id
+                                 order by verification_score desc nulls last limit 1) d on true
+                   where l.status = 'published' and c.name = %s order by b.name limit 1""",
+                (args.city,),
+            ).fetchone()
+            if row:
+                place = fetch_place(client, row["name"], row["city"], row["website"],
+                                    lambda found: name_similarity(row["name"], found) >= 0.6, config.reviews_per_place)
+                out["maps"] = {"firm": row["name"], "status": place.status, "rating": place.rating,
+                               "rating_count": place.rating_count, "reviews": len(place.reviews),
+                               "with_reply": sum(1 for r in place.reviews if r.get("reply")),
+                               "sample": (place.reviews[0]["text"][:120] if place.reviews else None)}
+                try:
+                    data = client.fetch(row["website"], user_agent=settings.crawler_user_agent,
+                                        robots_token=robots_token(settings.crawler_user_agent))
+                    page = result_from_fetch(row["website"], data)
+                    out["fetch"] = {"url": row["website"], "keys": sorted(data)[:15], "html_chars": len(data.get("html") or ""),
+                                    "usable": bool(page), "final_url": page.final_url if page else None,
+                                    "has_jsonld": "application/ld+json" in (data.get("html") or "")}
+                except LiteScrapeError as exc:
+                    out["fetch"] = {"error": str(exc)}
+            out["calls"] = client.usage()
+    _print({"ok": True, **out})
+    return 0
+
+
 def cmd_google_reviews(args) -> int:
     from .pipeline import stage_google_reviews
 
@@ -484,6 +541,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--export", help="ścieżka pliku z kolejką miast (np. queue/cities.json)")
     p = add("prompts", cmd_prompts, "zapisz prompt opisów z panelu do pliku dla sesji Claude", vertical=False)
     p.add_argument("--export", default="queue/prompts/describe.md")
+    p = add("litescrape-check", cmd_litescrape_check, "test LiteScrape na żywo (najwyżej 4 zapytania)")
+    p.add_argument("--city", default="Gdynia")
     p = add("google-reviews", cmd_google_reviews, "ocena i opinie z Map Google (LiteScrape, klucz w panelu)")
     p.add_argument("--limit", type=int, default=400)
     p = add("contacts", cmd_contacts, "telefon, e-mail firmowy i social media ze stron biur")
